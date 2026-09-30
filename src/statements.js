@@ -3,9 +3,9 @@ import crypto from 'node:crypto';
 // Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
-export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'entrate', 'giroconti', 'altro'];
-export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante', donazioni: 'donazioni', tasse: 'tasse', entrate: 'entrate' };
-export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', giroconti: 'Giroconti', altro: 'Altro' };
+export const CATEGORIES = ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'entrate', 'giroconti', 'altro'];
+export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante', prestito: 'prestito', donazioni: 'donazioni', tasse: 'tasse', entrate: 'entrate' };
+export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', giroconti: 'Giroconti', altro: 'Altro' };
 // Nomi usati nelle versioni precedenti.
 export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
@@ -15,6 +15,8 @@ const OWN_BENEFICIARY = /\bA:\s*(mario d.?rossi|d.?rossi mario)/i;
 
 const RULES = [
   ['giroconti', OWN_BENEFICIARY],
+  // La rata del mutuo/prestito addebitata dalla banca alimenta da sola la colonna Prestito.
+  ['prestito', /rata mutuo|pagamento rata|rata num|prestito rata/i],
   ['donazioni', /donazion\w*|\bonlus\b|telethon|amnesty|green ?peace|save the children|\bwwf\b|unicef|emergency\b|medici senza frontiere|terre des hommes|\bairc\b|actionaid|oxfam|caritas|croce rossa|lega del filo d.oro|fondazione veronesi|\blipu\b|\blav\b|\benpa\b|\bwikimedia|\bavsi\b|intersos|medici con l.africa|cuamm|sos villaggi|\bfai\b fondo ambiente|dynamo camp|banco alimentare|\bemergency ong/i],
   ['tasse', /agenzia (delle )?entrate|riscossione|equitalia|\bf24\b|\bimu\b|\btari\b|\btasi\b|\birpef\b|\binps\b|\binail\b|\bbollo\b|\bimposta\b|\btass[ae]\b|\btribut\w*|canone rai|\brai\b.*canone|pagopa|\baci\b|contravvenzion\w*|\bmult[ae]\b|comune di .*(tari|imu|tributi)/i],
   ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|fuel|petrol)\b/i],

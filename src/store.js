@@ -15,8 +15,6 @@ const defaults = () => ({
     statementsSource: '',
     rentAmount: 0,
     rentFrom: '',
-    loanAmount: 0,
-    loanFrom: '',
   },
   docs: {},
   paid: {},
@@ -52,6 +50,9 @@ export function createStore(file, { legacyJson } = {}) {
     }
     db = { ...d, ...kv, docs };
     db.settings = { ...d.settings, ...db.settings };
+    // La rata del prestito non si imposta più a mano: si legge dagli estratti conto.
+    delete db.settings.loanAmount;
+    delete db.settings.loanFrom;
     migrateCategories();
     // Una tantum: le entrate che erano "altro" (ignorate) sono giroconti.
     if ((db.categoryVersion ?? 0) < 2) {

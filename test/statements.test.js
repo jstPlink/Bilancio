@@ -90,3 +90,14 @@ test('giroconti: solo se il beneficiario sono io, non se il mio nome è nella ca
   assert.equal(categorize("Pagamento da D'Rossi Mario", {}, '', 500), 'giroconti');
   assert.equal(categorize('Pagamento da ANNA VERDI', {}, '', 500), 'entrate');
 });
+
+test('la rata del prestito si legge dagli estratti conto e non ha stato "pagato"', () => {
+  assert.equal(categorize('PAGAMENTO RATA MUTUO/PRESTITO RATA NUM.: 002 FINANZIAM. NUMERO: 000123'), 'prestito');
+  const tx = { id: 'a', date: '2026-02-28', amount: -209.38, description: 'PAGAMENTO RATA MUTUO/PRESTITO RATA NUM.: 002', category: 'prestito' };
+  const db = { settings: { loanAmount: 999, loanFrom: '2020-01' }, docs: {}, paid: {}, manual: {}, rules: {}, transactions: { a: tx } };
+  const g = buildGrid(db, 2026, new Date(2026, 5, 1));
+  assert.equal(g.rows[1].cells.prestito.amount, 209.38);
+  assert.equal(g.rows[0].cells.prestito.amount, null); // il vecchio importo manuale nelle impostazioni è ignorato
+  assert.equal(g.rows[1].cells.prestito.paid, null);
+  assert.equal(g.summary.totalToPay, 0);
+});

@@ -48,15 +48,6 @@ app.put('/api/settings', async (req, res) => {
     if (b.rentFrom && !/^\d{4}-\d{2}$/.test(b.rentFrom)) return bad(res, 'Data inizio affitto non valida.');
     s.rentFrom = b.rentFrom;
   }
-  if (b.loanAmount !== undefined) {
-    const n = Number(b.loanAmount);
-    if (!(n >= 0)) return bad(res, 'Rata del prestito non valida.');
-    s.loanAmount = n;
-  }
-  if (typeof b.loanFrom === 'string') {
-    if (b.loanFrom && !/^\d{4}-\d{2}$/.test(b.loanFrom)) return bad(res, 'Data inizio prestito non valida.');
-    s.loanFrom = b.loanFrom;
-  }
   await store.save();
   res.json(s);
 });
@@ -231,7 +222,7 @@ app.get('/api/analysis', (req, res) => {
   // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, uscite bancarie per categoria e altre entrate.
   const byMonth = new Map();
   const slot = (ym) => {
-    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, otherIncome: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, donazioni: 0, tasse: 0, altro: 0 } });
+    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, otherIncome: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, prestito: 0, donazioni: 0, tasse: 0, altro: 0 } });
     return byMonth.get(ym);
   };
   for (const c of buildCells(db()).values()) {

@@ -21,7 +21,7 @@ const INCOME = new Set(['stipendio', 'entrate']);
 const EXPENSES = KINDS.filter((k) => !INCOME.has(k.id));
 // Voci senza stato "pagato": lo stipendio (entrata) e le spese correnti, che arrivano dall'estratto conto.
 const SPENDING = new Set(['spese', 'svago', 'carburante']);
-const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'donazioni', 'tasse']);
+const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'donazioni', 'tasse', 'prestito']);
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 const $ = (s) => document.querySelector(s);
@@ -266,9 +266,9 @@ async function payAll(colId) {
 
 // ------------------------------------------------------------------ movimenti
 
-const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' };
-const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconti', altro: 'Altro' };
-const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', donazioni: 'var(--viz-donazioni)', tasse: 'var(--viz-tasse)', giroconti: 'var(--viz-altro)', altro: 'var(--viz-altro)' };
+const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito (rata mutuo)', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' };
+const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconti', altro: 'Altro' };
+const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', prestito: 'var(--viz-bollette)', donazioni: 'var(--viz-donazioni)', tasse: 'var(--viz-tasse)', giroconti: 'var(--viz-altro)', altro: 'var(--viz-altro)' };
 const fmtDate = (d) => d.split('-').reverse().join('/');
 
 // Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
@@ -298,7 +298,7 @@ function setSort(spec) {
 }
 
 const categorySelect = (attr, id, current, label, positive = false) => {
-  const options = positive ? ['entrate', 'giroconti', 'altro'] : ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'giroconti', 'altro'];
+  const options = positive ? ['entrate', 'giroconti', 'altro'] : ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'giroconti', 'altro'];
   const names = positive ? { entrate: 'Entrate', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' } : CATEGORY_LABELS;
   return `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${options.map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${names[c]}</option>`).join('')}</select>`;
 };
@@ -381,7 +381,7 @@ function renderAnalysis() {
     ${(() => { const e = a.inflows.find((c) => c.category === 'entrate'); return e && e.count ? `<div class="cards"><div class="card"><div class="k"><i class="key line" style="--c:var(--viz-entrate)"></i> Altre entrate</div><div class="v">${money(e.total)}</div><div class="sub">${e.count} movimenti in entrata (oltre allo stipendio)</div></div></div>` : ''; })()}
     <section class="chartcard">
       <h3>Stipendio contro uscite</h3>
-      <p class="muted">Bollette, affitto e prestito dai documenti; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
+      <p class="muted">Bollette e affitto dai documenti, rata del prestito dagli estratti conto; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
       <div id="chIncome" class="chart"></div>
     </section>
     <div class="chartrow">
@@ -422,7 +422,7 @@ function renderAnalysis() {
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   monthChart($('#chBank'), a.months, {
-    series: ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
+    series: ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   hBars($('#chTop'), top.map((m) => ({ label: shortName(m.name), value: m.total, color: CATEGORY_COLOR[m.cat], cat: CATEGORY_NAME[m.cat], sub: `${m.count} volte` })));
@@ -539,13 +539,6 @@ async function openSettings() {
       </div>
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </fieldset>
-    <fieldset><legend>Prestito</legend>
-      <div class="row">
-        <label>Rata mensile (€)<input name="loanAmount" inputmode="decimal" value="${inputValue(s.loanAmount || null)}" placeholder="0"></label>
-        <label>Dal mese<input name="loanFrom" type="month" value="${esc(s.loanFrom)}"></label>
-      </div>
-      <small>Lascia vuoto se non hai rate fisse: potrai comunque inserire gli importi a mano nella tabella.</small>
-    </fieldset>
     <p class="error" id="setErr" role="alert"></p>
     <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
   </form>`;
@@ -562,8 +555,6 @@ async function openSettings() {
           statementsSource: form.statementsSource.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
-          loanAmount: parseInput(form.loanAmount.value) ?? 0,
-          loanFrom: form.loanFrom.value,
         },
       });
       dlg.close();

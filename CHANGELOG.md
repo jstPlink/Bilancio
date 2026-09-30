@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.16.0
+- **Rata del prestito dagli estratti conto**: le righe "PAGAMENTO RATA MUTUO/PRESTITO…" di UniCredit vengono riconosciute in automatico (nuova categoria **Prestito**) e alimentano la colonna Prestito della pagina principale. Niente più importo manuale nelle Impostazioni, e la colonna non ha più lo stato pagato / da pagare (è già addebitata).
+- Nel grafico bancario "Dove va il denaro" compare la voce Prestito.
+
 ## 0.15.0
 - L'app si chiama **Bilancio** (titolo, intestazione, README, Docker, pacchetto). Le variabili d'ambiente diventano `BILANCIO_DATA` e `BILANCIO_DB` (le vecchie `BILANCINO_*` funzionano ancora); il file del database resta `data/bilancino.db`.
 - La scheda **Banca** si apre sull'**anno corrente** invece che su tutti gli anni ("Azzera filtri" torna a questo stato).

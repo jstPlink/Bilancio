@@ -8,8 +8,8 @@ export const INCOME_KINDS = new Set(['stipendio', 'entrate']);
 export const EXPENSE_KINDS = KINDS.filter((k) => !INCOME_KINDS.has(k));
 // Voci che si compilano dai movimenti dell'estratto conto (o a mano, per correggere il totale).
 export const SPENDING_KINDS = new Set(['spese', 'svago', 'carburante']);
-// Voci senza stato "pagato": le entrate e le spese correnti (anche donazioni e tasse, che vengono dalla banca).
-export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'donazioni', 'tasse']);
+// Voci senza stato "pagato": le entrate e le spese che vengono dalla banca (comprese tasse e rata del prestito, già addebitate).
+export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'donazioni', 'tasse', 'prestito']);
 
 // Le bollette di utenze possono riguardare più case: si distinguono dalla prima cartella del percorso.
 // Tutto il resto (stipendio, affitto, spese…) appartiene alla casa di base.
@@ -56,10 +56,9 @@ export function buildCells(db, now = new Date()) {
     c.files.push({ key, name: d.name });
   }
 
-  // Affitto e prestito: importo fisso mensile dalla data di inizio fino al mese corrente.
+  // Affitto: importo fisso mensile dalla data di inizio fino al mese corrente. (La rata del prestito invece si legge dagli estratti conto.)
   const fixed = [
     ['affitto', db.settings.rentAmount, db.settings.rentFrom],
-    ['prestito', db.settings.loanAmount, db.settings.loanFrom],
   ];
   for (const [kind, amount, from] of fixed) {
     const start = /^(\d{4})-(\d{2})$/.exec(from ?? '');
