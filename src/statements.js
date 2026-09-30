@@ -12,16 +12,17 @@ export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 // Spesa = cibo, bevande e prodotti per la casa. Svago = abbonamenti TV, Amazon, parchi, televisori, giocattoli.
 const RULES = [
   ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|autostrad\w*|fuel|petrol)\b/i],
-  ['svago', /amazon|amzn|prime video|netflix|spotify|disney|dazn|sky\b|now ?tv|infinity|apple\.com|google play|playstation|steam|nintendo|televisor\w*|\btv\b|mediaworld|unieuro|euronics|trony|giocattol\w*|toys|lego|giocheria|cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
-  ['spesa', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristorant\w*|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros|birr\w*|vino|enoteca|bevande|ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|flying tiger/i],
+  ['svago', /amazon|amzn|prime video|netflix|spotify|disney|dazn|sky\b|now ?tv|infinity|apple\.com|google play|balocchi|playstation|steam|nintendo|televisor\w*|\btv\b|mediaworld|unieuro|euronics|trony|giocattol\w*|toys|lego|giocheria|cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
+  ['spesa', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristoran\w*|restaurant|\bspar\b|\becu\b|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros|birr\w*|vino|enoteca|bevande|ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|flying tiger/i],
 ];
 
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-export function categorize(description, rules = {}) {
+export function categorize(description, rules = {}, detail = '') {
   const learned = rules[normalize(description)];
   if (learned) return LEGACY_CATEGORY[learned] ?? learned;
-  for (const [category, re] of RULES) if (re.test(description)) return category;
+  const text = `${description} ${detail}`;
+  for (const [category, re] of RULES) if (re.test(text)) return category;
   return 'altro';
 }
 
@@ -102,11 +103,22 @@ export function parseStatement(text, rules = {}) {
     if (!date || !description || amount == null || amount >= 0) continue;
     if (iType >= 0 && skipType.test((r[iType] ?? '').trim())) continue;
     if (iState >= 0 && r[iState]?.trim() && !/^(completed|eseguit\w*|completat\w*)$/i.test(r[iState].trim())) continue;
-    const base = `${date}|${description}|${amount}`;
-    const n = (seen.get(base) ?? 0) + 1;
-    seen.set(base, n);
-    const id = crypto.createHash('sha1').update(`${base}|${n}`).digest('hex').slice(0, 16);
-    out.push({ id, date, description, amount: Math.round(amount * 100) / 100, category: categorize(description, rules) });
+    out.push(makeTransaction({ date, description, amount }, rules, seen));
   }
   return out;
+}
+
+// Movimento completo con categoria. Senza `id` se ne ricava uno stabile da data, descrizione e importo
+// (le righe identiche nello stesso file si distinguono con un contatore).
+export function makeTransaction({ id, date, description, detail = '', amount }, rules, seen) {
+  const rounded = Math.round(amount * 100) / 100;
+  if (!id) {
+    const base = `${date}|${description}|${rounded}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    id = crypto.createHash('sha1').update(`${base}|${n}`).digest('hex').slice(0, 16);
+  }
+  const t = { id, date, description, amount: rounded, category: categorize(description, rules, detail) };
+  if (detail) t.detail = detail.slice(0, 400);
+  return t;
 }

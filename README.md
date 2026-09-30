@@ -33,7 +33,12 @@ oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estra
 completate; bonifici, ricariche e rimborsi sono esclusi. Le categorie vengono assegnate da parole chiave in `src/statements.js`:
 **spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne, **altro** non conta.
 La scheda temporanea **Analisi** mostra come sono smistati tutti i movimenti e permette di correggere la categoria: l'app la
-ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla. I PDF degli estratti conto non sono supportati.
+ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
+della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`.
+
+## Più case
+
+Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: il selettore sopra la tabella le mostra insieme o una per volta.
 
 ## Come legge i PDF
 

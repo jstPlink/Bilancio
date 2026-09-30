@@ -8,8 +8,20 @@ export const EXPENSE_KINDS = KINDS.filter((k) => k !== 'stipendio');
 export const SPENDING_KINDS = new Set(['spese', 'svago', 'carburante']);
 // Voci senza stato "pagato": l'entrata e le spese correnti.
 export const NO_PAYMENT = new Set(['stipendio', ...SPENDING_KINDS]);
+
+// Le bollette di utenze possono riguardare più case: si distinguono dalla prima cartella del percorso.
+// Tutto il resto (stipendio, affitto, spese…) appartiene alla casa di base.
+export const PLACES = ['budrio', 'crispiano'];
+export const DEFAULT_PLACE = 'budrio';
+export const PLACE_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi']);
+export const placeOf = (name) => {
+  const first = String(name ?? '').split('/')[0].toLowerCase();
+  return PLACES.includes(first) ? first : DEFAULT_PLACE;
+};
+
 const round = (n) => Math.round(n * 100) / 100;
-export const cellKey = (kind, year, month) => `${kind}|${year}|${month}`;
+// La chiave delle spunte "pagato" della casa di base resta quella storica, senza suffisso.
+export const cellKey = (kind, year, month, place = DEFAULT_PLACE) => `${kind}|${year}|${month}${place === DEFAULT_PLACE ? '' : `|${place}`}`;
 
 // Un documento vale con i suoi dati automatici, salvo correzioni manuali (`override`).
 export function effectiveDoc(doc) {
@@ -23,19 +35,21 @@ export function effectiveDoc(doc) {
 
 export function buildCells(db, now = new Date()) {
   const cells = new Map();
-  const get = (kind, year, month) => {
-    const k = cellKey(kind, year, month);
-    if (!cells.has(k)) cells.set(k, { kind, year, month, auto: null, manual: null, files: [] });
+  const get = (kind, year, month, place = DEFAULT_PLACE) => {
+    const k = cellKey(kind, year, month, place);
+    if (!cells.has(k)) cells.set(k, { kind, year, month, place, auto: null, manual: null, files: [] });
     return cells.get(k);
   };
+  const docPlace = (d) => (PLACE_KINDS.has(d.kind) ? placeOf(d.name) : DEFAULT_PLACE);
 
   // Una cella = un documento: se esiste un file col mese nel nome (es. "Acqua 2025.10.pdf"),
   // le copie senza quel nome (es. scaricate dal fornitore) non vengono sommate.
   const docs = Object.entries(db.docs).map(([key, raw]) => [key, effectiveDoc(raw)]).filter(([, d]) => d.status === 'ok' && KINDS.includes(d.kind));
-  const namedCells = new Set(docs.filter(([, d]) => d.named).map(([, d]) => cellKey(d.kind, d.year, d.month)));
+  const namedCells = new Set(docs.filter(([, d]) => d.named).map(([, d]) => cellKey(d.kind, d.year, d.month, docPlace(d))));
   for (const [key, d] of docs) {
-    if (!d.named && namedCells.has(cellKey(d.kind, d.year, d.month))) continue;
-    const c = get(d.kind, d.year, d.month);
+    const place = docPlace(d);
+    if (!d.named && namedCells.has(cellKey(d.kind, d.year, d.month, place))) continue;
+    const c = get(d.kind, d.year, d.month, place);
     c.auto = round((c.auto ?? 0) + d.amount);
     c.files.push({ key, name: d.name });
   }
@@ -73,7 +87,7 @@ export function buildCells(db, now = new Date()) {
 
   for (const c of cells.values()) {
     c.amount = c.manual ?? c.auto;
-    c.paid = NO_PAYMENT.has(c.kind) ? null : Boolean(db.paid[cellKey(c.kind, c.year, c.month)]);
+    c.paid = NO_PAYMENT.has(c.kind) ? null : Boolean(db.paid[cellKey(c.kind, c.year, c.month, c.place)]);
   }
   return cells;
 }
@@ -81,9 +95,15 @@ export function buildCells(db, now = new Date()) {
 const avg = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const sum = (xs) => round(xs.reduce((a, b) => a + b, 0));
 
-export function buildGrid(db, year, now = new Date()) {
+// `place`: 'tutte' somma le case; 'budrio' o 'crispiano' mostra solo le bollette di quella casa.
+// Totale spese, saldo e riquadri restano sempre complessivi, così il saldo è quello vero.
+export function buildGrid(db, year, now = new Date(), place = 'tutte') {
   const cells = buildCells(db, now);
   const all = [...cells.values()].filter((c) => c.amount != null);
+  const view = PLACES.includes(place) ? place : 'tutte';
+  // Nella vista di una casa, le voci che non dipendono dalla casa (stipendio, spese…) restano visibili;
+  // quelle della casa di base (affitto, prestito) spariscono nell'altra.
+  const inView = (c) => view === 'tutte' || (PLACE_KINDS.has(c.kind) ? c.place === view : view === DEFAULT_PLACE || NO_PAYMENT.has(c.kind) || c.kind === 'stipendio');
 
   const years = [...new Set(all.map((c) => c.year))];
   if (!years.includes(now.getFullYear())) years.push(now.getFullYear());
@@ -92,13 +112,24 @@ export function buildGrid(db, year, now = new Date()) {
   const rows = [];
   for (let month = 1; month <= 12; month++) {
     const row = { month, cells: {} };
+    let spent = 0;
     for (const kind of KINDS) {
-      const c = cells.get(cellKey(kind, year, month));
-      row.cells[kind] = c
-        ? { amount: c.amount ?? null, auto: c.auto, manual: c.manual, paid: c.paid, files: c.files }
-        : { amount: null, auto: null, manual: null, paid: NO_PAYMENT.has(kind) ? null : false, files: [] };
+      const mine = PLACES.map((p) => cells.get(cellKey(kind, year, month, p))).filter(Boolean);
+      const withAmount = mine.filter((c) => c.amount != null);
+      spent += kind === 'stipendio' ? 0 : sum(withAmount.map((c) => c.amount));
+      const shown = mine.filter(inView);
+      const shownAmount = shown.filter((c) => c.amount != null);
+      const paid = NO_PAYMENT.has(kind) ? null : shownAmount.length > 0 && shownAmount.every((c) => c.paid);
+      row.cells[kind] = {
+        amount: shownAmount.length ? sum(shownAmount.map((c) => c.amount)) : null,
+        auto: shown.length === 1 ? shown[0].auto : null,
+        manual: shown.length === 1 ? shown[0].manual : null,
+        paid: NO_PAYMENT.has(kind) ? null : shownAmount.length ? paid : false,
+        files: shown.flatMap((c) => c.files),
+        // Le parti pagabili (una per casa con un importo): servono a segnare pagato e a mostrare il dettaglio.
+        parts: shownAmount.map((c) => ({ place: c.place, amount: c.amount, paid: c.paid })),
+      };
     }
-    const spent = sum(EXPENSE_KINDS.map((k) => row.cells[k].amount ?? 0));
     const earned = row.cells.stipendio.amount;
     row.spent = spent || null;
     row.balance = earned != null ? round(earned - spent) : null;
@@ -106,16 +137,16 @@ export function buildGrid(db, year, now = new Date()) {
   }
 
   const inYear = all.filter((c) => c.year === year);
-  const summary = { average: {}, toPay: {}, yearTotal: {} };
+  const summary = { average: {}, toPay: {}, toPayAll: {}, yearTotal: {} };
   for (const kind of KINDS) {
-    const mine = inYear.filter((c) => c.kind === kind);
-    summary.average[kind] = avg(mine.map((c) => c.amount));
-    summary.yearTotal[kind] = sum(mine.map((c) => c.amount));
-    summary.toPay[kind] = NO_PAYMENT.has(kind)
-      ? null
-      : sum(all.filter((c) => c.kind === kind && !c.paid).map((c) => c.amount));
+    const monthly = rows.map((r) => r.cells[kind].amount).filter((a) => a != null);
+    summary.average[kind] = avg(monthly);
+    summary.yearTotal[kind] = sum(monthly);
+    const unpaid = all.filter((c) => c.kind === kind && !c.paid);
+    summary.toPay[kind] = NO_PAYMENT.has(kind) ? null : sum(unpaid.filter(inView).map((c) => c.amount));
+    summary.toPayAll[kind] = NO_PAYMENT.has(kind) ? null : sum(unpaid.map((c) => c.amount));
   }
-  summary.totalToPay = sum(EXPENSE_KINDS.map((k) => summary.toPay[k] ?? 0));
+  summary.totalToPay = sum(EXPENSE_KINDS.map((k) => summary.toPayAll[k] ?? 0));
 
   const expenses = inYear.filter((c) => c.kind !== 'stipendio');
   const spendMonths = new Set(expenses.map((c) => c.month));
@@ -124,5 +155,5 @@ export function buildGrid(db, year, now = new Date()) {
   summary.avgBalance = summary.avgIncome != null && summary.avgSpent != null
     ? round(summary.avgIncome - summary.avgSpent) : null;
 
-  return { year, years, rows, summary };
+  return { year, years, place: view, places: PLACES, rows, summary };
 }

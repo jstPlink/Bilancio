@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
-import { buildGrid, cellKey, effectiveDoc, KINDS, NO_PAYMENT, SPENDING_KINDS } from './grid.js';
+import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
 import { CATEGORIES, CATEGORY_KIND, normalize, parseStatement } from './statements.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
@@ -80,18 +80,35 @@ app.post('/api/refresh', async (req, res) => {
 
 app.get('/api/grid', (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  res.json({ ...buildGrid(db(), year), lastRefresh: db().lastRefresh });
+  res.json({ ...buildGrid(db(), year, new Date(), String(req.query.place ?? 'tutte')), lastRefresh: db().lastRefresh });
 });
 
 app.post('/api/paid', async (req, res) => {
   const items = Array.isArray(req.body) ? req.body : [req.body];
-  if (!items.every((i) => validCell(i) && !NO_PAYMENT.has(i.kind))) return bad(res, 'Cella non valida.');
+  const place = (i) => i.place ?? DEFAULT_PLACE;
+  if (!items.every((i) => validCell(i) && !NO_PAYMENT.has(i.kind) && PLACES.includes(place(i)) && (place(i) === DEFAULT_PLACE || PLACE_KINDS.has(i.kind)))) {
+    return bad(res, 'Cella non valida.');
+  }
   for (const i of items) {
-    const k = cellKey(i.kind, i.year, i.month);
+    const k = cellKey(i.kind, i.year, i.month, place(i));
     if (i.paid) db().paid[k] = true; else delete db().paid[k];
   }
   await store.save();
   res.json({ ok: true });
+});
+
+// Salda tutto: segna come pagata ogni cella con un importo ancora da pagare, di tutti gli anni e di tutte le case.
+app.post('/api/pay-all', async (req, res) => {
+  let count = 0;
+  let total = 0;
+  for (const c of buildCells(db()).values()) {
+    if (NO_PAYMENT.has(c.kind) || c.amount == null || c.paid) continue;
+    db().paid[cellKey(c.kind, c.year, c.month, c.place)] = true;
+    count++;
+    total += c.amount;
+  }
+  await store.save();
+  res.json({ count, total: Math.round(total * 100) / 100 });
 });
 
 // Importi inseribili a mano: Spese, Svago e Carburante (correggono il totale dei movimenti). Gli altri vengono dai documenti.

@@ -28,7 +28,10 @@ const parseInput = (text) => {
 };
 const inputValue = (n) => (n == null ? '' : String(n).replace('.', ','));
 
-const state = { year: new Date().getFullYear(), grid: null, docs: [], settings: null };
+const PLACE_LABELS = { tutte: 'Tutte', budrio: 'Budrio', crispiano: 'Crispiano' };
+let savedPlace = 'tutte';
+try { savedPlace = localStorage.getItem('place') || 'tutte'; } catch { /* storage non disponibile */ }
+const state = { year: new Date().getFullYear(), place: savedPlace, grid: null, docs: [], settings: null };
 
 async function api(path, options) {
   const res = await fetch(path, options && {
@@ -53,14 +56,22 @@ function toast(message, ms = 4500) {
 // ---------------------------------------------------------------- panoramica
 
 async function loadGrid() {
-  state.grid = await api(`/api/grid?year=${state.year}`);
+  state.grid = await api(`/api/grid?year=${state.year}&place=${state.place}`);
   if (!state.grid.years.includes(state.year)) state.year = state.grid.years[0];
   renderYears();
+  renderPlaces();
   renderCards();
   renderGrid();
   $('#lastRefresh').textContent = state.grid.lastRefresh
     ? `Aggiornato ${new Date(state.grid.lastRefresh).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}`
     : 'Mai aggiornato';
+}
+
+// Selettore della casa: le bollette si possono vedere insieme o separate per Budrio e Crispiano.
+function renderPlaces() {
+  const { places } = state.grid;
+  $('#places').innerHTML = `<span class="muted">Bollette di</span>${['tutte', ...places].map((p) => `<button data-place="${p}" aria-pressed="${p === state.grid.place}">${PLACE_LABELS[p] ?? p}</button>`).join('')}${
+    state.grid.place === 'tutte' ? '' : '<span class="muted">Totale spese, saldo e riquadri includono tutte le case.</span>'}`;
 }
 
 function renderYears() {
@@ -71,9 +82,11 @@ function renderYears() {
 function renderCards() {
   const s = state.grid.summary;
   const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
-  const dueParts = EXPENSES.filter((k) => s.toPay[k.id] > 0).map((k) => k.label).join(', ');
+  const dueParts = EXPENSES.filter((k) => s.toPayAll[k.id] > 0).map((k) => k.label).join(', ');
   $('#cards').innerHTML = [
-    card('Da pagare', money(s.totalToPay) || money(0), dueParts || 'Tutto pagato', 'due'),
+    s.totalToPay > 0
+      ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
+      : card('Da pagare', money(0), 'Tutto pagato', 'due'),
     card(`Stipendio medio ${state.year}`, money(s.avgIncome) || '—'),
     card('Spese medie al mese', money(s.avgSpent) || '—'),
     card('Risparmio medio al mese', money(s.avgBalance) || '—'),
@@ -93,12 +106,19 @@ function cellHtml(kind, month, c) {
   if (NO_PAYMENT.has(kind)) return `<div class="static"><span class="num">${money(c.amount)}</span></div>`;
   // L'intera cella è la casella: verde se pagata, rossa se da pagare. Il link apre il PDF.
   const pdf = c.files.map((f) => `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il PDF: ${esc(f.name)}">PDF</a>`).join('');
-  return `<div class="pcell ${c.paid ? 'paid' : 'due'}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-kind="${kind}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${c.paid ? 'Pagato' : 'Da pagare'} · clic per cambiare"><span class="num">${money(c.amount)}</span>${pdf}</div>`;
+  // Con più case nella stessa cella: il totale e, sotto, il dettaglio per casa.
+  const split = c.parts.length > 1;
+  const detail = split ? c.parts.map((p) => `${PLACE_LABELS[p.place][0]} ${money(p.amount)}`).join(' · ') : '';
+  const tip = split ? c.parts.map((p) => `${PLACE_LABELS[p.place]}: ${money(p.amount)} (${p.paid ? 'pagato' : 'da pagare'})`).join(' · ') : (c.paid ? 'Pagato' : 'Da pagare');
+  return `<div class="pcell ${c.paid ? 'paid' : 'due'}${split ? ' split' : ''}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-kind="${kind}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${tip} · clic per cambiare"><span class="num">${money(c.amount)}</span>${split ? `<small class="parts">${detail}</small>` : ''}${pdf}</div>`;
 }
 
 async function togglePaid(kind, month) {
-  const paid = state.grid.rows.find((r) => r.month === month).cells[kind].paid;
-  await setPaid(kind, month, !paid);
+  const cell = state.grid.rows.find((r) => r.month === month).cells[kind];
+  const items = cell.parts.map((p) => ({ kind, year: state.year, month, place: p.place, paid: !cell.paid }));
+  if (!items.length) return;
+  await api('/api/paid', { method: 'POST', body: items });
+  await loadGrid();
 }
 
 async function saveExpense(input) {
@@ -123,12 +143,17 @@ function renderGrid() {
     <tr><th>Media ${state.year}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${money(s.average[k.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
     <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${NO_PAYMENT.has(k.id) ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
   const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
-  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}<th class="gstart">Totale spese</th><th>Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}<th class="gstart" title="Comprende tutte le case">Totale spese</th><th title="Comprende tutte le case">Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
-async function setPaid(kind, month, paid) {
-  await api('/api/paid', { method: 'POST', body: { kind, year: state.year, month, paid } });
+// Il riquadro "Da pagare": salda in un colpo tutto ciò che è ancora da pagare, di tutti gli anni e di tutte le case.
+async function payEverything() {
+  const due = state.grid.summary.totalToPay;
+  if (!(due > 0)) return;
+  if (!confirm(`Segnare come pagato tutto il dovuto (${money(due)}, di tutti gli anni e di tutte le case)?`)) return;
+  const r = await api('/api/pay-all', { method: 'POST', body: {} });
   await loadGrid();
+  toast(`Saldati ${r.count} importi, ${money(r.total)} in tutto.`);
 }
 
 async function payAll(kind) {
@@ -137,8 +162,8 @@ async function payAll(kind) {
   // Solo l'anno mostrato, e solo fino al mese corrente.
   for (const r of state.grid.rows) {
     const c = r.cells[kind];
-    if (c.amount != null && !c.paid && (state.year < now.getFullYear() || r.month <= now.getMonth() + 1)) {
-      items.push({ kind, year: state.year, month: r.month, paid: true });
+    if (state.year < now.getFullYear() || r.month <= now.getMonth() + 1) {
+      for (const p of c.parts) if (!p.paid) items.push({ kind, year: state.year, month: r.month, place: p.place, paid: true });
     }
   }
   const name = KINDS.find((k) => k.id === kind).label;
@@ -401,7 +426,12 @@ async function doRefresh(force = false) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
+  if (t.dataset.place) {
+    state.place = t.dataset.place;
+    try { localStorage.setItem('place', state.place); } catch { /* storage non disponibile */ }
+    loadGrid().catch((err) => toast(err.message));
+  } else if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
+  else if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
   else if (t.dataset.tab) {
