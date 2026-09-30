@@ -38,6 +38,8 @@ test('una regola imparata vince su quelle automatiche', () => {
   assert.equal(categorize('AMAZON EU SARL'), 'svago');
   assert.equal(categorize('Enoteca Rossi'), 'spesa');
   assert.equal(categorize('Mediaworld Televisori'), 'svago');
+  assert.equal(categorize("Autostrade per l'Italia"), 'svago');
+  assert.equal(categorize('IP Italiana Petroli'), 'carburante');
   assert.equal(categorize('Bar Sport', { 'bar sport': 'svago' }), 'svago');
 });
 

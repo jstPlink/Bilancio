@@ -11,8 +11,8 @@ export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
 // Spesa = cibo, bevande e prodotti per la casa. Svago = abbonamenti TV, Amazon, parchi, televisori, giocattoli.
 const RULES = [
-  ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|autostrad\w*|fuel|petrol)\b/i],
-  ['svago', /amazon|amzn|prime video|netflix|spotify|disney|dazn|sky\b|now ?tv|infinity|apple\.com|google play|balocchi|playstation|steam|nintendo|televisor\w*|\btv\b|mediaworld|unieuro|euronics|trony|giocattol\w*|toys|lego|giocheria|cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
+  ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|fuel|petrol)\b/i],
+  ['svago', /autostrad\w*|amazon|amzn|prime video|netflix|spotify|disney|dazn|sky\b|now ?tv|infinity|apple\.com|google play|balocchi|playstation|steam|nintendo|televisor\w*|\btv\b|mediaworld|unieuro|euronics|trony|giocattol\w*|toys|lego|giocheria|cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
   ['spesa', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristoran\w*|restaurant|\bspar\b|\becu\b|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros|birr\w*|vino|enoteca|bevande|ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|flying tiger/i],
 ];
 
