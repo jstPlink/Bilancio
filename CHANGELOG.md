@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.22.1
+- `npm start` e `npm run dev` leggono un file `.env` (se c'è) e quindi la password si può impostare anche in locale: copia `.env.example` in `.env` e scrivi la password. Il file è escluso da git.
+
 ## 0.22.0
 - **Login con password**: impostando `BILANCIO_PASSWORD` tutto il sito (pagine, dati e API) richiede la password. Pagina di accesso con un solo campo, sessione di 30 giorni (cookie firmato, HttpOnly), pulsante **Esci**, blocco di 15 minuti dopo 5 tentativi sbagliati. Gli script usano HTTP Basic. Senza password l'app resta aperta, come prima, ma da un indirizzo diverso da localhost compare un avviso rosso.
 

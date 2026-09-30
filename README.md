@@ -95,13 +95,17 @@ vede tutti i dati. Per usare un percorso locale come sorgente PDF, monta la cart
 
 ## Password di accesso
 
-Di default l'app è aperta. Per proteggerla imposta la variabile `BILANCIO_PASSWORD` (nel file compose, sotto `environment`, poi
-`docker compose up -d`; in locale: `BILANCIO_PASSWORD=... npm start`):
+Di default l'app è aperta, anche in locale: il login compare solo se imposti la variabile `BILANCIO_PASSWORD`.
 
-```yaml
-    environment:
-      BILANCIO_PASSWORD: "una-password-lunga-e-difficile"
-```
+- **Sul server (Docker):** nel file compose, sotto `environment`, poi `docker compose up -d`:
+
+  ```yaml
+      environment:
+        BILANCIO_PASSWORD: "una-password-lunga-e-difficile"
+  ```
+
+- **In locale:** copia `.env.example` in `.env` (resta sul tuo computer, è escluso da git), scrivi la password al posto di
+  `scegli-una-password-lunga` e riavvia con `npm start` (o `npm run dev`).
 
 - Chi apre il sito trova la pagina **Accesso** con un campo password. Dopo l'accesso la sessione dura 30 giorni su quel browser;
   il pulsante **Esci** in alto la chiude.
