@@ -755,9 +755,6 @@ $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => 
 api('/api/version').then(({ version, protected: hasPassword }) => {
   $('#version').textContent = `v${version}`;
   $('#logoutBtn').hidden = !hasPassword;
-  // Senza password, da un indirizzo diverso da localhost, i dati sono visibili a chiunque lo raggiunga.
-  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-  $('#openWarning').hidden = hasPassword || local;
 }).catch(() => {});
 $('#logoutBtn').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' }).catch(() => {});

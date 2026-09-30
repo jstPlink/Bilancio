@@ -12,9 +12,9 @@ services:
       - "4870:4870"
     environment:
       TZ: Europe/Rome
-      # Password di accesso: CONSIGLIATA se il sito è raggiungibile da internet (senza, chiunque conosca l'indirizzo vede i dati).
-      # Togli il # e scegli una password lunga; poi  docker compose up -d
-      # BILANCIO_PASSWORD: "scegli-una-password-lunga"
+      # La password di accesso si crea dalla pagina di accesso al primo avvio (codice di configurazione: docker logs bilancio).
+      # Facoltativo: fissarla qui, al posto di crearla nell'app (ha la precedenza):
+      # BILANCIO_PASSWORD: "una-password-lunga"
     volumes:
       # database SQLite e cache OCR: qui stanno tutti i dati (fanne il backup)
       - ./data:/data

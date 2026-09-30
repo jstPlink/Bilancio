@@ -24,6 +24,7 @@ const defaults = () => ({
   transactions: {},
   statementFiles: {},
   statementParser: 0,
+  auth: null,
   categoryVersion: 0,
   rules: {},
   lastRefresh: null,
@@ -77,7 +78,7 @@ export function createStore(file, { legacyJson } = {}) {
     sql.exec('BEGIN');
     try {
       const put = sql.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v');
-      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'statementParser', 'categoryVersion', 'rules', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
+      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'statementParser', 'categoryVersion', 'auth', 'rules', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
       sql.exec('DELETE FROM docs');
       const ins = sql.prepare('INSERT INTO docs (key, json) VALUES (?, ?)');
       for (const [key, doc] of Object.entries(db.docs)) ins.run(key, JSON.stringify(doc));

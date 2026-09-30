@@ -10,50 +10,89 @@
     @media (prefers-color-scheme: dark) { :root { --bg: #0e1513; --surface: #16201d; --ink: #e6efec; --muted: #8fa19c; --line: #26332f; --accent: #2bb3a6; --accent-ink: #04201c; --danger: #ff8a7d; color-scheme: dark; } }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
-    main { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px; box-shadow: 0 8px 30px rgb(0 0 0 / .12); }
+    main { width: min(400px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px; box-shadow: 0 8px 30px rgb(0 0 0 / .12); }
     .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
     h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
     p { margin: 0; color: var(--muted); font-size: 13px; }
+    .intro { margin: 0 0 16px; }
     label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
     input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; }
     input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     button { width: 100%; padding: 11px 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .7; cursor: progress; }
     .error { color: var(--danger); font-size: 13px; min-height: 1.4em; margin: 0 0 10px; }
+    .hint { font-size: 12px; margin: -6px 0 14px; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
     <div class="brand">
       <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M8 21h16M16 9v12M9 13h14" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
-      <div><h1>Bilancio</h1><p>Accesso riservato</p></div>
+      <div><h1>Bilancio</h1><p id="subtitle">Accesso riservato</p></div>
     </div>
+    <p class="intro" id="intro" hidden></p>
     <form id="form" autocomplete="on">
+      <label id="codeRow" hidden>Codice di configurazione
+        <input id="code" name="code" autocomplete="off" spellcheck="false" placeholder="Es. AB12C-D34E5">
+      </label>
+      <p class="hint" id="codeHint" hidden>Lo trovi nel log del server, all'avvio (in Docker: <code>docker logs bilancio</code>).</p>
       <label>Password
         <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+      </label>
+      <label id="repeatRow" hidden>Ripeti la password
+        <input id="repeat" name="repeat" type="password" autocomplete="new-password">
       </label>
       <p class="error" id="error" role="alert"></p>
       <button id="go">Accedi</button>
     </form>
   </main>
   <script>
-    const form = document.getElementById('form');
-    const error = document.getElementById('error');
-    const go = document.getElementById('go');
-    form.addEventListener('submit', async (e) => {
+    const $ = (id) => document.getElementById(id);
+    let setup = false;
+    let minLength = 10;
+
+    fetch('/api/auth-state').then((r) => r.json()).then((s) => {
+      setup = s.mode === 'setup';
+      minLength = s.minLength || 10;
+      if (!setup) return;
+      $('subtitle').textContent = 'Prima configurazione';
+      $('intro').hidden = false;
+      $('intro').textContent = `Scegli la password per proteggere i tuoi dati (almeno ${minLength} caratteri). Dovrai inserirla ogni volta che accedi da un nuovo browser.`;
+      $('repeatRow').hidden = false;
+      $('repeat').required = true;
+      $('password').autocomplete = 'new-password';
+      $('password').minLength = minLength;
+      $('codeRow').hidden = !s.codeRequired;
+      $('codeHint').hidden = !s.codeRequired;
+      $('code').required = s.codeRequired;
+      $('go').textContent = 'Crea la password';
+      (s.codeRequired ? $('code') : $('password')).focus();
+    }).catch(() => { $('error').textContent = 'Server non raggiungibile. Riprova.'; });
+
+    $('form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      error.textContent = '';
-      go.disabled = true;
+      $('error').textContent = '';
+      const password = $('password').value;
+      if (setup) {
+        if (password.length < minLength) { $('error').textContent = `La password deve avere almeno ${minLength} caratteri.`; return; }
+        if (password !== $('repeat').value) { $('error').textContent = 'Le due password non coincidono.'; return; }
+      }
+      $('go').disabled = true;
       try {
-        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('password').value }) });
+        const res = await fetch(setup ? '/api/setup' : '/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(setup ? { password, code: $('code').value } : { password }),
+        });
         const data = await res.json().catch(() => ({}));
         if (res.ok) { location.replace('/'); return; }
-        error.textContent = data.error || 'Accesso non riuscito.';
-        document.getElementById('password').select();
+        $('error').textContent = data.error || 'Operazione non riuscita.';
+        if (!setup) $('password').select();
       } catch {
-        error.textContent = 'Server non raggiungibile. Riprova.';
+        $('error').textContent = 'Server non raggiungibile. Riprova.';
       } finally {
-        go.disabled = false;
+        $('go').disabled = false;
       }
     });
   </script>

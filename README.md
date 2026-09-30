@@ -89,29 +89,33 @@ che hai in locale, chiudi l'app e copia `data/bilancino.db` nella cartella `./da
 anche le Impostazioni (link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Senza database, al primo
 avvio apri le Impostazioni e inserisci i link.
 
-**Sicurezza.** Se il sito è raggiungibile da internet, imposta una password (sezione successiva): senza, chiunque conosca l'indirizzo
-vede tutti i dati. Per usare un percorso locale come sorgente PDF, monta la cartella nel container
+**Sicurezza.** Il sito è protetto da una password che crei al primo accesso (sezione successiva): per farlo da internet serve il codice che il
+server scrive nel log all'avvio (`docker logs bilancio`). Per usare un percorso locale come sorgente PDF, monta la cartella nel container
 (vedi il file compose) e indica il percorso interno (es. `/documenti`).
 
 ## Password di accesso
 
-Di default l'app è aperta, anche in locale: il login compare solo se imposti la variabile `BILANCIO_PASSWORD`.
+L'app è sempre protetta da una password.
 
-- **Sul server (Docker):** nel file compose, sotto `environment`, poi `docker compose up -d`:
-
-  ```yaml
-      environment:
-        BILANCIO_PASSWORD: "una-password-lunga-e-difficile"
-  ```
-
-- **In locale:** copia `.env.example` in `.env` (resta sul tuo computer, è escluso da git), scrivi la password al posto di
-  `scegli-una-password-lunga` e riavvia con `npm start` (o `npm run dev`).
-
-- Chi apre il sito trova la pagina **Accesso** con un campo password. Dopo l'accesso la sessione dura 30 giorni su quel browser;
-  il pulsante **Esci** in alto la chiude.
+- **Prima volta:** apri il sito e la pagina di accesso ti chiede di **creare la password** (almeno 10 caratteri, da ripetere).
+  Da `http://localhost:4870` sul tuo computer basta questo. Da qualsiasi altro indirizzo (il sito sul server, il NAS, internet)
+  serve anche il **codice di configurazione**, che il server scrive nel suo log all'avvio: in Docker `docker logs bilancio`.
+  Così nessun estraneo può crearla al tuo posto.
+- **Dopo:** ogni browser nuovo chiede la password, poi la sessione dura 30 giorni. Il pulsante **Esci** in alto la chiude.
+- La password è salvata **cifrata** (scrypt) nel database, non in chiaro, e non viene mai pubblicata. Cambiandola, le sessioni
+  aperte decadono.
 - Dopo 5 password sbagliate lo stesso indirizzo è bloccato per 15 minuti.
-- Cambiando la password, tutte le sessioni aperte decadono.
-- Gli script (come `scripts/importa-su-server.mjs`) usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
-  qualsiasi nome e conta solo la password.
 - Usa sempre **https** (con Cloudflare o un reverse proxy): la password viaggia nella richiesta di accesso.
-- Senza password, da un indirizzo diverso da localhost compare un avviso rosso in alto.
+
+**Password dimenticata.** Ferma l'app e cancella la password: alla riapertura potrai crearne una nuova.
+
+```bash
+node scripts/reimposta-password.mjs                 # in locale
+docker compose stop && docker compose run --rm --no-deps bilancio node scripts/reimposta-password.mjs && docker compose up -d
+```
+
+**Password fissata dall'ambiente (facoltativo).** Se preferisci non crearla dall'app, imposta `BILANCIO_PASSWORD`: nel file compose,
+sotto `environment`, oppure in locale in un file `.env` (copia `.env.example`). Ha la precedenza su quella creata nell'app.
+
+**Script.** `scripts/importa-su-server.mjs` e simili usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
+qualsiasi nome e conta solo la password.
