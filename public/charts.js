@@ -70,8 +70,8 @@ export function monthChart(host, months, { series, line, onPick }) {
     const label = el('text', { x: m.l - 8, y: y(t) + 4, class: 'axis', 'text-anchor': 'end' }, svg);
     label.textContent = eur0.format(t);
   }
-  const step = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor(pw / 52))));
   const manyYears = new Set(months.map((mo) => mo.ym.slice(0, 4))).size > 1;
+  const step = Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor(pw / (manyYears ? 52 : 30)))));
   const tip = html('div', 'tip');
   tip.hidden = true;
 

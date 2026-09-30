@@ -235,6 +235,8 @@ app.get('/api/analysis', (req, res) => {
   }
   for (const t of everything) slot(t.date.slice(0, 7)).bank[cats[t.category] ? t.category : 'altro'] += Math.abs(t.amount);
   const years = [...new Set([...byMonth.keys()].map((ym) => Number(ym.slice(0, 4))))].sort((a, b) => b - a);
+  // Con un anno scelto si mostrano sempre tutti e 12 i mesi, anche quelli ancora senza dati.
+  if (year && !month) for (let mo = 1; mo <= 12; mo++) slot(`${year}-${pad2(mo)}`);
   const months = [...byMonth.values()].filter((m) => match(m.ym)).sort((a, b) => a.ym.localeCompare(b.ym)).map((m) => ({
     ...m,
     income: round(m.income), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
