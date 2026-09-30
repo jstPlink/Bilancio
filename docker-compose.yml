@@ -1,6 +1,11 @@
+# Avvio sul server con l'immagine già pronta, costruita da GitHub:
+#   docker compose up -d
+# Aggiornamento alla versione più recente:
+#   docker compose pull && docker compose up -d
+# (Per costruire l'immagine dal codice invece di scaricarla: docker-compose.build.yml)
 services:
   bilancio:
-    build: .
+    image: ghcr.io/jstplink/bilancio:latest
     container_name: bilancio
     restart: unless-stopped
     ports:
@@ -8,7 +13,7 @@ services:
     environment:
       TZ: Europe/Rome
     volumes:
-      # database SQLite e cache OCR: qui stanno tutti i dati
+      # database SQLite e cache OCR: qui stanno tutti i dati (fanne il backup)
       - ./data:/data
       # opzionale: cartella PDF del NAS, se usi un percorso locale come sorgente
       # - /volume1/documenti/casa:/documenti:ro

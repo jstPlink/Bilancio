@@ -1,4 +1,7 @@
 FROM node:24-slim
+LABEL org.opencontainers.image.source="https://github.com/jstPlink/Bilancio" \
+      org.opencontainers.image.description="Bilancio: buste paga, bollette e conti di casa in ordine" \
+      org.opencontainers.image.licenses="UNLICENSED"
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev

@@ -1,0 +1,16 @@
+# Costruisce l'immagine scaricando il codice direttamente da GitHub, senza registro di immagini:
+#   docker compose -f docker-compose.build.yml up -d --build
+# Per aggiornare: lo stesso comando (riscarica il codice e ricostruisce).
+# Se hai già clonato il repository puoi costruire dalla cartella locale: sostituisci la riga "build" con  build: .
+services:
+  bilancio:
+    build: https://github.com/jstPlink/Bilancio.git#main
+    container_name: bilancio
+    restart: unless-stopped
+    ports:
+      - "4870:4870"
+    environment:
+      TZ: Europe/Rome
+    volumes:
+      - ./data:/data
+      # - /volume1/documenti/casa:/documenti:ro

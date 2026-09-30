@@ -54,12 +54,33 @@ versione precedente viene importato al primo avvio. In locale il server ascolta 
 
 ## Docker / NAS
 
+Serve solo Docker con Compose, non Node. Ci sono due modi per avviarlo da GitHub.
+
+**1. Immagine già pronta (consigliato).** A ogni versione GitHub costruisce l'immagine (per PC/NAS Intel e ARM) e la
+pubblica su `ghcr.io/jstplink/bilancio`. Sul server:
+
 ```bash
-docker compose up -d --build   # http://<ip-nas>:4870
+mkdir bilancio && cd bilancio
+curl -O https://raw.githubusercontent.com/jstPlink/Bilancio/main/docker-compose.yml
+docker compose up -d                        # http://<ip-server>:4870
 ```
 
-I dati stanno in `./data` (montato su `/data`): fanne il backup. Per portare sul server i dati che hai in locale, chiudi l'app
-e copia `data/bilancino.db` nella cartella `./data` accanto a `docker-compose.yml`: dentro ci sono anche le Impostazioni
-(link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Con `HOST=0.0.0.0` il server è raggiungibile in rete
-senza autenticazione: tienilo dietro la LAN o una VPN. Per usare un percorso locale come sorgente PDF, monta la cartella
-nel container (vedi `docker-compose.yml`) e indica il percorso interno (es. `/documenti`).
+Per aggiornare: `docker compose pull && docker compose up -d`.
+Se il download dell'immagine risponde "denied" o "unauthorized", il pacchetto è ancora privato: su GitHub apri
+*Packages → bilancio → Package settings → Change visibility → Public* (si fa una volta sola dopo il primo build).
+
+**2. Costruzione dal codice, senza registro.** Scarica il codice da GitHub e costruisce l'immagine sul server:
+
+```bash
+curl -O https://raw.githubusercontent.com/jstPlink/Bilancio/main/docker-compose.build.yml
+docker compose -f docker-compose.build.yml up -d --build
+```
+
+**Dati.** Il database e la cache OCR stanno in `./data` (montato su `/data`): fanne il backup. Per portare sul server i dati
+che hai in locale, chiudi l'app e copia `data/bilancino.db` nella cartella `./data` accanto al file compose: dentro ci sono
+anche le Impostazioni (link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Senza database, al primo
+avvio apri le Impostazioni e inserisci i link.
+
+**Sicurezza.** L'app non ha login e nel container ascolta su tutte le interfacce: tienila dietro la rete di casa o una VPN,
+non esporla direttamente su internet. Per usare un percorso locale come sorgente PDF, monta la cartella nel container
+(vedi il file compose) e indica il percorso interno (es. `/documenti`).

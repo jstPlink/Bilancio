@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.20.0
+- **Installazione da GitHub con Docker Compose**: un workflow GitHub Actions prova i test, costruisce l'immagine (amd64 e arm64) e la pubblica su `ghcr.io/jstplink/bilancio` a ogni push su main e a ogni tag. `docker-compose.yml` ora scarica quell'immagine; `docker-compose.build.yml` costruisce invece dal codice su GitHub, senza registro.
+- README: istruzioni per avviare, aggiornare e portare i dati sul server.
+
 ## 0.19.0
 - **Niente dati personali nel codice**: il mio nome e chi mi paga lo stipendio (usati per riconoscere i giroconti e non contare due volte lo stipendio) non sono più scritti nel codice ma nelle **Impostazioni** ("Riconoscere i miei movimenti"), cioè nel database, che non viene pubblicato. I test usano nomi inventati.
 - Dockerfile: variabili di produzione, niente avvisi di Node sul modulo SQLite e controllo di salute del container. README: come portare sul server il database locale.
