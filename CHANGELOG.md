@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.18.0
+- Nuova categoria **Da suddividere**: non conta in nessun dato e ha la sua tabella nella scheda Banca. Ci finiscono in automatico gli addebiti SEPA di **PayPal** (coprono acquisti diversi) finché non vengono divisi in sotto-categorie. Spostati i 16 esistenti (1.157,06 €).
+
 ## 0.17.0
 - **Abbinamento automatico addebiti–bollette**: un addebito bancario di un'utenza (Enel, Edison, Reset, addebiti SEPA…) con lo stesso importo di una bolletta già letta, e data da 1 mese prima a 3 mesi dopo, passa alla nuova categoria **Bollette pagate** e non conta due volte. Nella scheda Banca la tabella mostra a quale documento è stato abbinato. Una bolletta assorbe un solo pagamento, e le scelte fatte a mano non vengono toccate.
 - Le categorie escluse dai dati (Giroconti e Bollette pagate) hanno ciascuna la propria tabella nella scheda Banca.

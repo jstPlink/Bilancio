@@ -18,7 +18,7 @@ export function matchBillPayments(db) {
   const all = Object.values(db.transactions ?? {});
   const used = new Set(all.map((t) => t.matchedDoc).filter(Boolean));
   const candidates = all
-    .filter((t) => t.amount < 0 && t.category === 'altro' && !t.manual && !t.matchedDoc && UTILITIES.test(`${t.description} ${t.detail ?? ''}`))
+    .filter((t) => t.amount < 0 && (t.category === 'altro' || t.category === 'sospesi') && !t.manual && !t.matchedDoc && UTILITIES.test(`${t.description} ${t.detail ?? ''}`))
     .sort((a, b) => a.date.localeCompare(b.date));
   let matched = 0;
   for (const t of candidates) {

@@ -101,3 +101,9 @@ test('la rata del prestito si legge dagli estratti conto e non ha stato "pagato"
   assert.equal(g.rows[1].cells.prestito.paid, null);
   assert.equal(g.summary.totalToPay, 0);
 });
+
+test('gli addebiti SEPA di PayPal vanno in "da suddividere", non contano', () => {
+  assert.equal(categorize('ADDEBITO SEPA DD PER FATTURA A VOSTRO CARICO Incasso 1047821517915 SDD da LU96ZZZ0000000000000000058 PayPal Europe S.a.r.l. et Cie S.C.A mandato nr. 52R22257CJF5L'), 'sospesi');
+  assert.equal(categorize('PAYPAL *NINTENDO 4029357733'), 'svago'); // un acquisto PayPal con il suo negozio si categorizza normalmente
+  assert.equal(categorize('ADDEBITO SEPA DD PER FATTURA A VOSTRO CARICO Incasso 1 SDD da IT71 ENEL ENERGIA'), 'altro');
+});
