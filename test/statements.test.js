@@ -22,7 +22,8 @@ test('legge un CSV Revolut: solo uscite completate, con categoria', () => {
 
 test('legge un CSV italiano con punto e virgola e date GG/MM/AAAA', () => {
   const items = parseStatement('Data;Descrizione;Importo\n05/04/2026;PAGAMENTO POS CONAD;-1.234,50\n06/04/2026;Stipendio;1500,00\n');
-  assert.equal(items.length, 1);
+  assert.equal(items.length, 2);
+  assert.equal(items[1].category, 'entrate');
   assert.equal(items[0].amount, -1234.5);
   assert.equal(items[0].date, '2026-04-05');
 });

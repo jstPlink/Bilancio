@@ -77,7 +77,7 @@ export function buildCells(db, now = new Date()) {
     const m = /^(\d{4})-(\d{2})/.exec(t.date);
     if (!kind || !m) continue;
     const c = get(kind, +m[1], +m[2]);
-    c.auto = round((c.auto ?? 0) + Math.abs(t.amount));
+    c.auto = round((c.auto ?? 0) - t.amount);
   }
 
   for (const [k, amount] of Object.entries(db.manual)) {

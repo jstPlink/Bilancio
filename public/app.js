@@ -208,7 +208,11 @@ function setSort(spec) {
   if (scope === 'moves') renderMoves(); else renderAnalysis();
 }
 
-const categorySelect = (attr, id, current, label) => `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${Object.keys(CATEGORY_LABELS).map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${CATEGORY_LABELS[c]}</option>`).join('')}</select>`;
+const categorySelect = (attr, id, current, label, positive = false) => {
+  const options = positive ? ['entrate', 'altro'] : ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'altro'];
+  const names = positive ? { entrate: 'Entrate', altro: 'Altro (ignora)' } : CATEGORY_LABELS;
+  return `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${options.map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${names[c]}</option>`).join('')}</select>`;
+};
 
 async function loadMoves() {
   state.moves = (await api(`/api/transactions?year=${state.year}`)).transactions;
@@ -219,9 +223,9 @@ function renderMoves() {
   const list = state.moves ?? [];
   $('#movesEmpty').hidden = list.length > 0;
   $('#moveTable').hidden = list.length === 0;
-  const rows = sortList(list, 'moves', { date: (t) => t.date, description: (t) => t.description, amount: (t) => Math.abs(t.amount), category: (t) => t.category });
+  const rows = sortList(list, 'moves', { date: (t) => t.date, description: (t) => t.description, amount: (t) => t.amount, category: (t) => t.category });
   $('#moveTable').innerHTML = list.length ? `<thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${
-    rows.map((t) => `<tr><td>${fmtDate(t.date)}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num">${money(Math.abs(t.amount))}</td><td>${categorySelect('data-move', t.id, t.category, t.description)}</td></tr>`).join('')}</tbody>` : '';
+    rows.map((t) => `<tr><td>${fmtDate(t.date)}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td><td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>`).join('')}</tbody>` : '';
 }
 
 // ------------------------------------------------------------------ banca
@@ -268,31 +272,32 @@ function renderAnalysis() {
 
   const cats = a.categories;
   const top = cats.flatMap((c) => c.merchants.map((m) => ({ ...m, cat: c.category }))).sort((x, y) => y.total - x.total).slice(0, 10);
-  const table = (c) => {
+  const table = (c, positive = false) => {
     const rows = sortList(c.merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
-    return `<details class="acat" data-cat="${c.category}" ${c.category === 'altro' || document.querySelector(`#analysisBody details[data-cat="${c.category}"][open]`) ? 'open' : ''}>
-      <summary><i class="key" style="--c:${CATEGORY_COLOR[c.category]}"></i> ${CATEGORY_NAME[c.category]} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
+    return `<details class="acat" data-cat="${positive ? 'in-' : ''}${c.category}" ${(!positive && c.category === 'altro') || (positive && c.category === 'entrate') || document.querySelector(`#analysisBody details[data-cat="${positive ? 'in-' : ''}${c.category}"][open]`) ? 'open' : ''}>
+      <summary><i class="key" style="--c:${positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category]}"></i> ${positive ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate ignorate (giri tra i miei conti, stipendio già nelle buste paga)') : CATEGORY_NAME[c.category]} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
       <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}${sortHead('bank', 'last', 'Data')}<th>Categoria</th></tr></thead><tbody>${
-        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name)}</td></tr>`).join('')}</tbody></table></div>
+        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, positive)}</td></tr>`).join('')}</tbody></table></div>
     </details>`;
   };
   const numbers = a.months.map((m) => {
     const out = m.bills + m.spesa + m.svago + m.carburante;
-    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.donazioni) || '–'}</td><td class="num">${money(m.bank.tasse) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
+    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.otherIncome) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.donazioni) || '–'}</td><td class="num">${money(m.bank.tasse) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
   }).join('');
 
   $('#analysisBody').innerHTML = `
     <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). Cambia la categoria di una descrizione dal menu: vale per tutte quelle uguali.</p>
     <div class="cards">${cats.map((c) => `<div class="card"><div class="k"><i class="key" style="--c:${CATEGORY_COLOR[c.category]}"></i> ${CATEGORY_NAME[c.category]}${c.column ? '' : ' · fuori dalla tabella'}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti · ${(c.share * 100).toFixed(1).replace('.', ',')}%</div></div>`).join('')}</div>
+    ${(() => { const e = a.inflows.find((c) => c.category === 'entrate'); return e && e.count ? `<div class="cards"><div class="card"><div class="k"><i class="key line" style="--c:var(--viz-entrate)"></i> Altre entrate</div><div class="v">${money(e.total)}</div><div class="sub">${e.count} movimenti in entrata (oltre allo stipendio)</div></div></div>` : ''; })()}
     <section class="chartcard">
       <h3>Stipendio contro uscite</h3>
-      <p class="muted">Bollette, affitto e prestito dai documenti; spesa, svago e carburante dall'estratto conto. Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
+      <p class="muted">Bollette, affitto e prestito dai documenti; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
       <div id="chIncome" class="chart"></div>
     </section>
     <div class="chartrow">
       <section class="chartcard">
         <h3>Dove va il denaro della banca</h3>
-        <p class="muted">Tutte le uscite bancarie per categoria, compresa la parte ancora in "Altro".</p>
+        <p class="muted">Tutte le uscite bancarie per categoria, compresa la parte ancora in "Altro" (le entrate sono nel grafico sopra).</p>
         <div id="chBank" class="chart"></div>
       </section>
       <section class="chartcard">
@@ -302,9 +307,10 @@ function renderAnalysis() {
       </section>
     </div>
     <details class="acat"><summary>Numeri mese per mese <span class="muted">· tabella dei grafici</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Donazioni</th><th class="num">Tasse</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
+      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Altre entrate</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Donazioni</th><th class="num">Tasse</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
     </details>
-    ${cats.map(table).join('')}`;
+    ${cats.map((c) => table(c)).join('')}
+    ${a.inflows.filter((c) => c.count).map((c) => table(c, true)).join('')}`;
 
   const pick = (ym) => {
     state.bank.year = Number(ym.slice(0, 4));
@@ -318,7 +324,10 @@ function renderAnalysis() {
       { label: 'Carburante', color: 'var(--viz-carburante)', get: (m) => m.carburante },
       { label: 'Bollette e affitto', color: 'var(--viz-bollette)', get: (m) => m.bills },
     ],
-    line: { label: 'Stipendio', color: 'var(--ink)', get: (m) => m.income },
+    lines: [
+      { label: 'Stipendio', color: 'var(--ink)', get: (m) => m.income },
+      { label: 'Altre entrate', color: 'var(--viz-entrate)', get: (m) => m.otherIncome },
+    ],
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   monthChart($('#chBank'), a.months, {

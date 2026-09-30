@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
 import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
-import { CATEGORIES, CATEGORY_KIND, normalize, parseStatement } from './statements.js';
+import { CATEGORIES, CATEGORY_KIND, ruleKey, parseStatement } from './statements.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -201,28 +201,34 @@ app.get('/api/analysis', (req, res) => {
   const round = (n) => Math.round(n * 100) / 100;
   const everything = Object.values(db().transactions ?? {});
   const list = everything.filter((t) => match(t.date.slice(0, 7)));
+  const outflows = list.filter((t) => t.amount < 0);
+  const inflows = list.filter((t) => t.amount > 0);
 
-  // Totali per categoria e, dentro ogni categoria, per descrizione.
-  const total = list.reduce((a, t) => a + Math.abs(t.amount), 0);
-  const cats = Object.fromEntries(CATEGORIES.map((c) => [c, { count: 0, total: 0, merchants: new Map() }]));
-  for (const t of list) {
-    const c = cats[t.category] ?? cats.altro;
-    const amount = Math.abs(t.amount);
-    c.count++;
-    c.total += amount;
-    const key = normalize(t.description) || t.description;
-    const m = c.merchants.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, last: t.date };
-    m.count++;
-    m.total += amount;
-    if (t.date < m.from) m.from = t.date;
-    if (t.date > m.last) m.last = t.date;
-    c.merchants.set(key, m);
-  }
+  // Raggruppa i movimenti per descrizione (uguali a meno di cifre e punteggiatura).
+  const group = (txs) => {
+    const map = new Map();
+    for (const t of txs) {
+      const key = ruleKey(t.description, t.amount) || t.description;
+      const m = map.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, last: t.date };
+      m.count++;
+      m.total += Math.abs(t.amount);
+      if (t.date < m.from) m.from = t.date;
+      if (t.date > m.last) m.last = t.date;
+      map.set(key, m);
+    }
+    return [...map.values()].map((m) => ({ ...m, total: round(m.total) })).sort((a, b) => b.total - a.total);
+  };
+  const sum = (txs) => round(txs.reduce((a, t) => a + Math.abs(t.amount), 0));
 
-  // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, e le uscite bancarie per categoria.
+  // Uscite: totali per categoria e, dentro ogni categoria, per descrizione.
+  const spendCategories = CATEGORIES.filter((c) => c !== 'entrate');
+  const total = outflows.reduce((a, t) => a + Math.abs(t.amount), 0);
+  const inCategory = (c) => outflows.filter((t) => (spendCategories.includes(t.category) ? t.category : 'altro') === c);
+
+  // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, uscite bancarie per categoria e altre entrate.
   const byMonth = new Map();
   const slot = (ym) => {
-    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, donazioni: 0, tasse: 0, altro: 0 } });
+    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, otherIncome: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, donazioni: 0, tasse: 0, altro: 0 } });
     return byMonth.get(ym);
   };
   for (const c of buildCells(db()).values()) {
@@ -233,22 +239,32 @@ app.get('/api/analysis', (req, res) => {
     else if (c.kind === 'spese') m.spesa += c.amount;
     else if (c.kind === 'svago' || c.kind === 'carburante') m[c.kind] += c.amount;
   }
-  for (const t of everything) slot(t.date.slice(0, 7)).bank[cats[t.category] ? t.category : 'altro'] += Math.abs(t.amount);
+  for (const t of everything) {
+    const m = slot(t.date.slice(0, 7));
+    if (t.amount < 0) m.bank[spendCategories.includes(t.category) ? t.category : 'altro'] += Math.abs(t.amount);
+    else if (t.category === 'entrate') m.otherIncome += t.amount;
+  }
   const years = [...new Set([...byMonth.keys()].map((ym) => Number(ym.slice(0, 4))))].sort((a, b) => b - a);
   // Con un anno scelto si mostrano sempre tutti e 12 i mesi, anche quelli ancora senza dati.
   if (year && !month) for (let mo = 1; mo <= 12; mo++) slot(`${year}-${pad2(mo)}`);
   const months = [...byMonth.values()].filter((m) => match(m.ym)).sort((a, b) => a.ym.localeCompare(b.ym)).map((m) => ({
     ...m,
-    income: round(m.income), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
+    income: round(m.income), otherIncome: round(m.otherIncome), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
     bank: Object.fromEntries(Object.entries(m.bank).map(([k, v]) => [k, round(v)])),
   }));
 
   res.json({
-    years, months, total: round(total), count: list.length,
-    categories: CATEGORIES.map((k) => ({
-      category: k, count: cats[k].count, total: round(cats[k].total), share: total ? cats[k].total / total : 0, column: CATEGORY_KIND[k] ?? null,
-      merchants: [...cats[k].merchants.values()].map((m) => ({ ...m, total: round(m.total) })).sort((a, b) => b.total - a.total),
-    })),
+    years, months, total: round(total), count: outflows.length,
+    categories: spendCategories.map((k) => {
+      const txs = inCategory(k);
+      const t = txs.reduce((a, x) => a + Math.abs(x.amount), 0);
+      return { category: k, count: txs.length, total: round(t), share: total ? t / total : 0, column: CATEGORY_KIND[k] ?? null, merchants: group(txs) };
+    }),
+    // Entrate: "entrate" conta come altro denaro ricevuto, "altro" sono giri interni ignorati.
+    inflows: ['entrate', 'altro'].map((k) => {
+      const txs = inflows.filter((t) => (t.category === 'entrate' ? 'entrate' : 'altro') === k);
+      return { category: k, count: txs.length, total: sum(txs), merchants: group(txs) };
+    }),
   });
 });
 
@@ -258,10 +274,11 @@ app.put('/api/transactions', async (req, res) => {
   const t = db().transactions?.[id];
   if (!t) return res.status(404).json({ error: 'Movimento non trovato.' });
   if (!CATEGORIES.includes(category)) return bad(res, 'Categoria non valida.');
-  const key = normalize(t.description);
-  if (key) {
+  // La scelta vale per tutti i movimenti con la stessa descrizione e lo stesso verso (entrata o uscita).
+  const key = ruleKey(t.description, t.amount);
+  if (key && key !== 'in:') {
     db().rules[key] = category;
-    for (const o of Object.values(db().transactions)) if (normalize(o.description) === key) o.category = category;
+    for (const o of Object.values(db().transactions)) if (ruleKey(o.description, o.amount) === key) o.category = category;
   } else t.category = category;
   await store.save();
   res.json({ ok: true });

@@ -44,12 +44,12 @@ function legend(items) {
   return box;
 }
 
-// Colonne impilate per mese, con una linea facoltativa sopra (stesso asse, stessi euro).
-// series: [{ label, color, get(m) }]  line: { label, color, get(m) }  onPick(ym): clic su un mese.
-export function monthChart(host, months, { series, line, onPick }) {
+// Colonne impilate per mese, con linee facoltative sopra (stesso asse, stessi euro).
+// series: [{ label, color, get(m) }]  lines: [{ label, color, get(m) }]  onPick(ym): clic su un mese.
+export function monthChart(host, months, { series, lines = [], onPick }) {
   host.replaceChildren();
   if (!months.length) { host.append(html('p', 'muted', 'Nessun dato nel periodo scelto.')); return; }
-  host.append(legend([...series.map((s) => ({ label: s.label, color: s.color })), ...(line ? [{ label: line.label, color: line.color, line: true }] : [])]));
+  host.append(legend([...series.map((s) => ({ label: s.label, color: s.color })), ...lines.map((l) => ({ label: l.label, color: l.color, line: true }))]));
 
   const W = Math.max(320, host.clientWidth || 640);
   const H = 290;
@@ -57,7 +57,7 @@ export function monthChart(host, months, { series, line, onPick }) {
   const pw = W - m.l - m.r;
   const ph = H - m.t - m.b;
   const stacks = months.map((mo) => series.reduce((a, s) => a + (s.get(mo) || 0), 0));
-  const lineVals = line ? months.map((mo) => line.get(mo) || 0) : [];
+  const lineVals = lines.flatMap((l) => months.map((mo) => l.get(mo) || 0));
   const { top, ticks } = niceScale(Math.max(...stacks, ...lineVals));
   const y = (v) => m.t + ph - (v / top) * ph;
   const band = pw / months.length;
@@ -85,7 +85,7 @@ export function monthChart(host, months, { series, line, onPick }) {
       row.append(key, html('span', 'tip-l', label), html('b', 'tip-v', fmtMoney(value)));
       tip.append(row);
     };
-    if (line) add(line.label, line.color, line.get(mo) || 0, true);
+    for (const l of lines) add(l.label, l.color, l.get(mo) || 0, true);
     [...series].reverse().forEach((s) => add(s.label, s.color, s.get(mo) || 0));
     if (series.length > 1) {
       const row = html('div', 'tip-r tip-t');
@@ -125,7 +125,7 @@ export function monthChart(host, months, { series, line, onPick }) {
     }
     const hit = el('rect', {
       x: m.l + band * i, y: m.t, width: band, height: ph, class: 'hit', tabindex: 0, role: 'img',
-      'aria-label': `${monthLong(mo.ym)}: ${series.map((s) => `${s.label} ${fmtMoney(s.get(mo) || 0)}`).join(', ')}${line ? `, ${line.label} ${fmtMoney(line.get(mo) || 0)}` : ''}`,
+      'aria-label': `${monthLong(mo.ym)}: ${series.map((s) => `${s.label} ${fmtMoney(s.get(mo) || 0)}`).join(', ')}${lines.map((l) => `, ${l.label} ${fmtMoney(l.get(mo) || 0)}`).join('')}`,
     }, svg);
     const on = () => { hover.classList.add('on'); showTip(i); };
     const off = () => { hover.classList.remove('on'); tip.hidden = true; };
@@ -140,7 +140,7 @@ export function monthChart(host, months, { series, line, onPick }) {
     }
   });
 
-  if (line) {
+  for (const line of lines) {
     let d = '';
     let pen = false;
     months.forEach((mo, i) => {

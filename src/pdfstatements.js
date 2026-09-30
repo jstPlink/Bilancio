@@ -78,7 +78,7 @@ async function parseUniCredit(pdf) {
       const isOut = Math.abs(amountTok.x1 - outX) < Math.abs(amountTok.x1 - inX);
       const amount = parseAmount(amountTok.str);
       if (isOut) sumOut += amount; else sumIn += amount;
-      if (isOut && amount > 0) out.push({ date: ucDate(dates[0].str), amount: -amount, description });
+      if (amount > 0) out.push({ date: ucDate(dates[0].str), amount: isOut ? -amount : amount, description });
     }
   }
 
@@ -101,14 +101,25 @@ async function parseRevolut(pdf) {
   const items = [];
   let skipSection = false;
   let current = null;
+  // Uscite: solo pagamenti con carta. Entrate: bonifici e pagamenti ricevuti ("Pagamento da …");
+  // i giri tra pocket, le ricariche e i depositi sono movimenti interni e non si contano.
   const flush = () => {
-    if (current?.out && current.card) {
-      items.push({
-        id: `rv-${current.txId ?? `${current.date}-${current.description}-${current.out}`}`,
-        date: current.date, amount: -current.out, description: current.description, detail: current.detail.join(' '),
-      });
+    if (current?.amount) {
+      const isOut = current.dir === 'out' && current.card;
+      const isIn = current.dir === 'in' && /^(Pagamento da|Rimborso)/i.test(current.description);
+      if (isOut || isIn) {
+        items.push({
+          id: `rv-${current.txId ?? `${current.date}-${current.description}-${current.amount}`}`,
+          date: current.date, amount: isOut ? -current.amount : current.amount, description: current.description, detail: current.detail.join(' '),
+        });
+      }
     }
     current = null;
+  };
+  const findAmount = (r, outX, inX) => {
+    const tok = r.tokens.find((t) => t.x0 >= 320 && t.x0 < 490 && AMOUNT.test(t.str));
+    if (!tok) return null;
+    return { value: parseAmount(tok.str.replace('€', '')), dir: Math.abs(tok.x0 - outX) < Math.abs(tok.x0 - inX) ? 'out' : 'in' };
   };
 
   for (let p = 1; p <= pdf.numPages; p++) {
@@ -125,18 +136,26 @@ async function parseRevolut(pdf) {
       const m = first.x0 < 60 ? RV_DATE.exec(first.str) : null;
       if (m && MONTHS[m[2].toLowerCase()]) {
         flush();
-        const amountTok = r.tokens.find((t) => t.x0 >= 320 && t.x0 < 490 && AMOUNT.test(t.str));
-        const isOut = amountTok && Math.abs(amountTok.x0 - outX) < Math.abs(amountTok.x0 - inX);
+        const found = findAmount(r, outX, inX);
         current = {
           date: `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2, '0')}-${m[1].padStart(2, '0')}`,
           description: text(r.tokens.filter((t) => t.x0 >= 110 && t.x0 < 330)),
-          out: isOut ? parseAmount(amountTok.str.replace('€', '')) : 0,
+          amount: found?.value ?? null, dir: found?.dir ?? null,
           card: false, detail: [], txId: null,
         };
       } else if (current && first.x0 >= 110 && first.x0 < 150) {
         if (/^Carta:/.test(line)) current.card = true;
         else if (/^ID transazione:/.test(line)) current.txId = line.replace('ID transazione:', '').trim();
-        else if (/^A:/.test(line)) current.detail.push(line);
+        else if (/^(A|Da|Riferimento):/.test(line)) current.detail.push(line);
+        else if (current.amount == null) {
+          // Nome su più righe: il resto del nome e l'importo stanno sulla riga sotto.
+          const rest = text(r.tokens.filter((t) => t.x0 >= 110 && t.x0 < 330));
+          if (rest) current.description = `${current.description} ${rest}`;
+        }
+      }
+      if (current && current.amount == null && !m) {
+        const found = findAmount(r, outX, inX);
+        if (found) { current.amount = found.value; current.dir = found.dir; }
       }
     }
   }
@@ -146,7 +165,7 @@ async function parseRevolut(pdf) {
 
 // ----------------------------------------------------------------------- API
 
-// Riconosce la banca dal contenuto e restituisce i movimenti in uscita, pronti da categorizzare.
+// Riconosce la banca dal contenuto e restituisce i movimenti (uscite ed entrate), pronti da categorizzare.
 export async function parsePdfStatement(buffer, rules = {}) {
   const pdf = await openPdf(buffer);
   const first = (await pageRows(await pdf.getPage(1))).map((r) => text(r.tokens)).join('\n');

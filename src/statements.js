@@ -3,9 +3,9 @@ import crypto from 'node:crypto';
 // Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
-export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'altro'];
+export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'entrate', 'altro'];
 export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante' };
-export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', altro: 'Altro' };
+export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', altro: 'Altro' };
 // Nomi usati nelle versioni precedenti.
 export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
@@ -18,12 +18,20 @@ const RULES = [
   ['spesa', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristoran\w*|restaurant|\bspar\b|\becu\b|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros|birr\w*|vino|enoteca|bevande|ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|flying tiger/i],
 ];
 
+// Le entrate hanno regole a parte: "entrate" conta come altro denaro ricevuto, "altro" le esclude.
+// Sono escluse in automatico i giri tra conti miei (il mio nome, il datore di lavoro già nelle buste paga, PayPal istantaneo…).
+const INTERNAL_IN = /d.?rossi mario|mario d.?rossi|Mario D'Rossi|azienda esempio|\bigf\b|instant transfer|da:\s*paypal|prelievo|ricaric\w*/i;
+
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-export function categorize(description, rules = {}, detail = '') {
-  const learned = rules[normalize(description)];
+// Le regole imparate per le entrate hanno il prefisso "in:", così non si confondono con le uscite della stessa descrizione.
+export const ruleKey = (description, amount) => (amount > 0 ? 'in:' : '') + normalize(description);
+
+export function categorize(description, rules = {}, detail = '', amount = -1) {
+  const learned = rules[ruleKey(description, amount)];
   if (learned) return LEGACY_CATEGORY[learned] ?? learned;
   const text = `${description} ${detail}`;
+  if (amount > 0) return INTERNAL_IN.test(text) ? 'altro' : 'entrate';
   for (const [category, re] of RULES) if (re.test(text)) return category;
   return 'altro';
 }
@@ -80,7 +88,7 @@ const find = (headers, ...patterns) => {
   return -1;
 };
 
-// Restituisce le uscite già categorizzate, oppure lancia un errore leggibile.
+// Restituisce i movimenti (uscite ed entrate) già categorizzati, oppure lancia un errore leggibile.
 export function parseStatement(text, rules = {}) {
   const rows = parseRows(text);
   if (rows.length < 2) throw new Error('Il file è vuoto o non è un CSV.');
@@ -102,7 +110,7 @@ export function parseStatement(text, rules = {}) {
     const description = (r[iDesc] ?? '').trim();
     let amount = iAmount >= 0 ? parseAmount(r[iAmount]) : null;
     if (amount == null && iDebit >= 0) { const d = parseAmount(r[iDebit]); amount = d == null ? null : -Math.abs(d); }
-    if (!date || !description || amount == null || amount >= 0) continue;
+    if (!date || !description || amount == null || amount === 0) continue;
     if (iType >= 0 && skipType.test((r[iType] ?? '').trim())) continue;
     if (iState >= 0 && r[iState]?.trim() && !/^(completed|eseguit\w*|completat\w*)$/i.test(r[iState].trim())) continue;
     out.push(makeTransaction({ date, description, amount }, rules, seen));
@@ -120,7 +128,7 @@ export function makeTransaction({ id, date, description, detail = '', amount }, 
     seen.set(base, n);
     id = crypto.createHash('sha1').update(`${base}|${n}`).digest('hex').slice(0, 16);
   }
-  const t = { id, date, description, amount: rounded, category: categorize(description, rules, detail) };
+  const t = { id, date, description, amount: rounded, category: categorize(description, rules, detail, rounded) };
   if (detail) t.detail = detail.slice(0, 400);
   return t;
 }

@@ -35,6 +35,9 @@ async function inParallel(items, limit, fn) {
 // Rilegge le sorgenti configurate e aggiorna `db.docs`.
 // Un PDF già letto e non modificato viene saltato, a meno di `force`.
 // Estratti conto (PDF UniCredit e Revolut, oppure CSV) dalla cartella/link configurato: solo file nuovi o modificati, movimenti senza duplicati.
+// Versione del lettore: quando cambia (es. ora legge anche le entrate) gli estratti conto si rileggono una volta.
+const STATEMENT_PARSER = 2;
+
 async function readStatements(db, report, force) {
   const value = db.settings.statementsSource;
   if (!value?.trim()) { report.sources.push({ label: 'Estratti conto', skipped: true }); return; }
@@ -43,6 +46,7 @@ async function readStatements(db, report, force) {
     report.sources.push({ label: 'Estratti conto', files: files.length });
     db.statementFiles ??= {};
     db.transactions ??= {};
+    if (db.statementParser !== STATEMENT_PARSER) { db.statementFiles = {}; db.statementParser = STATEMENT_PARSER; }
     for (const file of files) {
       if (!force && db.statementFiles[file.key] === file.version) continue;
       try {

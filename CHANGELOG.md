@@ -2,6 +2,13 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.13.0
+- **Entrate bancarie**: gli estratti conto (PDF UniCredit e Revolut, CSV) ora importano anche i soldi ricevuti, non solo le uscite. Nel grafico "Stipendio contro uscite" c'è una seconda linea, **Altre entrate**, più una colonna nella tabella dei numeri e un riquadro.
+- Le entrate si dividono in **Entrate** (contano) e **Altro** (ignorate): i giri tra i miei conti, PayPal istantaneo e i bonifici dal datore di lavoro (già nelle buste paga) finiscono in automatico tra le ignorate. Dalla scheda Banca si può cambiare la scelta, e l'app la ricorda.
+- Revolut: corretta la lettura dei nomi su due righe, con l'importo sulla riga sotto.
+- Movimenti: importi con il segno (+ entrate, − uscite).
+- Al primo avvio gli estratti conto già letti vengono riletti una volta per prendere le entrate.
+
 ## 0.12.1
 - Scheda Banca: scegliendo un anno non ancora concluso i grafici mostrano comunque tutti e 12 i mesi, quelli futuri vuoti (anche nella tabella dei numeri). Con un solo anno le etichette dei mesi si vedono tutte.
 
