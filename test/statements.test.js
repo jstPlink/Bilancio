@@ -41,6 +41,9 @@ test('una regola imparata vince su quelle automatiche', () => {
   assert.equal(categorize("Autostrade per l'Italia"), 'svago');
   assert.equal(categorize('IP Italiana Petroli'), 'carburante');
   assert.equal(categorize('Bar Sport', { 'bar sport': 'svago' }), 'svago');
+  for (const name of ['Telethon', 'AMNESTY ROMA', 'Greenpeace Italia', 'Save the Children', 'ADDEBITO PER DONAZIONE ONLUS Incasso 1 WWF ITALIA']) {
+    assert.equal(categorize(name), 'donazioni', name);
+  }
 });
 
 test('la griglia somma i movimenti nelle colonne giuste', () => {

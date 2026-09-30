@@ -222,7 +222,7 @@ app.get('/api/analysis', (req, res) => {
   // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, e le uscite bancarie per categoria.
   const byMonth = new Map();
   const slot = (ym) => {
-    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, altro: 0 } });
+    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, donazioni: 0, altro: 0 } });
     return byMonth.get(ym);
   };
   for (const c of buildCells(db()).values()) {

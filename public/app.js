@@ -177,9 +177,9 @@ async function payAll(colId) {
 
 // ------------------------------------------------------------------ movimenti
 
-const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro (non conta)' };
-const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro' };
-const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', altro: 'var(--viz-altro)' };
+const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni (non conta nella tabella)', altro: 'Altro (non conta)' };
+const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', altro: 'Altro' };
+const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', donazioni: 'var(--viz-donazioni)', altro: 'var(--viz-altro)' };
 const fmtDate = (d) => d.split('-').reverse().join('/');
 
 // Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
@@ -278,7 +278,7 @@ function renderAnalysis() {
   };
   const numbers = a.months.map((m) => {
     const out = m.bills + m.spesa + m.svago + m.carburante;
-    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
+    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.donazioni) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
   }).join('');
 
   $('#analysisBody').innerHTML = `
@@ -302,7 +302,7 @@ function renderAnalysis() {
       </section>
     </div>
     <details class="acat"><summary>Numeri mese per mese <span class="muted">· tabella dei grafici</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
+      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Donazioni</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
     </details>
     ${cats.map(table).join('')}`;
 
@@ -322,7 +322,7 @@ function renderAnalysis() {
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   monthChart($('#chBank'), a.months, {
-    series: ['spesa', 'svago', 'carburante', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
+    series: ['spesa', 'svago', 'carburante', 'donazioni', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   hBars($('#chTop'), top.map((m) => ({ label: shortName(m.name), value: m.total, color: CATEGORY_COLOR[m.cat], cat: CATEGORY_NAME[m.cat], sub: `${m.count} volte` })));

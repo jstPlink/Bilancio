@@ -209,10 +209,10 @@ th .place { display: block; font-size: 11px; font-weight: 500; color: var(--mute
 
 /* --- scheda Banca: filtri, grafici, ordinamento --- */
 :root {
-  --ink: #14201d; --viz-spesa: #2a78d6; --viz-svago: #eb6834; --viz-carburante: #1baf7a; --viz-bollette: #eda100; --viz-altro: #9aa5a1;
+  --ink: #14201d; --viz-spesa: #2a78d6; --viz-svago: #eb6834; --viz-carburante: #1baf7a; --viz-bollette: #eda100; --viz-donazioni: #4a3aa7; --viz-altro: #9aa5a1;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --ink: #e6efec; --viz-spesa: #3987e5; --viz-svago: #d95926; --viz-carburante: #199e70; --viz-bollette: #c98500; --viz-altro: #5d6d68; }
+  :root:not([data-theme="light"]) { --ink: #e6efec; --viz-spesa: #3987e5; --viz-svago: #d95926; --viz-carburante: #199e70; --viz-bollette: #c98500; --viz-donazioni: #9085e9; --viz-altro: #5d6d68; }
 }
 .bankbar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .bankbar label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
