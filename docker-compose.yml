@@ -1,0 +1,14 @@
+services:
+  bilancino:
+    build: .
+    container_name: bilancino
+    restart: unless-stopped
+    ports:
+      - "4870:4870"
+    environment:
+      TZ: Europe/Rome
+    volumes:
+      # database SQLite e cache OCR: qui stanno tutti i dati
+      - ./data:/data
+      # opzionale: cartella PDF del NAS, se usi un percorso locale come sorgente
+      # - /volume1/documenti/casa:/documenti:ro

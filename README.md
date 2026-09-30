@@ -36,5 +36,15 @@ I PDF scansionati (solo immagine) non contengono testo e vanno inseriti a mano.
 
 ## Dati e privacy
 
-Tutto resta sul tuo computer, in `data/db.json` (ignorato da git, come i PDF).
-Il server ascolta solo su `127.0.0.1`.
+Tutto sta in un database SQLite, `data/bilancino.db` (ignorato da git, come i PDF). Un eventuale `data/db.json` della
+versione precedente viene importato al primo avvio. In locale il server ascolta solo su `127.0.0.1`.
+
+## Docker / NAS
+
+```bash
+docker compose up -d --build   # http://<ip-nas>:4870
+```
+
+I dati stanno in `./data` (montato su `/data`): fanne il backup. Con `HOST=0.0.0.0` il server è raggiungibile in rete
+senza autenticazione: tienilo dietro la LAN o una VPN. Per usare un percorso locale come sorgente PDF, monta la cartella
+nel container (vedi `docker-compose.yml`) e indica il percorso interno (es. `/documenti`).

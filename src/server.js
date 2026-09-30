@@ -8,9 +8,10 @@ import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dbFile = process.env.BILANCINO_DB ?? path.join(root, 'data', 'db.json');
-const store = createStore(dbFile);
-await store.load();
+const dataDir = process.env.BILANCINO_DATA ?? path.join(root, 'data');
+const dbFile = process.env.BILANCINO_DB ?? path.join(dataDir, 'bilancino.db');
+const store = createStore(dbFile, { legacyJson: path.join(dataDir, 'db.json') });
+store.load();
 
 const app = express();
 app.use(express.json());
@@ -152,4 +153,5 @@ app.get('/api/file', (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? 4870);
-app.listen(port, '127.0.0.1', () => console.log(`Bilancino su http://localhost:${port}`));
+const host = process.env.HOST ?? '127.0.0.1';
+app.listen(port, host, () => console.log(`Bilancino su http://${host}:${port}`));
