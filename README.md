@@ -58,6 +58,8 @@ versione precedente viene importato al primo avvio. In locale il server ascolta 
 docker compose up -d --build   # http://<ip-nas>:4870
 ```
 
-I dati stanno in `./data` (montato su `/data`): fanne il backup. Con `HOST=0.0.0.0` il server è raggiungibile in rete
+I dati stanno in `./data` (montato su `/data`): fanne il backup. Per portare sul server i dati che hai in locale, chiudi l'app
+e copia `data/bilancino.db` nella cartella `./data` accanto a `docker-compose.yml`: dentro ci sono anche le Impostazioni
+(link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Con `HOST=0.0.0.0` il server è raggiungibile in rete
 senza autenticazione: tienilo dietro la LAN o una VPN. Per usare un percorso locale come sorgente PDF, monta la cartella
 nel container (vedi `docker-compose.yml`) e indica il percorso interno (es. `/documenti`).

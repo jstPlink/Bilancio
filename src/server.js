@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
 import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
-import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement } from './statements.js';
+import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity } from './statements.js';
 import { matchBillPayments } from './billmatch.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
@@ -14,6 +14,7 @@ const dataDir = process.env.BILANCIO_DATA ?? process.env.BILANCINO_DATA ?? path.
 const dbFile = process.env.BILANCIO_DB ?? process.env.BILANCINO_DB ?? path.join(dataDir, 'bilancino.db');
 const store = createStore(dbFile, { legacyJson: path.join(dataDir, 'db.json') });
 store.load();
+setIdentity(store.data.settings);
 // Abbina gli addebiti delle utenze alle bollette già lette (una tantum all'avvio, poi a ogni aggiornamento).
 if (matchBillPayments(store.data)) store.save();
 
@@ -51,6 +52,8 @@ app.put('/api/settings', async (req, res) => {
     if (b.rentFrom && !/^\d{4}-\d{2}$/.test(b.rentFrom)) return bad(res, 'Data inizio affitto non valida.');
     s.rentFrom = b.rentFrom;
   }
+  for (const key of ['ownNames', 'incomePayers']) if (typeof b[key] === 'string') s[key] = b[key].trim().slice(0, 300);
+  setIdentity(s);
   await store.save();
   res.json(s);
 });

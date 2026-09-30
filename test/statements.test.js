@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseStatement, categorize } from '../src/statements.js';
+import { parseStatement, categorize, setIdentity } from '../src/statements.js';
+
+setIdentity({ ownNames: "Mario D'Rossi", incomePayers: 'Azienda Esempio' });
 import { buildGrid } from '../src/grid.js';
 
 const revolut = `Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
@@ -86,9 +88,13 @@ test('tasse: nessun falso positivo sui distributori di carburante', () => {
 
 test('giroconti: solo se il beneficiario sono io, non se il mio nome è nella causale', () => {
   assert.equal(categorize("DISPOSIZIONE DI BONIFICO BONIFICO SEPA A: Mario D'Rossi PER: Ricarica"), 'giroconti');
-  assert.equal(categorize("BONIFICO SEPA A: Autoscuola Esempio PER: Mario D'Rossi: PACCHETTO GUIDE"), 'altro');
-  assert.equal(categorize("Pagamento da D'Rossi Mario", {}, '', 500), 'giroconti');
+  assert.equal(categorize("BONIFICO SEPA A: Autoscuola Esempio PER: MARIO D'ROSSI: PACCHETTO GUIDE"), 'altro');
+  assert.equal(categorize("Pagamento da D'ROSSI MARIO", {}, '', 500), 'giroconti');
+  assert.equal(categorize('Bonifico da AZIENDA ESEMPIO SRL', {}, '', 1500), 'giroconti');
   assert.equal(categorize('Pagamento da ANNA VERDI', {}, '', 500), 'entrate');
+  setIdentity({});
+  assert.equal(categorize("A: Mario D'Rossi PER: Ricarica"), 'altro'); // senza nome impostato, non riconosce nulla
+  setIdentity({ ownNames: "Mario D'Rossi", incomePayers: 'Azienda Esempio' });
 });
 
 test('la rata del prestito si legge dagli estratti conto e non ha stato "pagato"', () => {

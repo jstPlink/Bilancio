@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.19.0
+- **Niente dati personali nel codice**: il mio nome e chi mi paga lo stipendio (usati per riconoscere i giroconti e non contare due volte lo stipendio) non sono più scritti nel codice ma nelle **Impostazioni** ("Riconoscere i miei movimenti"), cioè nel database, che non viene pubblicato. I test usano nomi inventati.
+- Dockerfile: variabili di produzione, niente avvisi di Node sul modulo SQLite e controllo di salute del container. README: come portare sul server il database locale.
+
 ## 0.18.0
 - Nuova categoria **Da suddividere**: non conta in nessun dato e ha la sua tabella nella scheda Banca. Ci finiscono in automatico gli addebiti SEPA di **PayPal** (coprono acquisti diversi) finché non vengono divisi in sotto-categorie. Spostati i 16 esistenti (1.157,06 €).
 

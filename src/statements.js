@@ -14,10 +14,29 @@ export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
 // Spesa = cibo, bevande e prodotti per la casa. Svago = abbonamenti TV, Amazon, parchi, televisori, giocattoli.
 // Giroconti: soldi spostati tra i miei conti. Non contano in nessun dato, né come entrata né come uscita.
-const OWN_BENEFICIARY = /\bA:\s*(mario d.?rossi|d.?rossi mario)/i;
+// Per riconoscerli servono il mio nome e chi mi paga lo stipendio: stanno nelle Impostazioni (non nel codice).
+let identity = { ownAsBeneficiary: null, internalIn: null };
+
+const escapeRe = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// "Mario D'Rossi" → anche "D'Rossi Mario"; l'apostrofo e gli spazi possono mancare.
+function nameVariants(entry) {
+  const words = entry.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const piece = (ws) => ws.map((w) => w.split(/[^\p{L}\p{N}]+/u).filter(Boolean).map(escapeRe).join('.?')).join('\\s+');
+  return [piece(words), ...(words.length > 1 ? [piece([...words].reverse())] : [])].map((p) => `\\b${p}\\b`);
+}
+const list = (text) => String(text ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+
+export function setIdentity({ ownNames = '', incomePayers = '' } = {}) {
+  const own = list(ownNames).flatMap(nameVariants);
+  const payers = list(incomePayers).flatMap(nameVariants);
+  identity = {
+    ownAsBeneficiary: own.length ? new RegExp(`\\bA:\\s*(${own.join('|')})`, 'iu') : null,
+    internalIn: own.length + payers.length ? new RegExp([...own, ...payers].join('|'), 'iu') : null,
+  };
+}
 
 const RULES = [
-  ['giroconti', OWN_BENEFICIARY],
   // La rata del mutuo/prestito addebitata dalla banca alimenta da sola la colonna Prestito.
   ['prestito', /rata mutuo|pagamento rata|rata num|prestito rata/i],
   // Gli addebiti SEPA di PayPal coprono acquisti diversi: finché non sono suddivisi, non si contano.
@@ -30,8 +49,8 @@ const RULES = [
 ];
 
 // Le entrate hanno regole a parte: "entrate" conta come altro denaro ricevuto, "altro" le esclude.
-// Sono escluse in automatico i giri tra conti miei (il mio nome, il datore di lavoro già nelle buste paga, PayPal istantaneo…).
-const INTERNAL_IN = /d.?rossi mario|mario d.?rossi|Mario D'Rossi|\bhype\b|azienda esempio|\bigf\b|instant transfer|da:\s*paypal|prelievo|ricaric\w*/i;
+// Sono escluse in automatico i giri tra conti miei (il mio nome, chi mi paga lo stipendio, PayPal istantaneo…).
+const GENERIC_INTERNAL_IN = /instant transfer|da:\s*paypal|prelievo|ricaric\w*/i;
 
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -42,7 +61,8 @@ export function categorize(description, rules = {}, detail = '', amount = -1) {
   const learned = rules[ruleKey(description, amount)];
   if (learned) return LEGACY_CATEGORY[learned] ?? learned;
   const text = `${description} ${detail}`;
-  if (amount > 0) return INTERNAL_IN.test(text) ? 'giroconti' : 'entrate';
+  if (amount > 0) return GENERIC_INTERNAL_IN.test(text) || identity.internalIn?.test(text) ? 'giroconti' : 'entrate';
+  if (identity.ownAsBeneficiary?.test(text)) return 'giroconti';
   for (const [category, re] of RULES) if (re.test(text)) return category;
   return 'altro';
 }

@@ -539,6 +539,11 @@ async function openSettings() {
       </div>
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </fieldset>
+    <fieldset><legend>Riconoscere i miei movimenti</legend>
+      <label>Il mio nome (più nomi separati da virgola)<input name="ownNames" value="${esc(s.ownNames)}" placeholder="Es. Mario Rossi" autocomplete="off"></label>
+      <label>Chi mi paga lo stipendio (separati da virgola)<input name="incomePayers" value="${esc(s.incomePayers)}" placeholder="Es. Azienda Esempio" autocomplete="off"></label>
+      <small>Servono a non contare i giroconti tra i miei conti e lo stipendio, già presente nelle buste paga. Restano sul tuo database: non vengono mai pubblicati.</small>
+    </fieldset>
     <p class="error" id="setErr" role="alert"></p>
     <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
   </form>`;
@@ -553,6 +558,8 @@ async function openSettings() {
           payslipsSource: form.payslipsSource.value,
           billsSource: form.billsSource.value,
           statementsSource: form.statementsSource.value,
+          ownNames: form.ownNames.value,
+          incomePayers: form.incomePayers.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
         },

@@ -13,6 +13,8 @@ const defaults = () => ({
     payslipsSource: '',
     billsSource: '',
     statementsSource: '',
+    ownNames: '',
+    incomePayers: '',
     rentAmount: 0,
     rentFrom: '',
   },
