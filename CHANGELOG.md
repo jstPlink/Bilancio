@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.12.0
+- Nuova categoria **Tasse** (Agenzia delle Entrate, F24, IMU, TARI, bollo, INPS, multe, canone Rai, causali "tassa"…): come Donazioni, compare nella scheda Banca e nei grafici ma non ha una colonna nella tabella principale.
+
 ## 0.11.0
 - Nuova categoria **Donazioni** (Telethon, Amnesty, Greenpeace, Save the Children, WWF, Terre des Hommes, addebiti "donazione onlus"…): compare nella scheda Banca, nei grafici e nel menu delle categorie, ma non ha una colonna nella tabella principale.
 - I movimenti già salvati che corrispondono (50, per 908 €) sono stati spostati in Donazioni.

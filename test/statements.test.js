@@ -41,6 +41,7 @@ test('una regola imparata vince su quelle automatiche', () => {
   assert.equal(categorize("Autostrade per l'Italia"), 'svago');
   assert.equal(categorize('IP Italiana Petroli'), 'carburante');
   assert.equal(categorize('Bar Sport', { 'bar sport': 'svago' }), 'svago');
+  for (const name of ['AGENZIA DELLE ENTRATE F24', 'Pagamento IMU Comune', 'Bollo auto ACI']) assert.equal(categorize(name), 'tasse', name);
   for (const name of ['Telethon', 'AMNESTY ROMA', 'Greenpeace Italia', 'Save the Children', 'ADDEBITO PER DONAZIONE ONLUS Incasso 1 WWF ITALIA']) {
     assert.equal(categorize(name), 'donazioni', name);
   }
@@ -75,4 +76,9 @@ test('luce e gas hanno una colonna per casa, con la propria spunta', () => {
   assert.equal(g.rows[1].spent, 65); // il totale comprende entrambe le case
   assert.equal(g.summary.totalToPay, 25);
   assert.equal(g.summary.toPay['luce:crispiano'], 25);
+});
+
+test('tasse: nessun falso positivo sui distributori di carburante', () => {
+  assert.equal(categorize('Distributore Area Bianca'), 'carburante');
+  assert.equal(categorize('Distributore Self IP'), 'carburante');
 });
