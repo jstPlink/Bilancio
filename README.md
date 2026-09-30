@@ -26,6 +26,13 @@ npm test
 4. Nella scheda **Documenti** trovi i file letti male (*Da controllare*): con **Modifica**
    correggi tipo, periodo e importo; la correzione sopravvive ai successivi aggiornamenti.
 
+## Estratti conto (spese)
+
+Nella scheda **Movimenti** carica l'esportazione CSV del conto (Revolut: Conti → Estratti → Excel/CSV). Contano solo le uscite
+completate; bonifici, ricariche e rimborsi sono esclusi. Ogni movimento prende una categoria dalle parole chiave in
+`src/statements.js`: **cibo** e **casa** vanno nella colonna Spese, **svago** e **carburante** nelle loro colonne, **altro** non conta.
+Puoi correggere la categoria dal menu: l'app la ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla.
+
 ## Come legge i PDF
 
 `src/parsers.js` cerca etichette tipiche ("Netto in busta", "Totale da pagare", "Data emissione",

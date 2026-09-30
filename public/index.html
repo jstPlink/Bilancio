@@ -26,6 +26,7 @@
   <main>
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Panoramica</button>
+      <button role="tab" data-tab="moves" aria-selected="false">Movimenti</button>
       <button role="tab" data-tab="docs" aria-selected="false">Documenti <span id="docBadge" class="badge warn" hidden></span></button>
       <div class="years" id="years" aria-label="Anno"></div>
     </nav>
@@ -34,6 +35,18 @@
       <div class="cards" id="cards"></div>
       <div class="tablewrap"><table id="grid"></table></div>
       <p class="hint">Clicca su una cella per segnarla come pagata (verde) o da pagare (rossa). Passa il mouse per aprire il PDF. Gli importi arrivano solo dai documenti.</p>
+    </section>
+
+    <section id="moves" hidden>
+      <div class="movebar">
+        <label class="primary upload">Carica estratto conto (CSV)<input id="statementFile" type="file" accept=".csv,text/csv" multiple hidden></label>
+        <span class="muted">Solo le uscite contano. Cibo e casa vanno in <b>Spese</b>; svago e carburante hanno la loro colonna. Cambia la categoria qui sotto: verrà ricordata.</span>
+      </div>
+      <div id="movesEmpty" class="empty" hidden>
+        <h2>Nessun movimento nel periodo</h2>
+        <p>Carica l'esportazione CSV dell'estratto conto (in Revolut: Conti → Estratti → Excel/CSV).</p>
+      </div>
+      <div class="tablewrap"><table id="moveTable"></table></div>
     </section>
 
     <section id="docs" hidden>

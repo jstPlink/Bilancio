@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
-import { buildGrid, cellKey, effectiveDoc, KINDS, NO_PAYMENT } from './grid.js';
+import { buildGrid, cellKey, effectiveDoc, KINDS, NO_PAYMENT, SPENDING_KINDS } from './grid.js';
+import { CATEGORIES, normalize, parseStatement } from './statements.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -15,6 +16,7 @@ store.load();
 
 const app = express();
 app.use(express.json());
+app.use('/api/statements', express.text({ type: '*/*', limit: '20mb' }));
 app.use(express.static(path.join(root, 'public')));
 
 const { version } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
@@ -92,11 +94,11 @@ app.post('/api/paid', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Unico importo inseribile a mano: la colonna "Spese" (provvisoria). Gli altri vengono dai documenti.
+// Importi inseribili a mano: Spese, Svago e Carburante (correggono il totale dei movimenti). Gli altri vengono dai documenti.
 // `amount: null` cancella il valore.
 app.post('/api/manual', async (req, res) => {
   const { amount } = req.body ?? {};
-  if (!validCell(req.body ?? {}) || req.body.kind !== 'spese') return bad(res, 'Solo le spese si inseriscono a mano.');
+  if (!validCell(req.body ?? {}) || !SPENDING_KINDS.has(req.body.kind)) return bad(res, 'Solo spese, svago e carburante si inseriscono a mano.');
   if (amount != null && !(Number(amount) >= 0)) return bad(res, 'Importo non valido.');
   const k = cellKey(req.body.kind, req.body.year, req.body.month);
   if (amount == null) delete db().manual[k]; else db().manual[k] = Number(amount);
@@ -150,6 +152,40 @@ app.get('/api/file', (req, res) => {
   if (target?.type === 'url') return res.redirect(target.url);
   if (target?.type === 'local') return res.sendFile(target.path, (err) => err && !res.headersSent && res.status(404).send('File non trovato.'));
   res.status(404).send('Sorgente sconosciuta.');
+});
+
+// Estratto conto CSV: aggiunge i movimenti nuovi (quelli già presenti non si duplicano).
+app.post('/api/statements', async (req, res) => {
+  if (typeof req.body !== 'string' || !req.body.trim()) return bad(res, 'Nessun file ricevuto.');
+  let items;
+  try { items = parseStatement(req.body, db().rules); } catch (e) { return bad(res, e.message); }
+  const all = (db().transactions ??= {});
+  let added = 0;
+  for (const t of items) if (!all[t.id]) { all[t.id] = t; added++; }
+  await store.save();
+  res.json({ found: items.length, added, duplicates: items.length - added });
+});
+
+app.get('/api/transactions', (req, res) => {
+  const year = Number(req.query.year);
+  const list = Object.values(db().transactions ?? {}).filter((t) => !year || t.date.startsWith(`${year}-`));
+  list.sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description));
+  res.json({ categories: CATEGORIES, transactions: list });
+});
+
+// Cambia categoria a un movimento e la ricorda per tutti quelli con la stessa descrizione.
+app.put('/api/transactions', async (req, res) => {
+  const { id, category } = req.body ?? {};
+  const t = db().transactions?.[id];
+  if (!t) return res.status(404).json({ error: 'Movimento non trovato.' });
+  if (!CATEGORIES.includes(category)) return bad(res, 'Categoria non valida.');
+  const key = normalize(t.description);
+  if (key) {
+    db().rules[key] = category;
+    for (const o of Object.values(db().transactions)) if (normalize(o.description) === key) o.category = category;
+  } else t.category = category;
+  await store.save();
+  res.json({ ok: true });
 });
 
 const port = Number(process.env.PORT ?? 4870);

@@ -1,0 +1,109 @@
+import crypto from 'node:crypto';
+
+// Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
+// Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
+
+export const CATEGORIES = ['cibo', 'casa', 'svago', 'carburante', 'altro'];
+export const CATEGORY_KIND = { cibo: 'spese', casa: 'spese', svago: 'svago', carburante: 'carburante' };
+
+const RULES = [
+  ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|autostrad\w*|fuel|petrol)\b/i],
+  ['svago', /cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|netflix|spotify|disney|prime video|dazn|playstation|steam|nintendo|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
+  ['casa', /ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|risparmio casa|flying tiger/i],
+  ['cibo', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristorant\w*|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros/i],
+];
+
+export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+export function categorize(description, rules = {}) {
+  const learned = rules[normalize(description)];
+  if (learned) return learned;
+  for (const [category, re] of RULES) if (re.test(description)) return category;
+  return 'altro';
+}
+
+// --- CSV ---------------------------------------------------------------------------------
+
+function parseRows(text) {
+  const src = text.replace(/^﻿/, '');
+  const first = src.split(/\r?\n/, 1)[0];
+  const delim = [';', ',', '\t'].map((d) => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') { cell += '"'; i++; } else if (ch === '"') quoted = false; else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === delim) { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some((c) => c.trim())) rows.push(row);
+      row = [];
+    } else cell += ch;
+  }
+  row.push(cell);
+  if (row.some((c) => c.trim())) rows.push(row);
+  return rows;
+}
+
+export function parseAmount(text) {
+  const t = String(text ?? '').trim().replace(/[€\s]|EUR/gi, '');
+  if (!t) return null;
+  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function parseDate(text) {
+  const t = String(text ?? '').trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/.exec(t);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  return null;
+}
+
+const find = (headers, ...patterns) => {
+  for (const p of patterns) {
+    const i = headers.findIndex((h) => p.test(h));
+    if (i >= 0) return i;
+  }
+  return -1;
+};
+
+// Restituisce le uscite già categorizzate, oppure lancia un errore leggibile.
+export function parseStatement(text, rules = {}) {
+  const rows = parseRows(text);
+  if (rows.length < 2) throw new Error('Il file è vuoto o non è un CSV.');
+  const headers = rows[0].map((h) => h.trim().toLowerCase());
+  const iDate = find(headers, /completed date/, /data (contabile|operazione|valuta)/, /^date$/, /^data$/, /started date/, /date/);
+  const iDesc = find(headers, /^description$/, /descrizione/, /causale/, /dettagli/, /description/);
+  const iAmount = find(headers, /^amount$/, /^importo$/, /importo/);
+  const iDebit = find(headers, /addebit/, /uscite/, /debit/);
+  const iType = find(headers, /^type$/, /^tipo$/);
+  const iState = find(headers, /^state$/, /^stato$/);
+  if (iDate < 0 || iDesc < 0 || (iAmount < 0 && iDebit < 0)) {
+    throw new Error('Colonne non riconosciute: servono data, descrizione e importo.');
+  }
+  const skipType = /^(transfer|topup|top-up|exchange|card_refund|refund)$/i;
+  const seen = new Map();
+  const out = [];
+  for (const r of rows.slice(1)) {
+    const date = parseDate(r[iDate]);
+    const description = (r[iDesc] ?? '').trim();
+    let amount = iAmount >= 0 ? parseAmount(r[iAmount]) : null;
+    if (amount == null && iDebit >= 0) { const d = parseAmount(r[iDebit]); amount = d == null ? null : -Math.abs(d); }
+    if (!date || !description || amount == null || amount >= 0) continue;
+    if (iType >= 0 && skipType.test((r[iType] ?? '').trim())) continue;
+    if (iState >= 0 && r[iState]?.trim() && !/^(completed|eseguit\w*|completat\w*)$/i.test(r[iState].trim())) continue;
+    const base = `${date}|${description}|${amount}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    const id = crypto.createHash('sha1').update(`${base}|${n}`).digest('hex').slice(0, 16);
+    out.push({ id, date, description, amount: Math.round(amount * 100) / 100, category: categorize(description, rules) });
+  }
+  return out;
+}

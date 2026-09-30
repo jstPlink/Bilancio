@@ -2,7 +2,7 @@
   --bg: #f4f6f5; --surface: #fff; --ink: #14201d; --muted: #64726e; --line: #e2e8e6;
   --accent: #0f766e; --accent-ink: #fff; --danger: #b42318; --warn-bg: #fff4d6; --warn-ink: #7a5300;
   --ok-bg: #dcf3e6; --ok-ink: #14663a; --late-bg: #fde4e1; --late-ink: #9a2a1f;
-  --stipendio: #2f9e63; --acqua: #3b82c4; --luce: #d99a00; --gas: #7c6bb8; --wifi: #e07a2f; --affitto: #c8524b;
+  --stipendio: #2f9e63; --acqua: #3b82c4; --luce: #d99a00; --gas: #7c6bb8; --wifi: #e07a2f; --affitto: #c8524b; --svago: #d6589a; --carburante: #4a5568;
   --shadow: 0 1px 2px rgb(16 40 34 / .06), 0 4px 16px rgb(16 40 34 / .05);
   color-scheme: light;
 }
@@ -11,7 +11,7 @@
     --bg: #0e1513; --surface: #16201d; --ink: #e6efec; --muted: #8fa19c; --line: #26332f;
     --accent: #2bb3a6; --accent-ink: #04201c; --danger: #ff8a7d; --warn-bg: #3a2f10; --warn-ink: #f3cf7a;
     --ok-bg: #163a29; --ok-ink: #8fdcaa; --late-bg: #42201c; --late-ink: #ffb1a8;
-    --stipendio: #4cc287; --acqua: #62a7e6; --luce: #efbb2f; --gas: #a294dd; --wifi: #f19a5c; --affitto: #e5837c;
+    --stipendio: #4cc287; --acqua: #62a7e6; --luce: #efbb2f; --gas: #a294dd; --wifi: #f19a5c; --affitto: #e5837c; --svago: #ec86b9; --carburante: #a0aec0;
     --shadow: none; color-scheme: dark;
   }
 }
@@ -61,7 +61,7 @@ main { max-width: 1760px; margin: 0 auto; padding: 16px; }
 .card.due .sub { color: inherit; opacity: .85; }
 
 .tablewrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: auto; }
-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1100px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1300px; }
 th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
 thead th { position: sticky; top: 0; background: var(--surface); text-align: right; font-size: 13px; z-index: 1; }
 thead th:first-child, tbody th { text-align: left; }
@@ -150,3 +150,18 @@ td.total { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); fon
 @media (hover: none) { .filelink { opacity: .6; } }
 .expense-input { width: 104px; min-width: 0; margin-left: auto; }
 td:has(> .expense-input) { text-align: right; }
+
+/* --- colonna mesi come il riepilogo, allineamenti dei totali, movimenti --- */
+:root { --summary-bg: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+tbody th[scope=row], tbody tr:hover th[scope=row], tr.groups th.g-month, thead th.g-month { background: var(--summary-bg); }
+tr.groups th.g-month { text-align: left; color: var(--muted); }
+thead th.g-month { border-bottom: 1px solid var(--line); }
+thead th { white-space: nowrap; padding-right: 12px; }
+tbody td.num.total { padding: 8px 12px; min-width: 110px; }
+tfoot td.num { padding-right: 12px; }
+.movebar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+label.upload { cursor: pointer; }
+label.upload:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+#moveTable td, #moveTable th { text-align: left; }
+#moveTable td.num { text-align: right; padding: 8px 12px; }
+#moveTable select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }

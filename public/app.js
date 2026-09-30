@@ -7,10 +7,13 @@ const KINDS = [
   { id: 'affitto', label: 'Affitto' },
   { id: 'prestito', label: 'Prestito' },
   { id: 'spese', label: 'Spese' },
+  { id: 'svago', label: 'Svago' },
+  { id: 'carburante', label: 'Carburante' },
 ];
 const EXPENSES = KINDS.filter((k) => k.id !== 'stipendio');
-// Voci senza stato "pagato": lo stipendio (entrata) e le spese manuali.
-const NO_PAYMENT = new Set(['stipendio', 'spese']);
+// Voci senza stato "pagato": lo stipendio (entrata) e le spese correnti, che arrivano dall'estratto conto.
+const SPENDING = new Set(['spese', 'svago', 'carburante']);
+const NO_PAYMENT = new Set(['stipendio', ...SPENDING]);
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 const $ = (s) => document.querySelector(s);
@@ -30,8 +33,8 @@ const state = { year: new Date().getFullYear(), grid: null, docs: [], settings: 
 async function api(path, options) {
   const res = await fetch(path, options && {
     ...options,
-    headers: { 'Content-Type': 'application/json' },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    headers: options.headers ?? { 'Content-Type': 'application/json' },
+    body: options.raw ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
@@ -78,13 +81,13 @@ function renderCards() {
 }
 
 // I valori delle celle vengono solo dai documenti (e dalle rate fisse nelle impostazioni):
-// qui non si modificano. Fa eccezione "Spese", inserita a mano in modo provvisorio.
+// qui non si modificano. Spese, Svago e Carburante vengono dall'estratto conto e si possono correggere a mano.
 function cellHtml(kind, month, c) {
   const empty = c.amount == null;
   const name = KINDS.find((k) => k.id === kind).label;
   const label = `${name} ${MONTHS[month - 1]}`;
-  if (kind === 'spese') {
-    return `<input class="expense-input" inputmode="decimal" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
+  if (SPENDING.has(kind)) {
+    return `<input class="expense-input" inputmode="decimal" data-kind="${kind}" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
   }
   if (empty) return '<div class="static blank"><span class="num">–</span></div>';
   if (NO_PAYMENT.has(kind)) return `<div class="static"><span class="num">${money(c.amount)}</span></div>`;
@@ -101,7 +104,7 @@ async function togglePaid(kind, month) {
 async function saveExpense(input) {
   const amount = parseInput(input.value);
   if (Number.isNaN(amount)) { toast('Importo non valido.'); return loadGrid(); }
-  await api('/api/manual', { method: 'POST', body: { kind: 'spese', year: state.year, month: Number(input.dataset.month), amount } });
+  await api('/api/manual', { method: 'POST', body: { kind: input.dataset.kind, year: state.year, month: Number(input.dataset.month), amount } });
   await loadGrid();
 }
 
@@ -119,8 +122,8 @@ function renderGrid() {
   const foot = `
     <tr><th>Media ${state.year}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${money(s.average[k.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
     <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${NO_PAYMENT.has(k.id) ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
-  const groups = `<tr class="groups"><th></th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
-  $('#grid').innerHTML = `<thead>${groups}<tr><th>Mese</th>${head}<th class="gstart">Totale spese</th><th>Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
+  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}<th class="gstart">Totale spese</th><th>Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
 async function setPaid(kind, month, paid) {
@@ -143,6 +146,37 @@ async function payAll(kind) {
   if (!confirm(`Segnare come pagati ${items.length} mesi di ${name} del ${state.year}?`)) return;
   await api('/api/paid', { method: 'POST', body: items });
   await loadGrid();
+}
+
+// ------------------------------------------------------------------ movimenti
+
+const CATEGORY_LABELS = { cibo: 'Cibo', casa: 'Casa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro (non conta)' };
+
+async function loadMoves() {
+  const { categories, transactions } = await api(`/api/transactions?year=${state.year}`);
+  $('#movesEmpty').hidden = transactions.length > 0;
+  $('#moveTable').hidden = transactions.length === 0;
+  $('#moveTable').innerHTML = transactions.length ? `<thead><tr><th>Data</th><th>Descrizione</th><th class="num">Importo</th><th>Categoria</th></tr></thead><tbody>${
+    transactions.map((t) => `<tr><td>${t.date.split('-').reverse().join('/')}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num">${money(Math.abs(t.amount))}</td>
+      <td><select data-move="${t.id}" aria-label="Categoria di ${esc(t.description)}">${categories.map((c) => `<option value="${c}" ${c === t.category ? 'selected' : ''}>${CATEGORY_LABELS[c]}</option>`).join('')}</select></td></tr>`).join('')}</tbody>` : '';
+}
+
+async function setCategory(select) {
+  await api('/api/transactions', { method: 'PUT', body: { id: select.dataset.move, category: select.value } });
+  await Promise.all([loadMoves(), loadGrid()]);
+  toast('Categoria salvata: la ricorderò per i movimenti con la stessa descrizione.');
+}
+
+async function uploadStatements(files) {
+  let added = 0;
+  let duplicates = 0;
+  for (const file of files) {
+    const r = await api('/api/statements', { method: 'POST', headers: { 'Content-Type': 'text/csv' }, raw: await file.text() });
+    added += r.added;
+    duplicates += r.duplicates;
+  }
+  toast(`Movimenti aggiunti: ${added}${duplicates ? ` (${duplicates} già presenti)` : ''}.`);
+  await Promise.all([loadMoves(), loadGrid()]);
 }
 
 // ------------------------------------------------------------------ documenti
@@ -347,14 +381,16 @@ async function doRefresh(force = false) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); }
+  if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
   else if (t.dataset.tab) {
     document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b === t));
     $('#overview').hidden = t.dataset.tab !== 'overview';
     $('#docs').hidden = t.dataset.tab !== 'docs';
-    $('#years').hidden = t.dataset.tab !== 'overview';
+    $('#moves').hidden = t.dataset.tab !== 'moves';
+    $('#years').hidden = t.dataset.tab === 'docs';
+    if (t.dataset.tab === 'moves') loadMoves().catch((err) => toast(err.message));
   }
 });
 // Clic (o Spazio/Invio) su una cella: pagato / da pagare. Il link PDF apre invece il documento.
@@ -370,7 +406,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
 });
 document.addEventListener('change', (e) => {
+  if (e.target.dataset.move) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
+});
+$('#statementFile').addEventListener('change', (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) uploadStatements(files).catch((err) => toast(err.message, 8000));
 });
 $('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
 $('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';

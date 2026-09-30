@@ -1,9 +1,13 @@
-// Costruisce la vista aggregata a partire da documenti, spunte e importi manuali.
+import { CATEGORY_KIND } from './statements.js';
 
-export const KINDS = ['stipendio', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese'];
+// Costruisce la vista aggregata a partire da documenti, movimenti bancari, spunte e importi manuali.
+
+export const KINDS = ['stipendio', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese', 'svago', 'carburante'];
 export const EXPENSE_KINDS = KINDS.filter((k) => k !== 'stipendio');
-// Voci senza stato "pagato": l'entrata e le spese inserite a mano.
-export const NO_PAYMENT = new Set(['stipendio', 'spese']);
+// Voci che si compilano dai movimenti dell'estratto conto (o a mano, per correggere il totale).
+export const SPENDING_KINDS = new Set(['spese', 'svago', 'carburante']);
+// Voci senza stato "pagato": l'entrata e le spese correnti.
+export const NO_PAYMENT = new Set(['stipendio', ...SPENDING_KINDS]);
 const round = (n) => Math.round(n * 100) / 100;
 export const cellKey = (kind, year, month) => `${kind}|${year}|${month}`;
 
@@ -53,9 +57,18 @@ export function buildCells(db, now = new Date()) {
     }
   }
 
+  // Movimenti dell'estratto conto: sommati per mese nella colonna della loro categoria.
+  for (const t of Object.values(db.transactions ?? {})) {
+    const kind = CATEGORY_KIND[t.category];
+    const m = /^(\d{4})-(\d{2})/.exec(t.date);
+    if (!kind || !m) continue;
+    const c = get(kind, +m[1], +m[2]);
+    c.auto = round((c.auto ?? 0) + Math.abs(t.amount));
+  }
+
   for (const [k, amount] of Object.entries(db.manual)) {
     const [kind, y, mo] = k.split('|');
-    if (kind === 'spese') get(kind, +y, +mo).manual = amount;
+    if (SPENDING_KINDS.has(kind)) get(kind, +y, +mo).manual = amount;
   }
 
   for (const c of cells.values()) {
