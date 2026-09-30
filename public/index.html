@@ -14,6 +14,7 @@
       <div><h1>Bilancino <span id="version" class="version"></span></h1><p>Buste paga e bollette di casa, in ordine.</p></div>
     </div>
     <div class="actions">
+      <span id="scanBadge" class="scan" role="status" hidden><span class="spin"></span><span class="txt"></span></span>
       <span id="lastRefresh" class="muted"></span>
       <button id="refreshBtn" class="primary"><span class="spin" hidden></span><span class="label">Aggiorna</span></button>
       <button id="settingsBtn" class="ghost" aria-label="Impostazioni" title="Impostazioni">
@@ -32,7 +33,7 @@
     <section id="overview">
       <div class="cards" id="cards"></div>
       <div class="tablewrap"><table id="grid"></table></div>
-      <p class="hint">Clicca su una cella per correggere l'importo, segnarla come pagata o aprire il PDF. La spunta <span class="tick on"></span> indica una bolletta pagata.</p>
+      <p class="hint">Clicca su una cella per segnarla come pagata (verde) o da pagare (rossa). Passa il mouse per aprire il PDF. Gli importi arrivano solo dai documenti.</p>
     </section>
 
     <section id="docs" hidden>
@@ -44,7 +45,6 @@
     </section>
   </main>
 
-  <dialog id="cellDlg"></dialog>
   <dialog id="docDlg"></dialog>
   <dialog id="settingsDlg"></dialog>
   <div id="toast" role="status" aria-live="polite"></div>

@@ -9,8 +9,8 @@ const KINDS = [
   { id: 'spese', label: 'Spese' },
 ];
 const EXPENSES = KINDS.filter((k) => k.id !== 'stipendio');
-// Solo l'affitto si segna con un clic: niente finestra, solo la spunta.
-const TICK_ONLY = new Set(['affitto']);
+// Voci senza stato "pagato": lo stipendio (entrata) e le spese manuali.
+const NO_PAYMENT = new Set(['stipendio', 'spese']);
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 const $ = (s) => document.querySelector(s);
@@ -77,16 +77,32 @@ function renderCards() {
   ].join('');
 }
 
+// I valori delle celle vengono solo dai documenti (e dalle rate fisse nelle impostazioni):
+// qui non si modificano. Fa eccezione "Spese", inserita a mano in modo provvisorio.
 function cellHtml(kind, month, c) {
   const empty = c.amount == null;
-  const edited = c.manual != null ? '<span class="edited" title="Importo modificato a mano">✎</span>' : '';
   const name = KINDS.find((k) => k.id === kind).label;
-  const tickOnly = TICK_ONLY.has(kind) && !empty;
-  const amount = `<button class="cell ${empty ? 'blank' : ''}" data-kind="${kind}" data-month="${month}" ${tickOnly ? 'data-toggle' : ''} aria-label="${name} ${MONTHS[month - 1]}">${edited}<span class="num">${empty ? '–' : money(c.amount)}</span></button>`;
-  if (kind === 'stipendio' || empty) return amount;
-  // La spunta è un vero checkbox grande, con area di clic ampia: un clic e il pagamento è registrato.
-  const box = `<label class="paidwrap" title="${c.paid ? 'Pagato' : 'Da pagare'}"><input type="checkbox" class="paidbox" data-kind="${kind}" data-month="${month}" ${c.paid ? 'checked' : ''} aria-label="${name} ${MONTHS[month - 1]}: pagato"></label>`;
-  return `<div class="cellwrap">${amount}${box}</div>`;
+  const label = `${name} ${MONTHS[month - 1]}`;
+  if (kind === 'spese') {
+    return `<input class="expense-input" inputmode="decimal" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
+  }
+  if (empty) return '<div class="static blank"><span class="num">–</span></div>';
+  if (NO_PAYMENT.has(kind)) return `<div class="static"><span class="num">${money(c.amount)}</span></div>`;
+  // L'intera cella è la casella: verde se pagata, rossa se da pagare. Il link apre il PDF.
+  const pdf = c.files.map((f) => `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il PDF: ${esc(f.name)}">PDF</a>`).join('');
+  return `<div class="pcell ${c.paid ? 'paid' : 'due'}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-kind="${kind}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${c.paid ? 'Pagato' : 'Da pagare'} · clic per cambiare"><span class="num">${money(c.amount)}</span>${pdf}</div>`;
+}
+
+async function togglePaid(kind, month) {
+  const paid = state.grid.rows.find((r) => r.month === month).cells[kind].paid;
+  await setPaid(kind, month, !paid);
+}
+
+async function saveExpense(input) {
+  const amount = parseInput(input.value);
+  if (Number.isNaN(amount)) { toast('Importo non valido.'); return loadGrid(); }
+  await api('/api/manual', { method: 'POST', body: { kind: 'spese', year: state.year, month: Number(input.dataset.month), amount } });
+  await loadGrid();
 }
 
 // Gruppi di colonne: uno spazio ben visibile separa guadagno, spese e riepilogo.
@@ -102,59 +118,13 @@ function renderGrid() {
   }).join('');
   const foot = `
     <tr><th>Media ${state.year}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${money(s.average[k.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
-    <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${k.id === 'stipendio' ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
+    <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${NO_PAYMENT.has(k.id) ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
   const groups = `<tr class="groups"><th></th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
   $('#grid').innerHTML = `<thead>${groups}<tr><th>Mese</th>${head}<th class="gstart">Totale spese</th><th>Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
 async function setPaid(kind, month, paid) {
   await api('/api/paid', { method: 'POST', body: { kind, year: state.year, month, paid } });
-  await loadGrid();
-}
-
-// ------------------------------------------------------------- dialog cella
-
-function openCell(kind, month) {
-  const c = state.grid.rows.find((r) => r.month === month).cells[kind];
-  const label = KINDS.find((k) => k.id === kind).label;
-  const dlg = $('#cellDlg');
-  dlg.innerHTML = `<form class="dlg" method="dialog">
-    <h2>${label} · ${MONTHS[month - 1]} ${state.year}</h2>
-    <label>Importo (€)<input name="amount" inputmode="decimal" value="${inputValue(c.amount)}" placeholder="Nessun importo"></label>
-    ${c.auto != null ? `<small>Letto dai documenti: ${money(c.auto)}</small>` : '<small>Nessun documento per questo mese.</small>'}
-    ${kind !== 'stipendio' ? `<label class="check"><input type="checkbox" name="paid" ${c.paid ? 'checked' : ''}> Pagato</label>` : ''}
-    ${c.files.length ? `<div class="files">${c.files.map((f) => `<a href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : ''}
-    <p class="error" id="cellErr" role="alert"></p>
-    <div class="foot">
-      ${c.manual != null ? '<button type="button" class="link" data-act="reset">Usa il valore dei documenti</button>' : ''}
-      <button type="button" class="ghost" data-act="close">Annulla</button>
-      <button class="primary" value="save">Salva</button>
-    </div></form>`;
-  const form = dlg.querySelector('form');
-  form.addEventListener('click', async (e) => {
-    const act = e.target.dataset.act;
-    if (act === 'close') dlg.close();
-    if (act === 'reset') { await saveCell(kind, month, { amount: null }); dlg.close(); }
-  });
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const amount = parseInput(form.amount.value);
-    if (Number.isNaN(amount)) { $('#cellErr').textContent = 'Importo non valido.'; return; }
-    try {
-      await saveCell(kind, month, {
-        amount: amount === c.amount ? undefined : amount,
-        paid: kind === 'stipendio' ? undefined : form.paid.checked,
-      });
-      dlg.close();
-    } catch (err) { $('#cellErr').textContent = err.message; }
-  });
-  dlg.showModal();
-}
-
-async function saveCell(kind, month, { amount, paid }) {
-  const cell = { kind, year: state.year, month };
-  if (amount !== undefined) await api('/api/manual', { method: 'POST', body: { ...cell, amount } });
-  if (paid !== undefined) await api('/api/paid', { method: 'POST', body: { ...cell, paid } });
   await loadGrid();
 }
 
@@ -303,6 +273,48 @@ async function openSettings() {
 
 // ------------------------------------------------------------------- refresh
 
+function refreshSummary(r) {
+  const parts = [];
+  if (r.added) parts.push(`${r.added} nuovi`);
+  if (r.updated) parts.push(`${r.updated} aggiornati`);
+  if (r.removed) parts.push(`${r.removed} rimossi`);
+  if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
+  if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
+  let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';
+  if (r.errors.length) msg += ` Errori: ${r.errors.map((e) => `${e.source}: ${e.message}`).join(' · ')}`;
+  return msg;
+}
+
+// All'apertura: cerca documenti nuovi o modificati. La targhetta in alto dice cosa sta succedendo;
+// se non cambia nulla, nessun messaggio.
+async function autoScan() {
+  const badge = $('#scanBadge');
+  const btn = $('#refreshBtn');
+  badge.hidden = false;
+  badge.querySelector('.txt').textContent = 'Controllo nuovi documenti…';
+  btn.disabled = true;
+  const poll = setInterval(async () => {
+    try {
+      const p = await api('/api/refresh/status');
+      if (p.running && p.total) badge.querySelector('.txt').textContent = `Analisi dei dati ${p.done}/${p.total}…`;
+    } catch { /* riprova al prossimo giro */ }
+  }, 700);
+  try {
+    const r = await api('/api/refresh', { method: 'POST', body: {} });
+    const changed = r.added || r.updated || r.removed;
+    if (changed || r.errors.length) {
+      await Promise.all([loadGrid(), loadDocs()]);
+      toast(refreshSummary(r), r.errors.length ? 9000 : 4500);
+    }
+  } catch (err) {
+    if (!/già in corso/.test(err.message)) toast(err.message, 8000);
+  } finally {
+    clearInterval(poll);
+    badge.hidden = true;
+    btn.disabled = false;
+  }
+}
+
 async function doRefresh(force = false) {
   const btn = $('#refreshBtn');
   btn.disabled = true;
@@ -317,19 +329,8 @@ async function doRefresh(force = false) {
   }, 1000);
   try {
     const r = await api('/api/refresh', { method: 'POST', body: { force } });
-    if (r.sources.every((s) => s.skipped)) {
-      toast('Nessuna cartella configurata: apri le impostazioni.');
-    } else {
-      const parts = [];
-      if (r.added) parts.push(`${r.added} nuovi`);
-      if (r.updated) parts.push(`${r.updated} aggiornati`);
-      if (r.removed) parts.push(`${r.removed} rimossi`);
-      if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
-      if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
-      let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';
-      if (r.errors.length) msg += ` Errori: ${r.errors.map((e) => `${e.source}: ${e.message}`).join(' · ')}`;
-      toast(msg, r.errors.length ? 9000 : 4500);
-    }
+    if (r.sources.every((s) => s.skipped)) toast('Nessuna cartella configurata: apri le impostazioni.');
+    else toast(refreshSummary(r), r.errors.length ? 9000 : 4500);
   } catch (err) {
     toast(err.message, 8000);
   } finally {
@@ -347,11 +348,6 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); }
-  else if (t.dataset.toggle !== undefined) {
-    const { kind, month } = t.dataset;
-    const paid = state.grid.rows.find((r) => r.month === Number(month)).cells[kind].paid;
-    setPaid(kind, Number(month), !paid).catch((err) => toast(err.message));
-  } else if (t.classList.contains('cell')) openCell(t.dataset.kind, Number(t.dataset.month));
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
   else if (t.dataset.tab) {
@@ -361,13 +357,24 @@ document.addEventListener('click', (e) => {
     $('#years').hidden = t.dataset.tab !== 'overview';
   }
 });
+// Clic (o Spazio/Invio) su una cella: pagato / da pagare. Il link PDF apre invece il documento.
+const onPaidCell = (e) => {
+  const cell = e.target.closest('.pcell');
+  if (!cell || e.target.closest('.filelink')) return false;
+  togglePaid(cell.dataset.kind, Number(cell.dataset.month)).catch((err) => toast(err.message));
+  return true;
+};
+document.addEventListener('click', onPaidCell);
+document.addEventListener('keydown', (e) => {
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.classList?.contains('pcell') && onPaidCell(e)) e.preventDefault();
+  if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
+});
 document.addEventListener('change', (e) => {
-  const box = e.target.closest('.paidbox');
-  if (box) setPaid(box.dataset.kind, Number(box.dataset.month), box.checked).catch((err) => { toast(err.message); loadGrid(); });
+  if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
 $('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
 $('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';
 $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => toast(err.message)));
 
 api('/api/version').then(({ version }) => { $('#version').textContent = `v${version}`; }).catch(() => {});
-Promise.all([loadGrid(), loadDocs()]).catch((err) => toast(err.message));
+Promise.all([loadGrid(), loadDocs()]).then(autoScan).catch((err) => toast(err.message));

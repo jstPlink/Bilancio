@@ -2,6 +2,8 @@
 
 export const KINDS = ['stipendio', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese'];
 export const EXPENSE_KINDS = KINDS.filter((k) => k !== 'stipendio');
+// Voci senza stato "pagato": l'entrata e le spese inserite a mano.
+export const NO_PAYMENT = new Set(['stipendio', 'spese']);
 const round = (n) => Math.round(n * 100) / 100;
 export const cellKey = (kind, year, month) => `${kind}|${year}|${month}`;
 
@@ -53,12 +55,12 @@ export function buildCells(db, now = new Date()) {
 
   for (const [k, amount] of Object.entries(db.manual)) {
     const [kind, y, mo] = k.split('|');
-    get(kind, +y, +mo).manual = amount;
+    if (kind === 'spese') get(kind, +y, +mo).manual = amount;
   }
 
   for (const c of cells.values()) {
     c.amount = c.manual ?? c.auto;
-    c.paid = c.kind === 'stipendio' ? null : Boolean(db.paid[cellKey(c.kind, c.year, c.month)]);
+    c.paid = NO_PAYMENT.has(c.kind) ? null : Boolean(db.paid[cellKey(c.kind, c.year, c.month)]);
   }
   return cells;
 }
@@ -81,7 +83,7 @@ export function buildGrid(db, year, now = new Date()) {
       const c = cells.get(cellKey(kind, year, month));
       row.cells[kind] = c
         ? { amount: c.amount ?? null, auto: c.auto, manual: c.manual, paid: c.paid, files: c.files }
-        : { amount: null, auto: null, manual: null, paid: kind === 'stipendio' ? null : false, files: [] };
+        : { amount: null, auto: null, manual: null, paid: NO_PAYMENT.has(kind) ? null : false, files: [] };
     }
     const spent = sum(EXPENSE_KINDS.map((k) => row.cells[k].amount ?? 0));
     const earned = row.cells.stipendio.amount;
@@ -96,11 +98,11 @@ export function buildGrid(db, year, now = new Date()) {
     const mine = inYear.filter((c) => c.kind === kind);
     summary.average[kind] = avg(mine.map((c) => c.amount));
     summary.yearTotal[kind] = sum(mine.map((c) => c.amount));
-    summary.toPay[kind] = kind === 'stipendio'
+    summary.toPay[kind] = NO_PAYMENT.has(kind)
       ? null
       : sum(all.filter((c) => c.kind === kind && !c.paid).map((c) => c.amount));
   }
-  summary.totalToPay = sum(EXPENSE_KINDS.map((k) => summary.toPay[k]));
+  summary.totalToPay = sum(EXPENSE_KINDS.map((k) => summary.toPay[k] ?? 0));
 
   const expenses = inYear.filter((c) => c.kind !== 'stipendio');
   const spendMonths = new Set(expenses.map((c) => c.month));

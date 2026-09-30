@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
-import { buildGrid, cellKey, effectiveDoc, KINDS } from './grid.js';
+import { buildGrid, cellKey, effectiveDoc, KINDS, NO_PAYMENT } from './grid.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -82,7 +82,7 @@ app.get('/api/grid', (req, res) => {
 
 app.post('/api/paid', async (req, res) => {
   const items = Array.isArray(req.body) ? req.body : [req.body];
-  if (!items.every((i) => validCell(i) && i.kind !== 'stipendio')) return bad(res, 'Cella non valida.');
+  if (!items.every((i) => validCell(i) && !NO_PAYMENT.has(i.kind))) return bad(res, 'Cella non valida.');
   for (const i of items) {
     const k = cellKey(i.kind, i.year, i.month);
     if (i.paid) db().paid[k] = true; else delete db().paid[k];
@@ -91,10 +91,11 @@ app.post('/api/paid', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Importo manuale per una cella; `amount: null` torna al valore letto dai documenti.
+// Unico importo inseribile a mano: la colonna "Spese" (provvisoria). Gli altri vengono dai documenti.
+// `amount: null` cancella il valore.
 app.post('/api/manual', async (req, res) => {
   const { amount } = req.body ?? {};
-  if (!validCell(req.body ?? {})) return bad(res, 'Cella non valida.');
+  if (!validCell(req.body ?? {}) || req.body.kind !== 'spese') return bad(res, 'Solo le spese si inseriscono a mano.');
   if (amount != null && !(Number(amount) >= 0)) return bad(res, 'Importo non valido.');
   const k = cellKey(req.body.kind, req.body.year, req.body.month);
   if (amount == null) delete db().manual[k]; else db().manual[k] = Number(amount);

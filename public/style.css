@@ -25,7 +25,7 @@ button { cursor: pointer; }
 .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 
 .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
-  padding: 14px max(16px, calc((100vw - 1180px) / 2)); background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  padding: 14px max(16px, calc((100vw - 1760px) / 2)); background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand h1 { font-size: 20px; letter-spacing: -.01em; }
 .brand p { color: var(--muted); font-size: 13px; }
@@ -41,7 +41,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+main { max-width: 1760px; margin: 0 auto; padding: 16px; }
 .tabs { display: flex; gap: 4px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .tabs > button[role=tab] { background: none; border: 0; padding: 8px 14px; border-radius: 10px; color: var(--muted); font-weight: 600; }
 .tabs > button[aria-selected=true] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
@@ -61,7 +61,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 16px; }
 .card.due .sub { color: inherit; opacity: .85; }
 
 .tablewrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: auto; }
-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 860px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1100px; }
 th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
 thead th { position: sticky; top: 0; background: var(--surface); text-align: right; font-size: 13px; z-index: 1; }
 thead th:first-child, tbody th { text-align: left; }
@@ -115,27 +115,38 @@ dialog::backdrop { background: rgb(10 20 18 / .45); }
 @media (max-width: 640px) { .years { margin-left: 0; width: 100%; } .cards { grid-template-columns: 1fr 1fr; } }
 @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2s; } #toast { transition: none; } }
 
-/* --- spunta "pagato" grande e gruppi di colonne --- */
+/* --- cella pagata / da pagare e gruppi di colonne --- */
 :root { --line-strong: #b9c6c2; --prestito: #8a5a44; --spese: #5f7f8f; --group-bg: #eef3f1; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --line-strong: #46605a; --prestito: #d09a7d; --spese: #86aebf; --group-bg: #1b2925; }
 }
-.cellwrap { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
-.cellwrap .cell { width: auto; flex: 1; }
-.paidwrap { display: inline-grid; place-items: center; width: 40px; height: 40px; margin: -8px -6px -8px 0; cursor: pointer; border-radius: 10px; flex: none; }
-.paidwrap:hover { background: var(--bg); }
-.paidbox { appearance: none; -webkit-appearance: none; width: 24px; height: 24px; margin: 0; cursor: pointer; border-radius: 7px;
-  border: 2px solid var(--late-ink); background: var(--late-bg); display: grid; place-items: center; transition: background .12s, border-color .12s; }
-.paidbox:checked { background: var(--ok-ink); border-color: var(--ok-ink); }
-.paidbox:checked::after { content: ""; width: 6px; height: 12px; border: solid var(--ok-bg); border-width: 0 3px 3px 0; transform: translateY(-1px) rotate(45deg); }
-.paidbox:hover { filter: brightness(.95); }
-.paidbox:active { transform: scale(.92); }
+tbody td.num { padding: 0; }
+.pcell, .static, .expense-input { display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 100%; min-height: 44px; padding: 8px 12px; }
+.pcell { position: relative; cursor: pointer; user-select: none; font-weight: 600; transition: background .12s; }
+.pcell.paid { background: var(--ok-bg); color: var(--ok-ink); }
+.pcell.due { background: var(--late-bg); color: var(--late-ink); }
+.pcell:hover { filter: brightness(.96); }
+.pcell:active { filter: brightness(.9); }
+.expense-input { border: 0; background: transparent; text-align: right; font: inherit; color: var(--ink); border-radius: 0; }
+.expense-input:hover { background: var(--bg); }
+.expense-input:focus { background: var(--surface); outline: 2px solid var(--accent); outline-offset: -2px; }
+.expense-input::placeholder { color: var(--muted); opacity: .6; }
+.scan { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 13px; font-weight: 600; }
+.scan .spin { width: 12px; height: 12px; }
+@media (prefers-reduced-motion: reduce) { .pcell { transition: none; } }
 th.gstart, td.gstart { border-left: 2px solid var(--line-strong); }
 tr.groups th { text-align: center; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--group-bg); padding: 5px 10px; border-bottom: 1px solid var(--line); }
 tr.groups th:first-child { background: var(--surface); border-left: 0; }
 thead tr:nth-child(2) th { top: 26px; }
 td.total { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); font-weight: 600; }
 .cell.rent, .cell[data-toggle] { cursor: pointer; }
-@media (prefers-reduced-motion: reduce) { .paidbox { transition: none; } }
 
 .version { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+
+.static.blank { color: var(--line-strong); }
+.filelink { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; font-weight: 700; letter-spacing: .04em; color: inherit; text-decoration: none; padding: 2px 6px; border-radius: 6px; background: rgb(255 255 255 / .28); opacity: 0; transition: opacity .12s; }
+.pcell:hover .filelink, .filelink:focus-visible { opacity: .9; }
+.filelink:hover { background: rgb(255 255 255 / .5); }
+@media (hover: none) { .filelink { opacity: .6; } }
+.expense-input { width: 104px; min-width: 0; margin-left: auto; }
+td:has(> .expense-input) { text-align: right; }

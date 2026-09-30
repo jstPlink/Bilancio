@@ -36,7 +36,7 @@ test('bolletta senza dati utili: incompleta, con i campi mancanti', () => {
   assert.deepEqual(r.missing, ['tipo', 'importo']);
 });
 
-test('griglia: da pagare, medie e correzioni manuali', () => {
+test('griglia: da pagare, medie; solo le spese si inseriscono a mano', () => {
   const db = {
     settings: { rentAmount: 500, rentFrom: '2026-01' },
     docs: {
@@ -46,13 +46,15 @@ test('griglia: da pagare, medie e correzioni manuali', () => {
       d: { name: 'd', kind: null, year: 2026, month: 1, amount: null, status: 'incompleto', override: { kind: 'gas', amount: 20 } },
     },
     paid: { 'luce|2026|1': true },
-    manual: { 'luce|2026|2': 70 },
+    manual: { 'luce|2026|2': 70, 'spese|2026|1': 30 },
   };
   const g = buildGrid(db, 2026, new Date(2026, 1, 15));
-  assert.equal(g.summary.toPay.luce, 70);        // gennaio pagato, febbraio 70 (manuale)
+  assert.equal(g.summary.toPay.luce, 60);        // gennaio pagato; febbraio 60: l'importo manuale sulla luce è ignorato
   assert.equal(g.summary.toPay.gas, 20);         // documento corretto a mano
   assert.equal(g.summary.toPay.affitto, 1000);   // gen + feb, mesi futuri esclusi
-  assert.equal(g.summary.average.luce, 55);
+  assert.equal(g.summary.average.luce, 50);
+  assert.equal(g.rows[0].cells.spese.amount, 30);  // spese manuali: contano nel totale ma non sono da pagare
+  assert.equal(g.summary.toPay.spese, null);
   assert.equal(g.summary.avgIncome, 1500);
   assert.equal(g.rows.find((r) => r.month === 3).cells.affitto.amount, null);
 });
