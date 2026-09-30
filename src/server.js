@@ -190,35 +190,63 @@ app.get('/api/transactions', (req, res) => {
   res.json({ categories: CATEGORIES, transactions: list });
 });
 
-// Analisi temporanea: come vengono smistati tutti i movimenti, raggruppati per descrizione.
+// Scheda Banca: come sono smistati i movimenti e come si incrociano con stipendio e bollette.
+// Filtri opzionali: ?year=2025&month=3 (anno e/o mese; i grafici mostrano i mesi che corrispondono).
+const BILL_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito']);
+const pad2 = (n) => String(n).padStart(2, '0');
 app.get('/api/analysis', (req, res) => {
-  const list = Object.values(db().transactions ?? {});
+  const year = Number(req.query.year) || 0;
+  const month = Number(req.query.month) || 0;
+  const match = (ym) => (!year || ym.startsWith(`${year}-`)) && (!month || ym.endsWith(`-${pad2(month)}`));
+  const round = (n) => Math.round(n * 100) / 100;
+  const everything = Object.values(db().transactions ?? {});
+  const list = everything.filter((t) => match(t.date.slice(0, 7)));
+
+  // Totali per categoria e, dentro ogni categoria, per descrizione.
   const total = list.reduce((a, t) => a + Math.abs(t.amount), 0);
-  const cats = Object.fromEntries(CATEGORIES.map((c) => [c, { category: c, count: 0, total: 0, merchants: new Map() }]));
+  const cats = Object.fromEntries(CATEGORIES.map((c) => [c, { count: 0, total: 0, merchants: new Map() }]));
   for (const t of list) {
     const c = cats[t.category] ?? cats.altro;
     const amount = Math.abs(t.amount);
     c.count++;
     c.total += amount;
     const key = normalize(t.description) || t.description;
-    const m = c.merchants.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, to: t.date };
+    const m = c.merchants.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, last: t.date };
     m.count++;
     m.total += amount;
     if (t.date < m.from) m.from = t.date;
-    if (t.date > m.to) m.to = t.date;
+    if (t.date > m.last) m.last = t.date;
     c.merchants.set(key, m);
   }
-  const round = (n) => Math.round(n * 100) / 100;
+
+  // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, e le uscite bancarie per categoria.
+  const byMonth = new Map();
+  const slot = (ym) => {
+    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, altro: 0 } });
+    return byMonth.get(ym);
+  };
+  for (const c of buildCells(db()).values()) {
+    if (c.amount == null) continue;
+    const m = slot(`${c.year}-${pad2(c.month)}`);
+    if (c.kind === 'stipendio') m.income += c.amount;
+    else if (BILL_KINDS.has(c.kind)) m.bills += c.amount;
+    else if (c.kind === 'spese') m.spesa += c.amount;
+    else if (c.kind === 'svago' || c.kind === 'carburante') m[c.kind] += c.amount;
+  }
+  for (const t of everything) slot(t.date.slice(0, 7)).bank[cats[t.category] ? t.category : 'altro'] += Math.abs(t.amount);
+  const years = [...new Set([...byMonth.keys()].map((ym) => Number(ym.slice(0, 4))))].sort((a, b) => b - a);
+  const months = [...byMonth.values()].filter((m) => match(m.ym)).sort((a, b) => a.ym.localeCompare(b.ym)).map((m) => ({
+    ...m,
+    income: round(m.income), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
+    bank: Object.fromEntries(Object.entries(m.bank).map(([k, v]) => [k, round(v)])),
+  }));
+
   res.json({
-    total: round(total),
-    count: list.length,
-    categories: CATEGORIES.map((k) => {
-      const c = cats[k];
-      return {
-        category: k, count: c.count, total: round(c.total), share: total ? c.total / total : 0, column: CATEGORY_KIND[k] ?? null,
-        merchants: [...c.merchants.values()].map((m) => ({ ...m, total: round(m.total) })).sort((a, b) => b.total - a.total),
-      };
-    }),
+    years, months, total: round(total), count: list.length,
+    categories: CATEGORIES.map((k) => ({
+      category: k, count: cats[k].count, total: round(cats[k].total), share: total ? cats[k].total / total : 0, column: CATEGORY_KIND[k] ?? null,
+      merchants: [...cats[k].merchants.values()].map((m) => ({ ...m, total: round(m.total) })).sort((a, b) => b.total - a.total),
+    })),
   });
 });
 

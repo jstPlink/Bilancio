@@ -27,7 +27,7 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Panoramica</button>
       <button role="tab" data-tab="moves" aria-selected="false">Movimenti</button>
-      <button role="tab" data-tab="analysis" aria-selected="false">Analisi <span class="badge warn">temporanea</span></button>
+      <button role="tab" data-tab="analysis" aria-selected="false">Banca</button>
       <button role="tab" data-tab="docs" aria-selected="false">Documenti <span id="docBadge" class="badge warn" hidden></span></button>
       <div class="years" id="years" aria-label="Anno"></div>
     </nav>
@@ -51,8 +51,13 @@
     </section>
 
     <section id="analysis" hidden>
+      <div class="bankbar">
+        <label>Anno <select id="bankYear"><option value="0">Tutti gli anni</option></select></label>
+        <label>Mese <select id="bankMonth"><option value="0">Tutti i mesi</option></select></label>
+        <button id="bankReset" class="link" hidden>Azzera filtri</button>
+      </div>
       <div id="analysisEmpty" class="empty" hidden>
-        <h2>Nessun movimento da analizzare</h2>
+        <h2>Nessun dato bancario</h2>
         <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un CSV dalla scheda Movimenti.</p>
       </div>
       <div id="analysisBody"></div>

@@ -206,3 +206,48 @@ th .place { display: block; font-size: 11px; font-weight: 500; color: var(--mute
   .pcell .amount { opacity: 1 !important; }
 }
 .zone-pay { font-size: 17px; }
+
+/* --- scheda Banca: filtri, grafici, ordinamento --- */
+:root {
+  --ink: #14201d; --viz-spesa: #2a78d6; --viz-svago: #eb6834; --viz-carburante: #1baf7a; --viz-bollette: #eda100; --viz-altro: #9aa5a1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --ink: #e6efec; --viz-spesa: #3987e5; --viz-svago: #d95926; --viz-carburante: #199e70; --viz-bollette: #c98500; --viz-altro: #5d6d68; }
+}
+.bankbar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.bankbar label { display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.bankbar select, #analysis select, .atable select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+.chartcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 16px; margin-top: 14px; min-width: 0; }
+.chartcard h3 { font-size: 15px; }
+.chartcard > .muted { margin: 2px 0 8px; }
+.chartrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; }
+.chart { position: relative; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 6px; font-size: 12px; color: var(--muted); }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+i.key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+i.key.line { width: 14px; height: 2px; border-radius: 1px; }
+.chart-wrap { position: relative; }
+.chart svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .hover-band { fill: var(--ink); opacity: 0; pointer-events: none; }
+.chart .hover-band.on { opacity: .06; }
+.chart .hit { fill: transparent; outline: none; }
+.chart .hit:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.tip { position: absolute; z-index: 3; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgb(0 0 0 / .18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 170px; }
+.tip-h { font-weight: 700; margin-bottom: 4px; text-transform: capitalize; }
+.tip-r { display: flex; align-items: center; gap: 8px; padding: 1px 0; }
+.tip-l { color: var(--muted); flex: 1; }
+.tip-v { font-variant-numeric: tabular-nums; }
+.tip-t { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 3px; }
+.hbars { display: grid; gap: 6px; }
+.hb-row { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.hb-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-track { display: block; height: 14px; }
+.hb-bar { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.hb-val { font-variant-numeric: tabular-nums; }
+.sortbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: inherit; color: inherit; display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+th.num .sortbtn { flex-direction: row-reverse; }
+.sortbtn:hover { color: var(--accent); }
+.sortbtn .arrow { font-size: 9px; color: var(--accent); min-width: 9px; }
+.acat > summary .key { margin-right: 4px; }

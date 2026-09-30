@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.10.0
+- La scheda **Analisi** diventa **Banca**, non più temporanea.
+- Filtri per **anno** e **mese** (anche "marzo di ogni anno"); clic su una colonna dei grafici per filtrare quel mese.
+- **Ordinamento** delle colonne per data, quantità e importo (clic sull'intestazione, di nuovo per invertire), nella scheda Banca e in Movimenti.
+- **Grafici** (SVG, senza librerie esterne): stipendio contro uscite (bollette e affitto dai documenti, spesa/svago/carburante dalla banca), uscite bancarie per categoria mese per mese, le 10 voci più pesanti; tooltip al passaggio e tabella dei numeri sotto i grafici.
+
 ## 0.9.0
 - **Luce e gas in due colonne** (Budrio e Crispiano): ognuna con il proprio documento, la propria spunta "pagato", media e totale da pagare. Acqua e wifi restano una colonna sola, con il dettaglio per casa sotto l'importo. Tolto il selettore "Bollette di", ormai superfluo.
 - **Celle divise in due al passaggio del mouse**: a sinistra "Apri" il documento (con più documenti, una sezione per ciascuno, B/C per casa), a destra ✓ / ↺ per segnare pagato o da pagare. Da tastiera: Tab sulla cella e poi sui link.

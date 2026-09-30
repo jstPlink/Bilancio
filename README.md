@@ -32,7 +32,7 @@ Indica il link (Seafile pubblico o cartella locale) dei CSV nelle impostazioni, 
 oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Contano solo le uscite
 completate; bonifici, ricariche e rimborsi sono esclusi. Le categorie vengono assegnate da parole chiave in `src/statements.js`:
 **spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne, **altro** non conta.
-La scheda temporanea **Analisi** mostra come sono smistati tutti i movimenti e permette di correggere la categoria: l'app la
+La scheda **Banca** mostra come sono smistati i movimenti (filtri per anno e mese, colonne ordinabili, grafici che incrociano stipendio, bollette e spese) e permette di correggere la categoria: l'app la
 ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
 della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`.
 

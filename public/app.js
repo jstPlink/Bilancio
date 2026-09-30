@@ -1,3 +1,5 @@
+import { monthChart, hBars, monthLong } from './charts.js';
+
 const KINDS = [
   { id: 'stipendio', label: 'Stipendio' },
   { id: 'acqua', label: 'Acqua' },
@@ -176,31 +178,154 @@ async function payAll(colId) {
 // ------------------------------------------------------------------ movimenti
 
 const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro (non conta)' };
+const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro' };
+const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', altro: 'var(--viz-altro)' };
+const fmtDate = (d) => d.split('-').reverse().join('/');
 
-async function loadMoves() {
-  const { categories, transactions } = await api(`/api/transactions?year=${state.year}`);
-  $('#movesEmpty').hidden = transactions.length > 0;
-  $('#moveTable').hidden = transactions.length === 0;
-  $('#moveTable').innerHTML = transactions.length ? `<thead><tr><th>Data</th><th>Descrizione</th><th class="num">Importo</th><th>Categoria</th></tr></thead><tbody>${
-    transactions.map((t) => `<tr><td>${t.date.split('-').reverse().join('/')}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num">${money(Math.abs(t.amount))}</td>
-      <td><select data-move="${t.id}" aria-label="Categoria di ${esc(t.description)}">${categories.map((c) => `<option value="${c}" ${c === t.category ? 'selected' : ''}>${CATEGORY_LABELS[c]}</option>`).join('')}</select></td></tr>`).join('')}</tbody>` : '';
+// Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
+const sorting = { moves: { key: 'date', dir: 'desc' }, bank: { key: 'total', dir: 'desc' } };
+const TEXT_KEYS = new Set(['description', 'name', 'category']);
+function sortList(list, scope, getters) {
+  const { key, dir } = sorting[scope];
+  const get = getters[key];
+  const sign = dir === 'asc' ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const x = get(a);
+    const y = get(b);
+    return sign * (typeof x === 'string' ? x.localeCompare(y, 'it') : x - y);
+  });
+}
+function sortHead(scope, key, label, cls = '') {
+  const s = sorting[scope];
+  const on = s.key === key;
+  return `<th class="${cls}" aria-sort="${on ? (s.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button class="sortbtn" data-sort="${scope}:${key}" title="Ordina per ${label.toLowerCase()}">${label}<span class="arrow">${on ? (s.dir === 'asc' ? '▲' : '▼') : ''}</span></button></th>`;
+}
+function setSort(spec) {
+  const [scope, key] = spec.split(':');
+  const s = sorting[scope];
+  if (s.key === key) s.dir = s.dir === 'asc' ? 'desc' : 'asc';
+  else { s.key = key; s.dir = TEXT_KEYS.has(key) ? 'asc' : 'desc'; }
+  if (scope === 'moves') renderMoves(); else renderAnalysis();
 }
 
-// Scheda temporanea: come sono smistati tutti i movimenti (di tutti gli anni), per voce e per descrizione.
-const fmtDate = (d) => d.split('-').reverse().join('/');
+const categorySelect = (attr, id, current, label) => `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${Object.keys(CATEGORY_LABELS).map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${CATEGORY_LABELS[c]}</option>`).join('')}</select>`;
+
+async function loadMoves() {
+  state.moves = (await api(`/api/transactions?year=${state.year}`)).transactions;
+  renderMoves();
+}
+
+function renderMoves() {
+  const list = state.moves ?? [];
+  $('#movesEmpty').hidden = list.length > 0;
+  $('#moveTable').hidden = list.length === 0;
+  const rows = sortList(list, 'moves', { date: (t) => t.date, description: (t) => t.description, amount: (t) => Math.abs(t.amount), category: (t) => t.category });
+  $('#moveTable').innerHTML = list.length ? `<thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${
+    rows.map((t) => `<tr><td>${fmtDate(t.date)}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num">${money(Math.abs(t.amount))}</td><td>${categorySelect('data-move', t.id, t.category, t.description)}</td></tr>`).join('')}</tbody>` : '';
+}
+
+// ------------------------------------------------------------------ banca
+
+state.bank = { year: 0, month: 0, data: null };
+
 async function loadAnalysis() {
-  const a = await api('/api/analysis');
-  const open = new Set([...document.querySelectorAll('#analysis details[open]')].map((d) => d.dataset.cat));
-  $('#analysisEmpty').hidden = a.count > 0;
-  $('#analysisBody').innerHTML = a.count ? `
-    <p class="muted">${a.count} movimenti in uscita, ${money(a.total)} in tutto. Cambia la categoria di una descrizione dal menu: vale per tutti i movimenti uguali.</p>
-    <div class="cards">${a.categories.map((c) => `<div class="card"><div class="k">${CATEGORY_LABELS[c.category].replace(' (non conta)', '')}${c.column ? '' : ' · fuori dalla tabella'}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti · ${(c.share * 100).toFixed(1).replace('.', ',')}%</div></div>`).join('')}</div>
-    ${a.categories.map((c) => `<details class="acat" data-cat="${c.category}" ${open.has(c.category) || c.category === 'altro' ? 'open' : ''}>
-      <summary>${CATEGORY_LABELS[c.category].replace(' (non conta)', '')} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr><th>Descrizione</th><th class="num">Volte</th><th class="num">Totale</th><th>Periodo</th><th>Categoria</th></tr></thead><tbody>${
-        c.merchants.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td>${fmtDate(m.from)}${m.to !== m.from ? ` – ${fmtDate(m.to)}` : ''}</td>
-        <td><select data-amove="${m.id}" aria-label="Categoria di ${esc(m.name)}">${a.categories.map((o) => `<option value="${o.category}" ${o.category === c.category ? 'selected' : ''}>${CATEGORY_LABELS[o.category]}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
-    </details>`).join('')}` : '';
+  const { year, month } = state.bank;
+  state.bank.data = await api(`/api/analysis?year=${year}&month=${month}`);
+  renderAnalysis();
+}
+
+function renderFilters() {
+  const { data, year, month } = state.bank;
+  const years = data?.years ?? [];
+  $('#bankYear').innerHTML = `<option value="0">Tutti gli anni</option>${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}`;
+  $('#bankMonth').innerHTML = `<option value="0">Tutti i mesi</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
+  $('#bankReset').hidden = !year && !month;
+}
+
+function periodLabel() {
+  const { year, month } = state.bank;
+  if (year && month) return `${MONTHS[month - 1]} ${year}`;
+  if (year) return String(year);
+  if (month) return `${MONTHS[month - 1]} di ogni anno`;
+  return 'tutto il periodo';
+}
+
+// Nomi lunghi degli estratti UniCredit, accorciati solo a video.
+function shortName(name) {
+  const transfer = /\bA:\s*(.+?)\s+PER:/.exec(name);
+  if (/^(DISPOSIZIONE DI )?BONIFICO/.test(name) && transfer) return `Bonifico a ${transfer[1]}`;
+  if (/^PAGAMENTO PER UTILIZZO CARTE DI CREDITO/.test(name)) return 'Carta di credito (addebito mensile)';
+  if (/^ADDEBITO PER DONAZIONE/.test(name)) return 'Donazione (addebito)';
+  return name.length > 54 ? `${name.slice(0, 52)}…` : name;
+}
+
+function renderAnalysis() {
+  const a = state.bank.data;
+  if (!a) return;
+  renderFilters();
+  $('#analysisEmpty').hidden = a.count > 0 || a.months.length > 0;
+  if (a.count === 0 && a.months.length === 0) { $('#analysisBody').innerHTML = ''; return; }
+
+  const cats = a.categories;
+  const top = cats.flatMap((c) => c.merchants.map((m) => ({ ...m, cat: c.category }))).sort((x, y) => y.total - x.total).slice(0, 10);
+  const table = (c) => {
+    const rows = sortList(c.merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
+    return `<details class="acat" data-cat="${c.category}" ${c.category === 'altro' || document.querySelector(`#analysisBody details[data-cat="${c.category}"][open]`) ? 'open' : ''}>
+      <summary><i class="key" style="--c:${CATEGORY_COLOR[c.category]}"></i> ${CATEGORY_NAME[c.category]} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
+      <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}${sortHead('bank', 'last', 'Data')}<th>Categoria</th></tr></thead><tbody>${
+        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name)}</td></tr>`).join('')}</tbody></table></div>
+    </details>`;
+  };
+  const numbers = a.months.map((m) => {
+    const out = m.bills + m.spesa + m.svago + m.carburante;
+    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
+  }).join('');
+
+  $('#analysisBody').innerHTML = `
+    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). Cambia la categoria di una descrizione dal menu: vale per tutte quelle uguali.</p>
+    <div class="cards">${cats.map((c) => `<div class="card"><div class="k"><i class="key" style="--c:${CATEGORY_COLOR[c.category]}"></i> ${CATEGORY_NAME[c.category]}${c.column ? '' : ' · fuori dalla tabella'}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti · ${(c.share * 100).toFixed(1).replace('.', ',')}%</div></div>`).join('')}</div>
+    <section class="chartcard">
+      <h3>Stipendio contro uscite</h3>
+      <p class="muted">Bollette, affitto e prestito dai documenti; spesa, svago e carburante dall'estratto conto. Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
+      <div id="chIncome" class="chart"></div>
+    </section>
+    <div class="chartrow">
+      <section class="chartcard">
+        <h3>Dove va il denaro della banca</h3>
+        <p class="muted">Tutte le uscite bancarie per categoria, compresa la parte ancora in "Altro".</p>
+        <div id="chBank" class="chart"></div>
+      </section>
+      <section class="chartcard">
+        <h3>Le 10 voci più pesanti</h3>
+        <p class="muted">Per importo totale nel periodo, colorate per categoria.</p>
+        <div id="chTop" class="chart"></div>
+      </section>
+    </div>
+    <details class="acat"><summary>Numeri mese per mese <span class="muted">· tabella dei grafici</span></summary>
+      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
+    </details>
+    ${cats.map(table).join('')}`;
+
+  const pick = (ym) => {
+    state.bank.year = Number(ym.slice(0, 4));
+    state.bank.month = Number(ym.slice(5));
+    loadAnalysis().catch((err) => toast(err.message));
+  };
+  monthChart($('#chIncome'), a.months, {
+    series: [
+      { label: 'Spesa', color: 'var(--viz-spesa)', get: (m) => m.spesa },
+      { label: 'Svago', color: 'var(--viz-svago)', get: (m) => m.svago },
+      { label: 'Carburante', color: 'var(--viz-carburante)', get: (m) => m.carburante },
+      { label: 'Bollette e affitto', color: 'var(--viz-bollette)', get: (m) => m.bills },
+    ],
+    line: { label: 'Stipendio', color: 'var(--ink)', get: (m) => m.income },
+    onPick: state.bank.year && state.bank.month ? undefined : pick,
+  });
+  monthChart($('#chBank'), a.months, {
+    series: ['spesa', 'svago', 'carburante', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
+    onPick: state.bank.year && state.bank.month ? undefined : pick,
+  });
+  hBars($('#chTop'), top.map((m) => ({ label: shortName(m.name), value: m.total, color: CATEGORY_COLOR[m.cat], cat: CATEGORY_NAME[m.cat], sub: `${m.count} volte` })));
 }
 
 async function setCategory(select) {
@@ -218,7 +343,7 @@ async function uploadStatements(files) {
     duplicates += r.duplicates;
   }
   toast(`Movimenti aggiunti: ${added}${duplicates ? ` (${duplicates} già presenti)` : ''}.`);
-  await Promise.all([loadMoves(), loadGrid()]);
+  await Promise.all([loadMoves(), loadGrid(), loadAnalysis()]);
 }
 
 // ------------------------------------------------------------------ documenti
@@ -426,6 +551,8 @@ async function doRefresh(force = false) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
+  if (t.dataset.sort) { setSort(t.dataset.sort); return; }
+  if (t.id === 'bankReset') { state.bank.year = 0; state.bank.month = 0; loadAnalysis().catch((err) => toast(err.message)); return; }
   if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
   else if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
@@ -454,6 +581,12 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id === 'bankYear' || e.target.id === 'bankMonth') {
+    state.bank.year = Number($('#bankYear').value);
+    state.bank.month = Number($('#bankMonth').value);
+    loadAnalysis().catch((err) => toast(err.message));
+    return;
+  }
   if (e.target.dataset.move || e.target.dataset.amove) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
