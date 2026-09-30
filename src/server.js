@@ -80,7 +80,7 @@ app.post('/api/refresh', async (req, res) => {
 
 app.get('/api/grid', (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  res.json({ ...buildGrid(db(), year, new Date(), String(req.query.place ?? 'tutte')), lastRefresh: db().lastRefresh });
+  res.json({ ...buildGrid(db(), year), lastRefresh: db().lastRefresh });
 });
 
 app.post('/api/paid', async (req, res) => {

@@ -29,9 +29,7 @@ const parseInput = (text) => {
 const inputValue = (n) => (n == null ? '' : String(n).replace('.', ','));
 
 const PLACE_LABELS = { tutte: 'Tutte', budrio: 'Budrio', crispiano: 'Crispiano' };
-let savedPlace = 'tutte';
-try { savedPlace = localStorage.getItem('place') || 'tutte'; } catch { /* storage non disponibile */ }
-const state = { year: new Date().getFullYear(), place: savedPlace, grid: null, docs: [], settings: null };
+const state = { year: new Date().getFullYear(), grid: null, docs: [], settings: null };
 
 async function api(path, options) {
   const res = await fetch(path, options && {
@@ -56,22 +54,14 @@ function toast(message, ms = 4500) {
 // ---------------------------------------------------------------- panoramica
 
 async function loadGrid() {
-  state.grid = await api(`/api/grid?year=${state.year}&place=${state.place}`);
+  state.grid = await api(`/api/grid?year=${state.year}`);
   if (!state.grid.years.includes(state.year)) state.year = state.grid.years[0];
   renderYears();
-  renderPlaces();
   renderCards();
   renderGrid();
   $('#lastRefresh').textContent = state.grid.lastRefresh
     ? `Aggiornato ${new Date(state.grid.lastRefresh).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}`
     : 'Mai aggiornato';
-}
-
-// Selettore della casa: le bollette si possono vedere insieme o separate per Budrio e Crispiano.
-function renderPlaces() {
-  const { places } = state.grid;
-  $('#places').innerHTML = `<span class="muted">Bollette di</span>${['tutte', ...places].map((p) => `<button data-place="${p}" aria-pressed="${p === state.grid.place}">${PLACE_LABELS[p] ?? p}</button>`).join('')}${
-    state.grid.place === 'tutte' ? '' : '<span class="muted">Totale spese, saldo e riquadri includono tutte le case.</span>'}`;
 }
 
 function renderYears() {
@@ -95,27 +85,35 @@ function renderCards() {
 
 // I valori delle celle vengono solo dai documenti (e dalle rate fisse nelle impostazioni):
 // qui non si modificano. Spese, Svago e Carburante vengono dall'estratto conto e si possono correggere a mano.
-function cellHtml(kind, month, c) {
-  const empty = c.amount == null;
-  const name = KINDS.find((k) => k.id === kind).label;
-  const label = `${name} ${MONTHS[month - 1]}`;
+const colLabel = (col) => KINDS.find((k) => k.id === col.kind).label;
+const colName = (col) => (col.place ? `${colLabel(col)} ${PLACE_LABELS[col.place]}` : colLabel(col));
+
+function cellHtml(col, month, c) {
+  const kind = col.kind;
+  const label = `${colName(col)} ${MONTHS[month - 1]}`;
   if (SPENDING.has(kind)) {
     return `<input class="expense-input" inputmode="decimal" data-kind="${kind}" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
   }
-  if (empty) return '<div class="static blank"><span class="num">–</span></div>';
+  if (c.amount == null) return '<div class="static blank"><span class="num">–</span></div>';
   if (NO_PAYMENT.has(kind)) return `<div class="static"><span class="num">${money(c.amount)}</span></div>`;
-  // L'intera cella è la casella: verde se pagata, rossa se da pagare. Il link apre il PDF.
-  const pdf = c.files.map((f) => `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il PDF: ${esc(f.name)}">PDF</a>`).join('');
-  // Con più case nella stessa cella: il totale e, sotto, il dettaglio per casa.
+  // L'intera cella è colorata: verde se pagata, rossa se da pagare. Al passaggio del mouse si divide in due:
+  // a sinistra si apre il documento, a destra si segna pagato o da pagare.
+  const multi = c.files.length > 1;
+  const open = c.files.map((f, i) => {
+    const tag = PLACE_LABELS[f.name.split('/')[0].toLowerCase()]?.[0] ?? String(i + 1);
+    return `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il documento: ${esc(f.name)}">${multi ? tag : 'Apri'}</a>`;
+  }).join('');
+  // Più case nella stessa cella (acqua, wifi): il totale e, sotto, il dettaglio per casa.
   const split = c.parts.length > 1;
   const detail = split ? c.parts.map((p) => `${PLACE_LABELS[p.place][0]} ${money(p.amount)}`).join(' · ') : '';
   const tip = split ? c.parts.map((p) => `${PLACE_LABELS[p.place]}: ${money(p.amount)} (${p.paid ? 'pagato' : 'da pagare'})`).join(' · ') : (c.paid ? 'Pagato' : 'Da pagare');
-  return `<div class="pcell ${c.paid ? 'paid' : 'due'}${split ? ' split' : ''}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-kind="${kind}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${tip} · clic per cambiare"><span class="num">${money(c.amount)}</span>${split ? `<small class="parts">${detail}</small>` : ''}${pdf}</div>`;
+  return `<div class="pcell ${c.paid ? 'paid' : 'due'}${split ? ' split' : ''}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-col="${col.id}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${money(c.amount)} · ${tip}"><span class="amount"><span class="num">${money(c.amount)}</span>${split ? `<small class="parts">${detail}</small>` : ''}</span>${open ? `<span class="zone zone-open">${open}</span>` : ''}<span class="zone zone-pay${open ? '' : ' wide'}" data-pay="1" title="${c.paid ? 'Segna come da pagare' : 'Segna come pagato'}">${c.paid ? '↺' : '✓'}</span></div>`;
 }
 
-async function togglePaid(kind, month) {
-  const cell = state.grid.rows.find((r) => r.month === month).cells[kind];
-  const items = cell.parts.map((p) => ({ kind, year: state.year, month, place: p.place, paid: !cell.paid }));
+async function togglePaid(colId, month) {
+  const col = state.grid.columns.find((c) => c.id === colId);
+  const cell = state.grid.rows.find((r) => r.month === month).cells[colId];
+  const items = cell.parts.map((p) => ({ kind: col.kind, year: state.year, month, place: p.place, paid: !cell.paid }));
   if (!items.length) return;
   await api('/api/paid', { method: 'POST', body: items });
   await loadGrid();
@@ -129,20 +127,22 @@ async function saveExpense(input) {
 }
 
 // Gruppi di colonne: uno spazio ben visibile separa guadagno, spese e riepilogo.
+// Luce e gas hanno una colonna per casa.
 function renderGrid() {
-  const { rows, summary: s } = state.grid;
+  const { rows, columns, summary: s } = state.grid;
   const groupStart = new Set(['stipendio', 'acqua']);
-  const cls = (id) => (groupStart.has(id) ? 'gstart' : '');
-  const head = KINDS.map((k) => `<th class="${cls(k.id)}"><span class="dot" style="background:var(--${k.id})"></span>${k.label}</th>`).join('');
+  const cls = (col) => (groupStart.has(col.id) ? 'gstart' : '');
+  const head = columns.map((c) => `<th class="${cls(c)}"><span class="dot" style="background:var(--${c.kind})"></span>${colLabel(c)}${c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : ''}</th>`).join('');
   const body = rows.map((r) => {
     const tone = r.balance == null ? '' : r.balance >= 0 ? 'pos' : 'neg';
-    return `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${cellHtml(k.id, r.month, r.cells[k.id])}</td>`).join('')}
+    return `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${columns.map((c) => `<td class="num ${cls(c)}">${cellHtml(c, r.month, r.cells[c.id])}</td>`).join('')}
       <td class="num gstart total">${money(r.spent)}</td><td class="num total ${tone}">${money(r.balance)}</td></tr>`;
   }).join('');
   const foot = `
-    <tr><th>Media ${state.year}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${money(s.average[k.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
-    <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${NO_PAYMENT.has(k.id) ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
-  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
+    <tr><th>Media ${state.year}</th>${columns.map((c) => `<td class="num ${cls(c)}">${money(s.average[c.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
+    <tr><th>Da pagare</th>${columns.map((c) => `<td class="num ${cls(c)}">${NO_PAYMENT.has(c.kind) ? '' : (s.toPay[c.id] ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${colName(c)} fino a oggi">${money(s.toPay[c.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
+  const spendCols = columns.filter((c) => c.kind !== 'stipendio').length;
+  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${spendCols}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
   $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}<th class="gstart" title="Comprende tutte le case">Totale spese</th><th title="Comprende tutte le case">Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
@@ -156,17 +156,17 @@ async function payEverything() {
   toast(`Saldati ${r.count} importi, ${money(r.total)} in tutto.`);
 }
 
-async function payAll(kind) {
+async function payAll(colId) {
+  const col = state.grid.columns.find((c) => c.id === colId);
   const now = new Date();
   const items = [];
   // Solo l'anno mostrato, e solo fino al mese corrente.
   for (const r of state.grid.rows) {
-    const c = r.cells[kind];
     if (state.year < now.getFullYear() || r.month <= now.getMonth() + 1) {
-      for (const p of c.parts) if (!p.paid) items.push({ kind, year: state.year, month: r.month, place: p.place, paid: true });
+      for (const p of r.cells[colId].parts) if (!p.paid) items.push({ kind: col.kind, year: state.year, month: r.month, place: p.place, paid: true });
     }
   }
-  const name = KINDS.find((k) => k.id === kind).label;
+  const name = colName(col);
   if (!items.length) return toast(`Nel ${state.year} non c'è nulla da segnare per ${name}.`);
   if (!confirm(`Segnare come pagati ${items.length} mesi di ${name} del ${state.year}?`)) return;
   await api('/api/paid', { method: 'POST', body: items });
@@ -426,11 +426,7 @@ async function doRefresh(force = false) {
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.place) {
-    state.place = t.dataset.place;
-    try { localStorage.setItem('place', state.place); } catch { /* storage non disponibile */ }
-    loadGrid().catch((err) => toast(err.message));
-  } else if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
+  if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
   else if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
@@ -445,11 +441,11 @@ document.addEventListener('click', (e) => {
     if (t.dataset.tab === 'analysis') loadAnalysis().catch((err) => toast(err.message));
   }
 });
-// Clic (o Spazio/Invio) su una cella: pagato / da pagare. Il link PDF apre invece il documento.
+// Clic (o Spazio/Invio) su una cella: pagato / da pagare. A sinistra, il link apre invece il documento.
 const onPaidCell = (e) => {
   const cell = e.target.closest('.pcell');
-  if (!cell || e.target.closest('.filelink')) return false;
-  togglePaid(cell.dataset.kind, Number(cell.dataset.month)).catch((err) => toast(err.message));
+  if (!cell || e.target.closest('.zone-open')) return false;
+  togglePaid(cell.dataset.col, Number(cell.dataset.month)).catch((err) => toast(err.message));
   return true;
 };
 document.addEventListener('click', onPaidCell);

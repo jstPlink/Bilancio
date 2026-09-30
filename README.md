@@ -22,7 +22,7 @@ npm test
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
 2. Premi **Aggiorna**: vengono letti solo i PDF nuovi o modificati
    (Maiusc + clic per rileggere tutto).
-3. Clicca una cella per correggere l'importo, segnarla come pagata o aprire il PDF.
+3. Passa il mouse su una cella: a sinistra apri il PDF, a destra la segni pagata o da pagare.
 4. Nella scheda **Documenti** trovi i file letti male (*Da controllare*): con **Modifica**
    correggi tipo, periodo e importo; la correzione sopravvive ai successivi aggiornamenti.
 
@@ -38,7 +38,7 @@ della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`
 
 ## Più case
 
-Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: il selettore sopra la tabella le mostra insieme o una per volta.
+Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: luce e gas hanno una colonna per casa; acqua e wifi sommano le case e mostrano il dettaglio nella cella.
 
 ## Come legge i PDF
 

@@ -52,20 +52,22 @@ test('la griglia somma i movimenti nelle colonne giuste', () => {
   assert.equal(rows[2].spent, 162.7);
 });
 
-test('le bollette di Crispiano sono separate da quelle di Budrio', () => {
+test('luce e gas hanno una colonna per casa, con la propria spunta', () => {
   const doc = (name, amount) => ({ name, kind: 'luce', year: 2026, month: 2, amount, named: true });
   const db = {
     settings: {}, paid: { 'luce|2026|2': true }, manual: {}, transactions: {}, rules: {},
     docs: { a: doc('Budrio/2026/Luce 2026.02.pdf', 40), b: doc('Crispiano/2026/Luce 2026.02.pdf', 25) },
   };
-  const now = new Date(2026, 5, 1);
-  const cell = (place) => buildGrid(db, 2026, now, place).rows[1].cells.luce;
-  assert.equal(cell('tutte').amount, 65);
-  assert.equal(cell('budrio').amount, 40);
-  assert.equal(cell('crispiano').amount, 25);
-  assert.equal(cell('tutte').parts.length, 2);
-  assert.equal(cell('tutte').paid, false); // Budrio pagata, Crispiano no
-  assert.equal(cell('budrio').paid, true);
-  assert.equal(buildGrid(db, 2026, now, 'crispiano').rows[1].spent, 65); // il totale resta complessivo
-  assert.equal(buildGrid(db, 2026, now).summary.totalToPay, 25);
+  const g = buildGrid(db, 2026, new Date(2026, 5, 1));
+  const cells = g.rows[1].cells;
+  assert.ok(g.columns.some((c) => c.id === 'luce:crispiano'));
+  assert.ok(!g.columns.some((c) => c.id === 'luce'));
+  assert.equal(cells['luce:budrio'].amount, 40);
+  assert.equal(cells['luce:crispiano'].amount, 25);
+  assert.equal(cells['luce:budrio'].paid, true);
+  assert.equal(cells['luce:crispiano'].paid, false);
+  assert.equal(cells['luce:crispiano'].files.length, 1);
+  assert.equal(g.rows[1].spent, 65); // il totale comprende entrambe le case
+  assert.equal(g.summary.totalToPay, 25);
+  assert.equal(g.summary.toPay['luce:crispiano'], 25);
 });
