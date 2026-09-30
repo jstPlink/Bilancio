@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.22.0
+- **Login con password**: impostando `BILANCIO_PASSWORD` tutto il sito (pagine, dati e API) richiede la password. Pagina di accesso con un solo campo, sessione di 30 giorni (cookie firmato, HttpOnly), pulsante **Esci**, blocco di 15 minuti dopo 5 tentativi sbagliati. Gli script usano HTTP Basic. Senza password l'app resta aperta, come prima, ma da un indirizzo diverso da localhost compare un avviso rosso.
+
 ## 0.21.0
 - **Avviso "lettura in corso"**: se i documenti vengono letti da qualcun altro (un altro browser, lo script di importazione, un altro dispositivo), la pagina se ne accorge da sola, mostra una fascia gialla con avanzamento ("Lettura dei documenti in corso: 50 su 275. I dati sono parziali e si aggiornano da soli"), si ricarica ogni 20 secondi e avvisa quando ha finito. Il pulsante Aggiorna resta bloccato finché la lettura non termina.
 - Nuovo script `scripts/importa-su-server.mjs`: sposta i dati già compilati da un database locale a un server Bilancio (es. sul NAS) usando le sue API. Copia le impostazioni, fa rileggere documenti ed estratti conto al server e riporta correzioni ai documenti, categorie scelte a mano e spunte "pagato"; alla fine confronta i totali. Rifiuta di scrivere su un server che ha già dati, salvo `--force`.

@@ -6,6 +6,7 @@ import { createStore } from './store.js';
 import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
 import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity } from './statements.js';
 import { matchBillPayments } from './billmatch.js';
+import { createAuth } from './auth.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -19,7 +20,9 @@ setIdentity(store.data.settings);
 if (matchBillPayments(store.data)) store.save();
 
 const app = express();
+const auth = createAuth(process.env.BILANCIO_PASSWORD);
 app.use(express.json());
+auth.mount(app); // con BILANCIO_PASSWORD: tutto, tranne /login, richiede la password
 app.use('/api/statements', express.text({ type: '*/*', limit: '20mb' }));
 app.use(express.static(path.join(root, 'public')));
 
@@ -29,7 +32,7 @@ const db = () => store.data;
 const bad = (res, message) => res.status(400).json({ error: message });
 const validCell = ({ kind, year, month }) => KINDS.includes(kind) && Number.isInteger(year) && month >= 1 && month <= 12;
 
-app.get('/api/version', (req, res) => res.json({ version }));
+app.get('/api/version', (req, res) => res.json({ version, protected: auth.enabled }));
 
 app.get('/api/settings', (req, res) => res.json(db().settings));
 
@@ -291,4 +294,9 @@ app.put('/api/transactions', async (req, res) => {
 
 const port = Number(process.env.PORT ?? 4870);
 const host = process.env.HOST ?? '127.0.0.1';
-app.listen(port, host, () => console.log(`Bilancio su http://${host}:${port}`));
+app.listen(port, host, () => {
+  console.log(`Bilancio su http://${host}:${port}`);
+  if (auth.enabled) console.log('Accesso protetto da password.');
+  else if (host !== '127.0.0.1') console.warn('ATTENZIONE: nessuna password impostata (BILANCIO_PASSWORD). Chiunque raggiunga questo indirizzo può vedere i dati.');
+  if (auth.enabled && process.env.BILANCIO_PASSWORD.length < 8) console.warn('ATTENZIONE: la password è molto corta, usane una più lunga.');
+});

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Accesso · Bilancio</title>
+  <style>
+    :root { --bg: #f4f6f5; --surface: #fff; --ink: #14201d; --muted: #64726e; --line: #e2e8e6; --accent: #0f766e; --accent-ink: #fff; --danger: #b42318; color-scheme: light; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0e1513; --surface: #16201d; --ink: #e6efec; --muted: #8fa19c; --line: #26332f; --accent: #2bb3a6; --accent-ink: #04201c; --danger: #ff8a7d; color-scheme: dark; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
+    main { width: min(380px, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px; box-shadow: 0 8px 30px rgb(0 0 0 / .12); }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+    p { margin: 0; color: var(--muted); font-size: 13px; }
+    label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button { width: 100%; padding: 11px 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .7; cursor: progress; }
+    .error { color: var(--danger); font-size: 13px; min-height: 1.4em; margin: 0 0 10px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M8 21h16M16 9v12M9 13h14" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+      <div><h1>Bilancio</h1><p>Accesso riservato</p></div>
+    </div>
+    <form id="form" autocomplete="on">
+      <label>Password
+        <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
+      </label>
+      <p class="error" id="error" role="alert"></p>
+      <button id="go">Accedi</button>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById('form');
+    const error = document.getElementById('error');
+    const go = document.getElementById('go');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.textContent = '';
+      go.disabled = true;
+      try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: document.getElementById('password').value }) });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) { location.replace('/'); return; }
+        error.textContent = data.error || 'Accesso non riuscito.';
+        document.getElementById('password').select();
+      } catch {
+        error.textContent = 'Server non raggiungibile. Riprova.';
+      } finally {
+        go.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

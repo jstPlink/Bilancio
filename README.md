@@ -89,6 +89,25 @@ che hai in locale, chiudi l'app e copia `data/bilancino.db` nella cartella `./da
 anche le Impostazioni (link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Senza database, al primo
 avvio apri le Impostazioni e inserisci i link.
 
-**Sicurezza.** L'app non ha login e nel container ascolta su tutte le interfacce: tienila dietro la rete di casa o una VPN,
-non esporla direttamente su internet. Per usare un percorso locale come sorgente PDF, monta la cartella nel container
+**Sicurezza.** Se il sito è raggiungibile da internet, imposta una password (sezione successiva): senza, chiunque conosca l'indirizzo
+vede tutti i dati. Per usare un percorso locale come sorgente PDF, monta la cartella nel container
 (vedi il file compose) e indica il percorso interno (es. `/documenti`).
+
+## Password di accesso
+
+Di default l'app è aperta. Per proteggerla imposta la variabile `BILANCIO_PASSWORD` (nel file compose, sotto `environment`, poi
+`docker compose up -d`; in locale: `BILANCIO_PASSWORD=... npm start`):
+
+```yaml
+    environment:
+      BILANCIO_PASSWORD: "una-password-lunga-e-difficile"
+```
+
+- Chi apre il sito trova la pagina **Accesso** con un campo password. Dopo l'accesso la sessione dura 30 giorni su quel browser;
+  il pulsante **Esci** in alto la chiude.
+- Dopo 5 password sbagliate lo stesso indirizzo è bloccato per 15 minuti.
+- Cambiando la password, tutte le sessioni aperte decadono.
+- Gli script (come `scripts/importa-su-server.mjs`) usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
+  qualsiasi nome e conta solo la password.
+- Usa sempre **https** (con Cloudflare o un reverse proxy): la password viaggia nella richiesta di accesso.
+- Senza password, da un indirizzo diverso da localhost compare un avviso rosso in alto.

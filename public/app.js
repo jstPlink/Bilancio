@@ -46,6 +46,7 @@ async function api(path, options) {
     body: options.raw ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { location.href = '/login'; throw new Error(data.error ?? 'Accesso richiesto.'); }
   if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
   return data;
 }
@@ -751,5 +752,15 @@ $('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
 $('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';
 $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => toast(err.message)));
 
-api('/api/version').then(({ version }) => { $('#version').textContent = `v${version}`; }).catch(() => {});
+api('/api/version').then(({ version, protected: hasPassword }) => {
+  $('#version').textContent = `v${version}`;
+  $('#logoutBtn').hidden = !hasPassword;
+  // Senza password, da un indirizzo diverso da localhost, i dati sono visibili a chiunque lo raggiunga.
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+  $('#openWarning').hidden = hasPassword || local;
+}).catch(() => {});
+$('#logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  location.href = '/login';
+});
 Promise.all([loadGrid(), loadDocs()]).then(autoScan).catch((err) => toast(err.message));

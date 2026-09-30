@@ -277,3 +277,6 @@ small.doc { display: block; color: var(--accent); font-size: 11px; overflow: hid
 .banner .spin { flex: none; }
 .banner .bar { flex: 1; height: 6px; border-radius: 999px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; min-width: 60px; }
 .banner .bar > i { display: block; height: 100%; background: currentColor; border-radius: 999px; transition: width .4s; }
+
+.banner.danger { background: var(--late-bg); color: var(--late-ink); }
+#logoutBtn { padding: 8px 12px; }
