@@ -1,0 +1,21 @@
+{
+  "name": "bilancino",
+  "version": "0.1.0",
+  "description": "Buste paga e bollette di casa, in ordine.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "express": "^5.2.1",
+    "pdfjs-dist": "^6.1.200",
+    "tesseract.js": "^7.0.0",
+    "unpdf": "^1.8.1"
+  }
+}

@@ -1,0 +1,372 @@
+const KINDS = [
+  { id: 'stipendio', label: 'Stipendio' },
+  { id: 'acqua', label: 'Acqua' },
+  { id: 'luce', label: 'Luce' },
+  { id: 'gas', label: 'Gas' },
+  { id: 'wifi', label: 'Wifi' },
+  { id: 'affitto', label: 'Affitto' },
+  { id: 'prestito', label: 'Prestito' },
+  { id: 'spese', label: 'Spese' },
+];
+const EXPENSES = KINDS.filter((k) => k.id !== 'stipendio');
+// Solo l'affitto si segna con un clic: niente finestra, solo la spunta.
+const TICK_ONLY = new Set(['affitto']);
+const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const money = (n) => (n == null ? '' : eur.format(n));
+// "1.234,56" e "1234.56" sono entrambi validi; vuoto o illeggibile → null.
+const parseInput = (text) => {
+  const t = String(text).trim().replace(/[€\s]/g, '');
+  if (!t) return null;
+  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+  return Number.isFinite(n) ? n : NaN;
+};
+const inputValue = (n) => (n == null ? '' : String(n).replace('.', ','));
+
+const state = { year: new Date().getFullYear(), grid: null, docs: [], settings: null };
+
+async function api(path, options) {
+  const res = await fetch(path, options && {
+    ...options,
+    headers: { 'Content-Type': 'application/json' },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
+  return data;
+}
+
+let toastTimer;
+function toast(message, ms = 4500) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ---------------------------------------------------------------- panoramica
+
+async function loadGrid() {
+  state.grid = await api(`/api/grid?year=${state.year}`);
+  if (!state.grid.years.includes(state.year)) state.year = state.grid.years[0];
+  renderYears();
+  renderCards();
+  renderGrid();
+  $('#lastRefresh').textContent = state.grid.lastRefresh
+    ? `Aggiornato ${new Date(state.grid.lastRefresh).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}`
+    : 'Mai aggiornato';
+}
+
+function renderYears() {
+  $('#years').innerHTML = state.grid.years
+    .map((y) => `<button data-year="${y}" aria-pressed="${y === state.year}">${y}</button>`).join('');
+}
+
+function renderCards() {
+  const s = state.grid.summary;
+  const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
+  const dueParts = EXPENSES.filter((k) => s.toPay[k.id] > 0).map((k) => k.label).join(', ');
+  $('#cards').innerHTML = [
+    card('Da pagare', money(s.totalToPay) || money(0), dueParts || 'Tutto pagato', 'due'),
+    card(`Stipendio medio ${state.year}`, money(s.avgIncome) || '—'),
+    card('Spese medie al mese', money(s.avgSpent) || '—'),
+    card('Risparmio medio al mese', money(s.avgBalance) || '—'),
+  ].join('');
+}
+
+function cellHtml(kind, month, c) {
+  const empty = c.amount == null;
+  const edited = c.manual != null ? '<span class="edited" title="Importo modificato a mano">✎</span>' : '';
+  const name = KINDS.find((k) => k.id === kind).label;
+  const tickOnly = TICK_ONLY.has(kind) && !empty;
+  const amount = `<button class="cell ${empty ? 'blank' : ''}" data-kind="${kind}" data-month="${month}" ${tickOnly ? 'data-toggle' : ''} aria-label="${name} ${MONTHS[month - 1]}">${edited}<span class="num">${empty ? '–' : money(c.amount)}</span></button>`;
+  if (kind === 'stipendio' || empty) return amount;
+  // La spunta è un vero checkbox grande, con area di clic ampia: un clic e il pagamento è registrato.
+  const box = `<label class="paidwrap" title="${c.paid ? 'Pagato' : 'Da pagare'}"><input type="checkbox" class="paidbox" data-kind="${kind}" data-month="${month}" ${c.paid ? 'checked' : ''} aria-label="${name} ${MONTHS[month - 1]}: pagato"></label>`;
+  return `<div class="cellwrap">${amount}${box}</div>`;
+}
+
+// Gruppi di colonne: uno spazio ben visibile separa guadagno, spese e riepilogo.
+function renderGrid() {
+  const { rows, summary: s } = state.grid;
+  const groupStart = new Set(['stipendio', 'acqua']);
+  const cls = (id) => (groupStart.has(id) ? 'gstart' : '');
+  const head = KINDS.map((k) => `<th class="${cls(k.id)}"><span class="dot" style="background:var(--${k.id})"></span>${k.label}</th>`).join('');
+  const body = rows.map((r) => {
+    const tone = r.balance == null ? '' : r.balance >= 0 ? 'pos' : 'neg';
+    return `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${cellHtml(k.id, r.month, r.cells[k.id])}</td>`).join('')}
+      <td class="num gstart total">${money(r.spent)}</td><td class="num total ${tone}">${money(r.balance)}</td></tr>`;
+  }).join('');
+  const foot = `
+    <tr><th>Media ${state.year}</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${money(s.average[k.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
+    <tr><th>Da pagare</th>${KINDS.map((k) => `<td class="num ${cls(k.id)}">${k.id === 'stipendio' ? '' : (s.toPay[k.id] ? `<button class="link" data-payall="${k.id}" title="Segna come pagato tutto ${k.label} fino a oggi">${money(s.toPay[k.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
+  const groups = `<tr class="groups"><th></th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${EXPENSES.length}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
+  $('#grid').innerHTML = `<thead>${groups}<tr><th>Mese</th>${head}<th class="gstart">Totale spese</th><th>Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+}
+
+async function setPaid(kind, month, paid) {
+  await api('/api/paid', { method: 'POST', body: { kind, year: state.year, month, paid } });
+  await loadGrid();
+}
+
+// ------------------------------------------------------------- dialog cella
+
+function openCell(kind, month) {
+  const c = state.grid.rows.find((r) => r.month === month).cells[kind];
+  const label = KINDS.find((k) => k.id === kind).label;
+  const dlg = $('#cellDlg');
+  dlg.innerHTML = `<form class="dlg" method="dialog">
+    <h2>${label} · ${MONTHS[month - 1]} ${state.year}</h2>
+    <label>Importo (€)<input name="amount" inputmode="decimal" value="${inputValue(c.amount)}" placeholder="Nessun importo"></label>
+    ${c.auto != null ? `<small>Letto dai documenti: ${money(c.auto)}</small>` : '<small>Nessun documento per questo mese.</small>'}
+    ${kind !== 'stipendio' ? `<label class="check"><input type="checkbox" name="paid" ${c.paid ? 'checked' : ''}> Pagato</label>` : ''}
+    ${c.files.length ? `<div class="files">${c.files.map((f) => `<a href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : ''}
+    <p class="error" id="cellErr" role="alert"></p>
+    <div class="foot">
+      ${c.manual != null ? '<button type="button" class="link" data-act="reset">Usa il valore dei documenti</button>' : ''}
+      <button type="button" class="ghost" data-act="close">Annulla</button>
+      <button class="primary" value="save">Salva</button>
+    </div></form>`;
+  const form = dlg.querySelector('form');
+  form.addEventListener('click', async (e) => {
+    const act = e.target.dataset.act;
+    if (act === 'close') dlg.close();
+    if (act === 'reset') { await saveCell(kind, month, { amount: null }); dlg.close(); }
+  });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = parseInput(form.amount.value);
+    if (Number.isNaN(amount)) { $('#cellErr').textContent = 'Importo non valido.'; return; }
+    try {
+      await saveCell(kind, month, {
+        amount: amount === c.amount ? undefined : amount,
+        paid: kind === 'stipendio' ? undefined : form.paid.checked,
+      });
+      dlg.close();
+    } catch (err) { $('#cellErr').textContent = err.message; }
+  });
+  dlg.showModal();
+}
+
+async function saveCell(kind, month, { amount, paid }) {
+  const cell = { kind, year: state.year, month };
+  if (amount !== undefined) await api('/api/manual', { method: 'POST', body: { ...cell, amount } });
+  if (paid !== undefined) await api('/api/paid', { method: 'POST', body: { ...cell, paid } });
+  await loadGrid();
+}
+
+async function payAll(kind) {
+  const now = new Date();
+  const items = [];
+  // Solo l'anno mostrato, e solo fino al mese corrente.
+  for (const r of state.grid.rows) {
+    const c = r.cells[kind];
+    if (c.amount != null && !c.paid && (state.year < now.getFullYear() || r.month <= now.getMonth() + 1)) {
+      items.push({ kind, year: state.year, month: r.month, paid: true });
+    }
+  }
+  const name = KINDS.find((k) => k.id === kind).label;
+  if (!items.length) return toast(`Nel ${state.year} non c'è nulla da segnare per ${name}.`);
+  if (!confirm(`Segnare come pagati ${items.length} mesi di ${name} del ${state.year}?`)) return;
+  await api('/api/paid', { method: 'POST', body: items });
+  await loadGrid();
+}
+
+// ------------------------------------------------------------------ documenti
+
+async function loadDocs() {
+  state.docs = await api('/api/docs');
+  const bad = state.docs.filter((d) => d.status === 'incompleto').length;
+  const badge = $('#docBadge');
+  badge.hidden = !bad;
+  badge.textContent = bad;
+  $('#docsEmpty').hidden = state.docs.length > 0;
+  $('#docTable').hidden = state.docs.length === 0;
+  const kindLabel = (id) => KINDS.find((k) => k.id === id)?.label ?? '—';
+  $('#docTable').innerHTML = state.docs.length ? `<thead><tr><th>File</th><th>Tipo</th><th>Periodo</th><th class="num">Importo</th><th>Stato</th><th></th></tr></thead><tbody>${
+    state.docs.map((d, i) => `<tr>
+      <td class="fname" title="${esc(d.name)}">${esc(d.name)}</td>
+      <td>${kindLabel(d.kind)}</td>
+      <td>${d.year && d.month ? `${MONTHS[d.month - 1]} ${d.year}` : '—'}</td>
+      <td class="num">${money(d.amount) || '—'}</td>
+      <td>${d.status === 'ok' ? '<span class="pill ok">Letto</span>' : d.status === 'ignorato' ? '<span class="pill edit">Ignorato</span>' : `<span class="pill warn" title="Manca: ${esc(d.missing.join(', '))}">Da controllare</span>`}${d.edited ? ' <span class="pill edit">Corretto</span>' : ''}</td>
+      <td><button class="link" data-doc="${i}">Modifica</button></td></tr>`).join('')}</tbody>` : '';
+}
+
+function openDoc(index) {
+  const d = state.docs[index];
+  const dlg = $('#docDlg');
+  const opt = (v, l, cur) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${l}</option>`;
+  const year = d.year ?? new Date().getFullYear();
+  dlg.innerHTML = `<form class="dlg" method="dialog">
+    <h2>Correggi documento</h2>
+    <p class="fname" title="${esc(d.name)}"><a href="/api/file?key=${encodeURIComponent(d.key)}" target="_blank" rel="noopener">📄 ${esc(d.name)}</a></p>
+    ${d.status === 'incompleto' ? `<p class="pill warn" style="justify-self:start">Non sono riuscito a leggere: ${esc(d.missing.join(', '))}</p>` : ''}
+    <label>Tipo<select name="kind"><option value="">—</option>${KINDS.map((k) => opt(k.id, k.label, d.kind)).join('')}</select></label>
+    <div class="row">
+      <label>Mese<select name="month"><option value="">—</option>${MONTHS.map((m, i) => opt(i + 1, m, d.month)).join('')}</select></label>
+      <label>Anno<input name="year" type="number" min="2000" max="2100" value="${d.year ?? ''}" placeholder="${year}"></label>
+    </div>
+    <label>Importo (€)<input name="amount" inputmode="decimal" value="${inputValue(d.amount)}"></label>
+    <label class="check"><input type="checkbox" name="ignore" ${d.status === 'ignorato' ? 'checked' : ''}> Ignora questo documento (non conta nei totali)</label>
+    <details><summary class="muted">Testo letto dal PDF</summary><pre id="rawText">Caricamento…</pre></details>
+    <p class="error" id="docErr" role="alert"></p>
+    <div class="foot">
+      ${d.edited ? '<button type="button" class="link danger" data-act="reset">Ripristina lettura automatica</button>' : ''}
+      <button type="button" class="ghost" data-act="close">Annulla</button>
+      <button class="primary">Salva</button>
+    </div></form>`;
+  const form = dlg.querySelector('form');
+  api(`/api/docs/text?key=${encodeURIComponent(d.key)}`).then((t) => { $('#rawText').textContent = t.text || '(nessun testo: forse il PDF è una scansione)'; }).catch(() => {});
+  const send = async (override) => {
+    try {
+      await api('/api/docs', { method: 'PUT', body: { key: d.key, override } });
+      dlg.close();
+      await Promise.all([loadDocs(), loadGrid()]);
+    } catch (err) { $('#docErr').textContent = err.message; }
+  };
+  form.addEventListener('click', (e) => {
+    if (e.target.dataset.act === 'close') dlg.close();
+    if (e.target.dataset.act === 'reset') send({});
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const num = parseInput(form.amount.value);
+    if (Number.isNaN(num)) { $('#docErr').textContent = 'Importo non valido.'; return; }
+    send({
+      kind: form.kind.value || undefined,
+      month: form.month.value ? Number(form.month.value) : undefined,
+      year: form.year.value ? Number(form.year.value) : undefined,
+      amount: num ?? undefined,
+      ignore: form.ignore.checked || undefined,
+    });
+  });
+  dlg.showModal();
+}
+
+// ---------------------------------------------------------------- impostazioni
+
+async function openSettings() {
+  state.settings = await api('/api/settings');
+  const s = state.settings;
+  const dlg = $('#settingsDlg');
+  dlg.innerHTML = `<form class="dlg" method="dialog">
+    <h2>Impostazioni</h2>
+    <fieldset><legend>Dove si trovano i documenti</legend>
+      <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
+      <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
+      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password.</small>
+    </fieldset>
+    <fieldset><legend>Affitto</legend>
+      <div class="row">
+        <label>Importo mensile (€)<input name="rentAmount" inputmode="decimal" value="${inputValue(s.rentAmount || null)}" placeholder="0"></label>
+        <label>Dal mese<input name="rentFrom" type="month" value="${esc(s.rentFrom)}"></label>
+      </div>
+      <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
+    </fieldset>
+    <fieldset><legend>Prestito</legend>
+      <div class="row">
+        <label>Rata mensile (€)<input name="loanAmount" inputmode="decimal" value="${inputValue(s.loanAmount || null)}" placeholder="0"></label>
+        <label>Dal mese<input name="loanFrom" type="month" value="${esc(s.loanFrom)}"></label>
+      </div>
+      <small>Lascia vuoto se non hai rate fisse: potrai comunque inserire gli importi a mano nella tabella.</small>
+    </fieldset>
+    <p class="error" id="setErr" role="alert"></p>
+    <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
+  </form>`;
+  const form = dlg.querySelector('form');
+  form.addEventListener('click', (e) => { if (e.target.dataset.act === 'close') dlg.close(); });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/settings', {
+        method: 'PUT',
+        body: {
+          payslipsSource: form.payslipsSource.value,
+          billsSource: form.billsSource.value,
+          rentAmount: parseInput(form.rentAmount.value) ?? 0,
+          rentFrom: form.rentFrom.value,
+          loanAmount: parseInput(form.loanAmount.value) ?? 0,
+          loanFrom: form.loanFrom.value,
+        },
+      });
+      dlg.close();
+      toast('Impostazioni salvate. Premi Aggiorna per leggere i documenti.');
+      await loadGrid();
+    } catch (err) { $('#setErr').textContent = err.message; }
+  });
+  dlg.showModal();
+}
+
+// ------------------------------------------------------------------- refresh
+
+async function doRefresh(force = false) {
+  const btn = $('#refreshBtn');
+  btn.disabled = true;
+  btn.querySelector('.spin').hidden = false;
+  const label = btn.querySelector('.label');
+  label.textContent = 'Lettura in corso…';
+  const poll = setInterval(async () => {
+    try {
+      const p = await api('/api/refresh/status');
+      if (p.running && p.total) label.textContent = `Lettura ${p.done}/${p.total}…`;
+    } catch { /* il prossimo giro riprova */ }
+  }, 1000);
+  try {
+    const r = await api('/api/refresh', { method: 'POST', body: { force } });
+    if (r.sources.every((s) => s.skipped)) {
+      toast('Nessuna cartella configurata: apri le impostazioni.');
+    } else {
+      const parts = [];
+      if (r.added) parts.push(`${r.added} nuovi`);
+      if (r.updated) parts.push(`${r.updated} aggiornati`);
+      if (r.removed) parts.push(`${r.removed} rimossi`);
+      if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
+      if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
+      let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';
+      if (r.errors.length) msg += ` Errori: ${r.errors.map((e) => `${e.source}: ${e.message}`).join(' · ')}`;
+      toast(msg, r.errors.length ? 9000 : 4500);
+    }
+  } catch (err) {
+    toast(err.message, 8000);
+  } finally {
+    clearInterval(poll);
+    btn.disabled = false;
+    btn.querySelector('.spin').hidden = true;
+    btn.querySelector('.label').textContent = 'Aggiorna';
+    await Promise.all([loadGrid(), loadDocs()]);
+  }
+}
+
+// ------------------------------------------------------------------ eventi
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); }
+  else if (t.dataset.toggle !== undefined) {
+    const { kind, month } = t.dataset;
+    const paid = state.grid.rows.find((r) => r.month === Number(month)).cells[kind].paid;
+    setPaid(kind, Number(month), !paid).catch((err) => toast(err.message));
+  } else if (t.classList.contains('cell')) openCell(t.dataset.kind, Number(t.dataset.month));
+  else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
+  else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
+  else if (t.dataset.tab) {
+    document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b === t));
+    $('#overview').hidden = t.dataset.tab !== 'overview';
+    $('#docs').hidden = t.dataset.tab !== 'docs';
+    $('#years').hidden = t.dataset.tab !== 'overview';
+  }
+});
+document.addEventListener('change', (e) => {
+  const box = e.target.closest('.paidbox');
+  if (box) setPaid(box.dataset.kind, Number(box.dataset.month), box.checked).catch((err) => { toast(err.message); loadGrid(); });
+});
+$('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
+$('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';
+$('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => toast(err.message)));
+
+Promise.all([loadGrid(), loadDocs()]).catch((err) => toast(err.message));

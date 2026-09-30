@@ -1,0 +1,7 @@
+node_modules/
+data/
+*.pdf
+.env
+*.log
+refresh-result.json
+*.tmp.mjs

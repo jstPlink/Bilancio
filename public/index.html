@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bilancino</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M8 21h16M16 9v12M9 13h14' stroke='white' stroke-width='2.4' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M8 21h16M16 9v12M9 13h14" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+      <div><h1>Bilancino</h1><p>Buste paga e bollette di casa, in ordine.</p></div>
+    </div>
+    <div class="actions">
+      <span id="lastRefresh" class="muted"></span>
+      <button id="refreshBtn" class="primary"><span class="spin" hidden></span><span class="label">Aggiorna</span></button>
+      <button id="settingsBtn" class="ghost" aria-label="Impostazioni" title="Impostazioni">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="overview" aria-selected="true">Panoramica</button>
+      <button role="tab" data-tab="docs" aria-selected="false">Documenti <span id="docBadge" class="badge warn" hidden></span></button>
+      <div class="years" id="years" aria-label="Anno"></div>
+    </nav>
+
+    <section id="overview">
+      <div class="cards" id="cards"></div>
+      <div class="tablewrap"><table id="grid"></table></div>
+      <p class="hint">Clicca su una cella per correggere l'importo, segnarla come pagata o aprire il PDF. La spunta <span class="tick on"></span> indica una bolletta pagata.</p>
+    </section>
+
+    <section id="docs" hidden>
+      <div id="docsEmpty" class="empty" hidden>
+        <h2>Nessun documento ancora</h2>
+        <p>Apri le impostazioni, indica dove si trovano le buste paga e le bollette e premi <b>Aggiorna</b>.</p>
+      </div>
+      <div class="tablewrap"><table id="docTable"></table></div>
+    </section>
+  </main>
+
+  <dialog id="cellDlg"></dialog>
+  <dialog id="docDlg"></dialog>
+  <dialog id="settingsDlg"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
