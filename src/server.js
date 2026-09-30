@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
@@ -15,9 +16,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(root, 'public')));
 
+const { version } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+
 const db = () => store.data;
 const bad = (res, message) => res.status(400).json({ error: message });
 const validCell = ({ kind, year, month }) => KINDS.includes(kind) && Number.isInteger(year) && month >= 1 && month <= 12;
+
+app.get('/api/version', (req, res) => res.json({ version }));
 
 app.get('/api/settings', (req, res) => res.json(db().settings));
 

@@ -137,3 +137,5 @@ thead tr:nth-child(2) th { top: 26px; }
 td.total { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); font-weight: 600; }
 .cell.rent, .cell[data-toggle] { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .paidbox { transition: none; } }
+
+.version { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 4px; }

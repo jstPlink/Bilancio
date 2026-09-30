@@ -369,4 +369,5 @@ $('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
 $('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';
 $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => toast(err.message)));
 
+api('/api/version').then(({ version }) => { $('#version').textContent = `v${version}`; }).catch(() => {});
 Promise.all([loadGrid(), loadDocs()]).catch((err) => toast(err.message));
