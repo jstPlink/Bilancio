@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.17.0
+- **Abbinamento automatico addebiti–bollette**: un addebito bancario di un'utenza (Enel, Edison, Reset, addebiti SEPA…) con lo stesso importo di una bolletta già letta, e data da 1 mese prima a 3 mesi dopo, passa alla nuova categoria **Bollette pagate** e non conta due volte. Nella scheda Banca la tabella mostra a quale documento è stato abbinato. Una bolletta assorbe un solo pagamento, e le scelte fatte a mano non vengono toccate.
+- Le categorie escluse dai dati (Giroconti e Bollette pagate) hanno ciascuna la propria tabella nella scheda Banca.
+
 ## 0.16.0
 - **Rata del prestito dagli estratti conto**: le righe "PAGAMENTO RATA MUTUO/PRESTITO…" di UniCredit vengono riconosciute in automatico (nuova categoria **Prestito**) e alimentano la colonna Prestito della pagina principale. Niente più importo manuale nelle Impostazioni, e la colonna non ha più lo stato pagato / da pagare (è già addebitata).
 - Nel grafico bancario "Dove va il denaro" compare la voce Prestito.

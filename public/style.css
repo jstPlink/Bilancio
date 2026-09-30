@@ -269,3 +269,5 @@ thead th.subcol { background: color-mix(in srgb, var(--accent) 4%, var(--surface
 .static.pos { color: var(--ok-ink); font-weight: 600; }
 .static.neg { color: var(--late-ink); font-weight: 600; }
 td.total .static { font-weight: 600; }
+
+small.doc { display: block; color: var(--accent); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }

@@ -3,9 +3,11 @@ import crypto from 'node:crypto';
 // Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
-export const CATEGORIES = ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'entrate', 'giroconti', 'altro'];
+export const CATEGORIES = ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'entrate', 'bollette', 'giroconti', 'altro'];
+// Categorie che non contano in nessun dato: soldi tra i miei conti, e addebiti di bollette già contate nei documenti.
+export const NOT_COUNTED = new Set(['giroconti', 'bollette']);
 export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante', prestito: 'prestito', donazioni: 'donazioni', tasse: 'tasse', entrate: 'entrate' };
-export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', giroconti: 'Giroconti', altro: 'Altro' };
+export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', bollette: 'Bollette pagate', giroconti: 'Giroconti', altro: 'Altro' };
 // Nomi usati nelle versioni precedenti.
 export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 

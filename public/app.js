@@ -266,9 +266,9 @@ async function payAll(colId) {
 
 // ------------------------------------------------------------------ movimenti
 
-const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito (rata mutuo)', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' };
-const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', giroconti: 'Giroconti', altro: 'Altro' };
-const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', prestito: 'var(--viz-bollette)', donazioni: 'var(--viz-donazioni)', tasse: 'var(--viz-tasse)', giroconti: 'var(--viz-altro)', altro: 'var(--viz-altro)' };
+const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito (rata mutuo)', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bolletta già contata (non contare)', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' };
+const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bollette pagate', giroconti: 'Giroconti', altro: 'Altro' };
+const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', prestito: 'var(--viz-bollette)', donazioni: 'var(--viz-donazioni)', tasse: 'var(--viz-tasse)', bollette: 'var(--viz-altro)', giroconti: 'var(--viz-altro)', altro: 'var(--viz-altro)' };
 const fmtDate = (d) => d.split('-').reverse().join('/');
 
 // Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
@@ -298,7 +298,7 @@ function setSort(spec) {
 }
 
 const categorySelect = (attr, id, current, label, positive = false) => {
-  const options = positive ? ['entrate', 'giroconti', 'altro'] : ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'giroconti', 'altro'];
+  const options = positive ? ['entrate', 'giroconti', 'altro'] : ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'bollette', 'giroconti', 'altro'];
   const names = positive ? { entrate: 'Entrate', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' } : CATEGORY_LABELS;
   return `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${options.map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${names[c]}</option>`).join('')}</select>`;
 };
@@ -365,9 +365,9 @@ function renderAnalysis() {
   const table = (c, positive = false) => {
     const rows = sortList(c.merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
     return `<details class="acat" data-cat="${positive ? 'in-' : ''}${c.category}" ${(!positive && c.category === 'altro') || (positive && c.category === 'entrate') || document.querySelector(`#analysisBody details[data-cat="${positive ? 'in-' : ''}${c.category}"][open]`) ? 'open' : ''}>
-      <summary><i class="key" style="--c:${positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category]}"></i> ${positive ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate non riconosciute (non contate)') : (c.category === 'giroconti' ? 'Giroconti (soldi tra i miei conti, non contati in nessun dato)' : CATEGORY_NAME[c.category])} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
+      <summary><i class="key" style="--c:${positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category]}"></i> ${positive ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate non riconosciute (non contate)') : (c.category === 'giroconti' ? 'Giroconti (soldi tra i miei conti, non contati in nessun dato)' : c.category === 'bollette' ? 'Bollette già contate nei documenti (addebiti abbinati, non contati due volte)' : CATEGORY_NAME[c.category])} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
       <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}${sortHead('bank', 'last', 'Data')}<th>Categoria</th></tr></thead><tbody>${
-        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, m.positive ?? positive)}</td></tr>`).join('')}</tbody></table></div>
+        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}${m.doc ? `<small class="doc">→ ${esc(m.doc)}</small>` : ''}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, m.positive ?? positive)}</td></tr>`).join('')}</tbody></table></div>
     </details>`;
   };
   const numbers = a.months.map((m) => {
@@ -401,7 +401,7 @@ function renderAnalysis() {
     </details>
     ${cats.map((c) => table(c)).join('')}
     ${a.inflows.filter((c) => c.count).map((c) => table(c, true)).join('')}
-    ${a.transfers.count ? table(a.transfers) : ''}`;
+    ${a.excluded.filter((c) => c.count).map((c) => table(c)).join('')}`;
 
   const pick = (ym) => {
     state.bank.year = Number(ym.slice(0, 4));
