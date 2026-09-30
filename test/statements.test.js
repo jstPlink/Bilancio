@@ -83,3 +83,10 @@ test('tasse: nessun falso positivo sui distributori di carburante', () => {
   assert.equal(categorize('Distributore Area Bianca'), 'carburante');
   assert.equal(categorize('Distributore Self IP'), 'carburante');
 });
+
+test('giroconti: solo se il beneficiario sono io, non se il mio nome è nella causale', () => {
+  assert.equal(categorize("DISPOSIZIONE DI BONIFICO BONIFICO SEPA A: Mario D'Rossi PER: Ricarica"), 'giroconti');
+  assert.equal(categorize("BONIFICO SEPA A: Autoscuola Esempio PER: Mario D'Rossi: PACCHETTO GUIDE"), 'altro');
+  assert.equal(categorize("Pagamento da D'Rossi Mario", {}, '', 500), 'giroconti');
+  assert.equal(categorize('Pagamento da ANNA VERDI', {}, '', 500), 'entrate');
+});

@@ -1,8 +1,8 @@
-# Bilancino
+# Bilancio
 
 Buste paga e bollette di casa, in ordine.
 
-Bilancino legge i PDF di buste paga e bollette da una cartella, ne estrae tipo, mese e importo
+Bilancio legge i PDF di buste paga e bollette da una cartella, ne estrae tipo, mese e importo
 e li mostra in una panoramica per anno: stipendi, acqua, luce, gas, wifi, affitto, con medie,
 saldo mensile e quanto resta da pagare.
 
@@ -30,7 +30,7 @@ npm test
 
 Indica il link (Seafile pubblico o cartella locale) dei CSV nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
 oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Le uscite si categorizzano (vedi sotto); le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate** nei grafici, mentre i giri tra i propri conti, le ricariche e le entrate dal datore di lavoro (già nelle buste paga) sono ignorati. Le categorie vengono assegnate da parole chiave in `src/statements.js`:
-**spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne; **donazioni**, **tasse** e **altro** restano fuori dalla tabella e si vedono nella scheda Banca.
+**spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne; **giroconti** (soldi tra i propri conti) non contano in nessun dato; **donazioni**, **tasse** e **altro** restano fuori dalla tabella e si vedono nella scheda Banca.
 La scheda **Banca** mostra come sono smistati i movimenti (filtri per anno e mese, colonne ordinabili, grafici che incrociano stipendio, bollette e spese) e permette di correggere la categoria: l'app la
 ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
 della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`.

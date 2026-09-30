@@ -24,6 +24,7 @@ const defaults = () => ({
   transactions: {},
   statementFiles: {},
   statementParser: 0,
+  categoryVersion: 0,
   rules: {},
   lastRefresh: null,
 });
@@ -52,6 +53,13 @@ export function createStore(file, { legacyJson } = {}) {
     db = { ...d, ...kv, docs };
     db.settings = { ...d.settings, ...db.settings };
     migrateCategories();
+    // Una tantum: le entrate che erano "altro" (ignorate) sono giroconti.
+    if ((db.categoryVersion ?? 0) < 2) {
+      for (const t of Object.values(db.transactions)) if (t.amount > 0 && t.category === 'altro') t.category = 'giroconti';
+      for (const k of Object.keys(db.rules)) if (k.startsWith('in:') && db.rules[k] === 'altro') db.rules[k] = 'giroconti';
+      db.categoryVersion = 2;
+      save();
+    }
     return db;
   }
 
@@ -66,7 +74,7 @@ export function createStore(file, { legacyJson } = {}) {
     sql.exec('BEGIN');
     try {
       const put = sql.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v');
-      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'statementParser', 'rules', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
+      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'statementParser', 'categoryVersion', 'rules', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
       sql.exec('DELETE FROM docs');
       const ins = sql.prepare('INSERT INTO docs (key, json) VALUES (?, ?)');
       for (const [key, doc] of Object.entries(db.docs)) ins.run(key, JSON.stringify(doc));

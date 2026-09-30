@@ -1,4 +1,4 @@
-# Bilancino
+# Bilancio
 
 App web locale (Node, Express) che legge buste paga e bollette in PDF. Vedi README.md.
 

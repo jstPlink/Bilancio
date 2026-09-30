@@ -1,7 +1,7 @@
 services:
-  bilancino:
+  bilancio:
     build: .
-    container_name: bilancino
+    container_name: bilancio
     restart: unless-stopped
     ports:
       - "4870:4870"

@@ -3,14 +3,18 @@ import crypto from 'node:crypto';
 // Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
-export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'entrate', 'altro'];
+export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'entrate', 'giroconti', 'altro'];
 export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante', donazioni: 'donazioni', tasse: 'tasse', entrate: 'entrate' };
-export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', altro: 'Altro' };
+export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', giroconti: 'Giroconti', altro: 'Altro' };
 // Nomi usati nelle versioni precedenti.
 export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
 // Spesa = cibo, bevande e prodotti per la casa. Svago = abbonamenti TV, Amazon, parchi, televisori, giocattoli.
+// Giroconti: soldi spostati tra i miei conti. Non contano in nessun dato, né come entrata né come uscita.
+const OWN_BENEFICIARY = /\bA:\s*(mario d.?rossi|d.?rossi mario)/i;
+
 const RULES = [
+  ['giroconti', OWN_BENEFICIARY],
   ['donazioni', /donazion\w*|\bonlus\b|telethon|amnesty|green ?peace|save the children|\bwwf\b|unicef|emergency\b|medici senza frontiere|terre des hommes|\bairc\b|actionaid|oxfam|caritas|croce rossa|lega del filo d.oro|fondazione veronesi|\blipu\b|\blav\b|\benpa\b|\bwikimedia|\bavsi\b|intersos|medici con l.africa|cuamm|sos villaggi|\bfai\b fondo ambiente|dynamo camp|banco alimentare|\bemergency ong/i],
   ['tasse', /agenzia (delle )?entrate|riscossione|equitalia|\bf24\b|\bimu\b|\btari\b|\btasi\b|\birpef\b|\binps\b|\binail\b|\bbollo\b|\bimposta\b|\btass[ae]\b|\btribut\w*|canone rai|\brai\b.*canone|pagopa|\baci\b|contravvenzion\w*|\bmult[ae]\b|comune di .*(tari|imu|tributi)/i],
   ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|fuel|petrol)\b/i],
@@ -20,7 +24,7 @@ const RULES = [
 
 // Le entrate hanno regole a parte: "entrate" conta come altro denaro ricevuto, "altro" le esclude.
 // Sono escluse in automatico i giri tra conti miei (il mio nome, il datore di lavoro già nelle buste paga, PayPal istantaneo…).
-const INTERNAL_IN = /d.?rossi mario|mario d.?rossi|Mario D'Rossi|azienda esempio|\bigf\b|instant transfer|da:\s*paypal|prelievo|ricaric\w*/i;
+const INTERNAL_IN = /d.?rossi mario|mario d.?rossi|Mario D'Rossi|\bhype\b|azienda esempio|\bigf\b|instant transfer|da:\s*paypal|prelievo|ricaric\w*/i;
 
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -31,7 +35,7 @@ export function categorize(description, rules = {}, detail = '', amount = -1) {
   const learned = rules[ruleKey(description, amount)];
   if (learned) return LEGACY_CATEGORY[learned] ?? learned;
   const text = `${description} ${detail}`;
-  if (amount > 0) return INTERNAL_IN.test(text) ? 'altro' : 'entrate';
+  if (amount > 0) return INTERNAL_IN.test(text) ? 'giroconti' : 'entrate';
   for (const [category, re] of RULES) if (re.test(text)) return category;
   return 'altro';
 }

@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.15.0
+- L'app si chiama **Bilancio** (titolo, intestazione, README, Docker, pacchetto). Le variabili d'ambiente diventano `BILANCIO_DATA` e `BILANCIO_DB` (le vecchie `BILANCINO_*` funzionano ancora); il file del database resta `data/bilancino.db`.
+- La scheda **Banca** si apre sull'**anno corrente** invece che su tutti gli anni ("Azzera filtri" torna a questo stato).
+- Nuova categoria **Giroconti**: i soldi spostati tra i miei conti non contano in nessun dato (né entrate né uscite, né tabella, né grafici, né riquadri) e stanno in una tabella a parte nella scheda Banca. Riconosciuti in automatico quando il beneficiario o l'ordinante sono io; le entrate che prima erano "Altro" (ignorate) diventano Giroconti.
+
 ## 0.14.1
 - Il gruppo **Uscite** non si comprime più: le colonne per gruppo sono sempre visibili.
 - **Bollette** si apre e si chiude cliccando su tutta la cella dell'intestazione (prima c'era solo una freccina): pulsante grande, con freccia e promemoria "apri/chiudi".

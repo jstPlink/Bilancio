@@ -9,8 +9,8 @@ import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dataDir = process.env.BILANCINO_DATA ?? path.join(root, 'data');
-const dbFile = process.env.BILANCINO_DB ?? path.join(dataDir, 'bilancino.db');
+const dataDir = process.env.BILANCIO_DATA ?? process.env.BILANCINO_DATA ?? path.join(root, 'data');
+const dbFile = process.env.BILANCIO_DB ?? process.env.BILANCINO_DB ?? path.join(dataDir, 'bilancino.db');
 const store = createStore(dbFile, { legacyJson: path.join(dataDir, 'db.json') });
 store.load();
 
@@ -201,15 +201,18 @@ app.get('/api/analysis', (req, res) => {
   const round = (n) => Math.round(n * 100) / 100;
   const everything = Object.values(db().transactions ?? {});
   const list = everything.filter((t) => match(t.date.slice(0, 7)));
-  const outflows = list.filter((t) => t.amount < 0);
-  const inflows = list.filter((t) => t.amount > 0);
+  // I giroconti (soldi spostati tra i miei conti) non entrano in nessun totale: si vedono solo nella loro tabella.
+  const counted = list.filter((t) => t.category !== 'giroconti');
+  const transfers = list.filter((t) => t.category === 'giroconti');
+  const outflows = counted.filter((t) => t.amount < 0);
+  const inflows = counted.filter((t) => t.amount > 0);
 
   // Raggruppa i movimenti per descrizione (uguali a meno di cifre e punteggiatura).
   const group = (txs) => {
     const map = new Map();
     for (const t of txs) {
       const key = ruleKey(t.description, t.amount) || t.description;
-      const m = map.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, last: t.date };
+      const m = map.get(key) ?? { id: t.id, name: t.description, positive: t.amount > 0, count: 0, total: 0, from: t.date, last: t.date };
       m.count++;
       m.total += Math.abs(t.amount);
       if (t.date < m.from) m.from = t.date;
@@ -221,7 +224,7 @@ app.get('/api/analysis', (req, res) => {
   const sum = (txs) => round(txs.reduce((a, t) => a + Math.abs(t.amount), 0));
 
   // Uscite: totali per categoria e, dentro ogni categoria, per descrizione.
-  const spendCategories = CATEGORIES.filter((c) => c !== 'entrate');
+  const spendCategories = CATEGORIES.filter((c) => c !== 'entrate' && c !== 'giroconti');
   const total = outflows.reduce((a, t) => a + Math.abs(t.amount), 0);
   const inCategory = (c) => outflows.filter((t) => (spendCategories.includes(t.category) ? t.category : 'altro') === c);
 
@@ -240,6 +243,7 @@ app.get('/api/analysis', (req, res) => {
     else if (c.kind === 'svago' || c.kind === 'carburante') m[c.kind] += c.amount;
   }
   for (const t of everything) {
+    if (t.category === 'giroconti') continue;
     const m = slot(t.date.slice(0, 7));
     if (t.amount < 0) m.bank[spendCategories.includes(t.category) ? t.category : 'altro'] += Math.abs(t.amount);
     else if (t.category === 'entrate') m.otherIncome += t.amount;
@@ -261,6 +265,7 @@ app.get('/api/analysis', (req, res) => {
       return { category: k, count: txs.length, total: round(t), share: total ? t / total : 0, column: CATEGORY_KIND[k] ?? null, merchants: group(txs) };
     }),
     // Entrate: "entrate" conta come altro denaro ricevuto, "altro" sono giri interni ignorati.
+    transfers: { category: 'giroconti', count: transfers.length, total: sum(transfers), merchants: group(transfers) },
     inflows: ['entrate', 'altro'].map((k) => {
       const txs = inflows.filter((t) => (t.category === 'entrate' ? 'entrate' : 'altro') === k);
       return { category: k, count: txs.length, total: sum(txs), merchants: group(txs) };
@@ -286,4 +291,4 @@ app.put('/api/transactions', async (req, res) => {
 
 const port = Number(process.env.PORT ?? 4870);
 const host = process.env.HOST ?? '127.0.0.1';
-app.listen(port, host, () => console.log(`Bilancino su http://${host}:${port}`));
+app.listen(port, host, () => console.log(`Bilancio su http://${host}:${port}`));
