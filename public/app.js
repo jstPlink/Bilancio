@@ -589,12 +589,59 @@ function refreshSummary(r) {
 
 // All'apertura: cerca documenti nuovi o modificati. La targhetta in alto dice cosa sta succedendo;
 // se non cambia nulla, nessun messaggio.
+// Lettura dei documenti avviata da qualcun altro (un altro browser, lo script di importazione…): la pagina se ne accorge,
+// avvisa che i dati sono parziali e si aggiorna da sola finché non ha finito.
+let watching = false;
+let localRefresh = false;
+async function watchRefresh() {
+  if (watching) return;
+  watching = true;
+  const badge = $('#scanBadge');
+  const btn = $('#refreshBtn');
+  const banner = $('#partialBanner');
+  badge.hidden = false;
+  btn.disabled = true;
+  let lastReload = 0;
+  try {
+    for (;;) {
+      const p = await api('/api/refresh/status').catch(() => null);
+      if (p && !p.running) break;
+      const text = p?.total ? `Lettura dei documenti in corso: ${p.done} su ${p.total}. I dati sono parziali e si aggiornano da soli.` : 'Lettura dei documenti in corso. I dati sono parziali e si aggiornano da soli.';
+      badge.querySelector('.txt').textContent = p?.total ? `Lettura ${p.done}/${p.total}…` : 'Lettura in corso…';
+      banner.hidden = false;
+      banner.innerHTML = `<span class="spin"></span><span>${esc(text)}</span>${p?.total ? `<span class="bar"><i style="width:${Math.round((p.done / p.total) * 100)}%"></i></span>` : ''}`;
+      const typing = document.activeElement?.classList?.contains('expense-input');
+      if (Date.now() - lastReload > 20000 && !typing) {
+        lastReload = Date.now();
+        await Promise.all([loadGrid(), loadDocs()]).catch(() => {});
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  } finally {
+    badge.hidden = true;
+    banner.hidden = true;
+    btn.disabled = false;
+    watching = false;
+  }
+  await Promise.all([loadGrid(), loadDocs(), loadMoves()]).catch(() => {});
+  if (!$('#analysis').hidden) loadAnalysis().catch(() => {});
+  toast('Lettura dei documenti completata: i dati sono aggiornati.');
+}
+setInterval(() => {
+  if (watching || localRefresh) return;
+  api('/api/refresh/status').then((p) => { if (p.running) watchRefresh(); }).catch(() => {});
+}, 15000);
+
 async function autoScan() {
+  const status = await api('/api/refresh/status').catch(() => null);
+  if (status?.running) return watchRefresh();
+  localRefresh = true;
   const badge = $('#scanBadge');
   const btn = $('#refreshBtn');
   badge.hidden = false;
   badge.querySelector('.txt').textContent = 'Controllo nuovi documenti…';
   btn.disabled = true;
+  let retryWatch = false;
   const poll = setInterval(async () => {
     try {
       const p = await api('/api/refresh/status');
@@ -609,15 +656,20 @@ async function autoScan() {
       toast(refreshSummary(r), r.errors.length ? 9000 : 4500);
     }
   } catch (err) {
-    if (!/già in corso/.test(err.message)) toast(err.message, 8000);
+    if (/già in corso/.test(err.message)) retryWatch = true;
+    else toast(err.message, 8000);
   } finally {
     clearInterval(poll);
     badge.hidden = true;
     btn.disabled = false;
+    localRefresh = false;
   }
+  if (retryWatch) watchRefresh();
 }
 
 async function doRefresh(force = false) {
+  if (watching) return toast('Una lettura è già in corso: attendi che finisca.');
+  localRefresh = true;
   const btn = $('#refreshBtn');
   btn.disabled = true;
   btn.querySelector('.spin').hidden = false;
@@ -640,6 +692,7 @@ async function doRefresh(force = false) {
     btn.disabled = false;
     btn.querySelector('.spin').hidden = true;
     btn.querySelector('.label').textContent = 'Aggiorna';
+    localRefresh = false;
     await Promise.all([loadGrid(), loadDocs(), loadMoves()]);
   }
 }

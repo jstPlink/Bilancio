@@ -271,3 +271,9 @@ thead th.subcol { background: color-mix(in srgb, var(--accent) 4%, var(--surface
 td.total .static { font-weight: 600; }
 
 small.doc { display: block; color: var(--accent); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- avviso "lettura in corso, dati parziali" --- */
+.banner { display: flex; align-items: center; gap: 10px; background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.banner .spin { flex: none; }
+.banner .bar { flex: 1; height: 6px; border-radius: 999px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; min-width: 60px; }
+.banner .bar > i { display: block; height: 100%; background: currentColor; border-radius: 999px; transition: width .4s; }
