@@ -256,8 +256,13 @@ td.pos-in { color: var(--ok-ink); font-weight: 600; }
 
 /* --- tabella principale: entrate, uscite comprimibili, riepilogo --- */
 :root { --entrate: var(--viz-entrate); --uscite: var(--accent); --bollette: var(--viz-bollette); --donazioni: var(--viz-donazioni); --tasse: var(--viz-tasse); }
-.gtoggle { background: none; border: 0; padding: 0 6px 0 0; color: inherit; font-size: 12px; cursor: pointer; }
-.gtoggle:hover { color: var(--accent); }
+/* L'intera cella "Bollette" è il pulsante: grande, con freccia e promemoria "apri/chiudi". */
+th.toggle-th { padding: 0; }
+.gtoggle { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1px; width: 100%; min-height: 52px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 9%, transparent); border: 0; border-radius: 0; color: inherit; font: inherit; font-weight: 700; cursor: pointer; position: relative; text-align: right; }
+.gtoggle:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--ink); }
+.gtoggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gtoggle .chev { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 18px; line-height: 1; color: var(--accent); }
+.gtoggle .toggle-hint { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 tr.groups th.g-spend { text-align: center; }
 th.subcol, td.subcol { background: color-mix(in srgb, var(--accent) 4%, transparent); }
 thead th.subcol { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }

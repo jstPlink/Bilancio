@@ -107,7 +107,7 @@ const GROUPS = [
 ];
 let savedOpen = {};
 try { savedOpen = JSON.parse(localStorage.getItem('gridOpen') ?? '{}'); } catch { /* storage non disponibile */ }
-state.open = { uscite: true, bollette: false, ...savedOpen };
+state.open = { bollette: false, ...savedOpen };
 const saveOpen = () => { try { localStorage.setItem('gridOpen', JSON.stringify(state.open)); } catch { /* storage non disponibile */ } };
 
 const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
@@ -143,22 +143,18 @@ function buildColumns() {
     avg: () => s.avgIncome,
   });
 
-  if (!state.open.uscite) {
-    add({ id: 'uscite', kind: 'uscite', label: 'Uscite', top: 'uscite', start: true, plain: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });
-  } else {
-    GROUPS.forEach((g, gi) => {
-      const members = g.leaves.map((id) => leaf[id]);
-      const isMulti = g.leaves.length > 1;
-      const first = members[0];
-      const col = isMulti
-        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
-        : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
-      add({ ...col, top: 'uscite', start: gi === 0, colorKey: g.id });
-      if (isMulti && state.open[g.id]) {
-        for (const l of members) add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
-      }
-    });
-  }
+  GROUPS.forEach((g, gi) => {
+    const members = g.leaves.map((id) => leaf[id]);
+    const isMulti = g.leaves.length > 1;
+    const first = members[0];
+    const col = isMulti
+      ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
+      : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
+    add({ ...col, top: 'uscite', start: gi === 0, colorKey: g.id });
+    if (isMulti && state.open[g.id]) {
+      for (const l of members) add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
+    }
+  });
   add({ id: 'spent', kind: 'spent', label: 'Totale spese', top: 'riepilogo', start: true, plain: true, total: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });
   add({ id: 'balance', kind: 'balance', label: 'Saldo', top: 'riepilogo', plain: true, total: true, balance: true, cell: (m) => ({ amount: rows[m - 1].balance }), avg: () => s.avgBalance });
 
@@ -225,17 +221,19 @@ function renderGrid() {
   state.colMap = Object.fromEntries(cols.map((c) => [c.id, c]));
   const dot = (c) => (c.plain && c.kind !== 'entrate' && c.kind !== 'uscite' ? '' : `<span class="dot" style="background:var(--${c.colorKey ?? c.kind})"></span>`);
   const head = cols.map((c) => {
-    const toggle = c.toggle ? `<button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Chiudi' : 'Apri'} le voci di ${esc(c.label)}">${c.isOpen ? '▾' : '▸'}</button>` : '';
     const sub = c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : '';
-    return `<th class="${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}">${toggle}${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}</th>`;
+    const name = `${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}`;
+    if (c.toggle) {
+      return `<th class="toggle-th ${c.start ? 'gstart' : ''}"><button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Clic per chiudere' : 'Clic per aprire'} le voci di ${esc(c.label)}"><span class="chev">${c.isOpen ? "▾" : "▸"}</span><span class="tname">${name}</span><small class="toggle-hint">${c.isOpen ? 'chiudi' : 'apri'}</small></button></th>`;
+    }
+    return `<th class="${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}">${name}</th>`;
   }).join('');
   const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
     <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${money(c.average) || '–'}</td>`).join('')}</tr>
     <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
   const usciteCols = cols.filter((c) => c.top === 'uscite').length;
-  const usciteToggle = `<button class="gtoggle" data-toggle="uscite" aria-expanded="${state.open.uscite}" title="${state.open.uscite ? 'Comprimi le uscite in un solo totale' : 'Mostra le uscite per gruppo'}">${state.open.uscite ? '▾' : '▸'}</button>`;
-  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Entrate</th><th class="gstart g-spend" colspan="${usciteCols}">${usciteToggle}Uscite</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
+  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Entrate</th><th class="gstart g-spend" colspan="${usciteCols}">Uscite</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
   $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 

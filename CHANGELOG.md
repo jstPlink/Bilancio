@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.14.1
+- Il gruppo **Uscite** non si comprime più: le colonne per gruppo sono sempre visibili.
+- **Bollette** si apre e si chiude cliccando su tutta la cella dell'intestazione (prima c'era solo una freccina): pulsante grande, con freccia e promemoria "apri/chiudi".
+
 ## 0.14.0
 - **Tabella principale riorganizzata** in quattro gruppi: Mese, **Entrate** (stipendio + altre entrate dalla banca, sommati), **Uscite** e **Riepilogo** (Totale spese e Saldo).
 - **Uscite comprimibili**: ▾ / ▸ su "Uscite" le riduce a un solo totale; i gruppi sono Bollette, Affitto, Prestito, Spesa, Svago, Carburante, Donazioni e Tasse, e "Bollette" si apre nelle sue voci (acqua, luce e gas per casa, wifi). Da chiusa, la cella Bollette segna pagate tutte le voci insieme. Lo stato aperto/chiuso viene ricordato.
