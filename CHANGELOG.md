@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.14.0
+- **Tabella principale riorganizzata** in quattro gruppi: Mese, **Entrate** (stipendio + altre entrate dalla banca, sommati), **Uscite** e **Riepilogo** (Totale spese e Saldo).
+- **Uscite comprimibili**: ▾ / ▸ su "Uscite" le riduce a un solo totale; i gruppi sono Bollette, Affitto, Prestito, Spesa, Svago, Carburante, Donazioni e Tasse, e "Bollette" si apre nelle sue voci (acqua, luce e gas per casa, wifi). Da chiusa, la cella Bollette segna pagate tutte le voci insieme. Lo stato aperto/chiuso viene ricordato.
+- I dati della scheda Banca (spesa, svago, carburante, donazioni, tasse, altre entrate) ora sono nella tabella principale e contano in Totale spese e Saldo. I movimenti categorizzati come "Altro" restano fuori.
+- I riquadri mostrano "Entrate medie" (stipendio + altre entrate).
+
 ## 0.13.0
 - **Entrate bancarie**: gli estratti conto (PDF UniCredit e Revolut, CSV) ora importano anche i soldi ricevuti, non solo le uscite. Nel grafico "Stipendio contro uscite" c'è una seconda linea, **Altre entrate**, più una colonna nella tabella dei numeri e un riquadro.
 - Le entrate si dividono in **Entrate** (contano) e **Altro** (ignorate): i giri tra i miei conti, PayPal istantaneo e i bonifici dal datore di lavoro (già nelle buste paga) finiscono in automatico tra le ignorate. Dalla scheda Banca si può cambiare la scelta, e l'app la ricorda.

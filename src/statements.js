@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
 export const CATEGORIES = ['spesa', 'svago', 'carburante', 'donazioni', 'tasse', 'entrate', 'altro'];
-export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante' };
+export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante', donazioni: 'donazioni', tasse: 'tasse', entrate: 'entrate' };
 export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', donazioni: 'Donazioni', tasse: 'Tasse', entrate: 'Entrate', altro: 'Altro' };
 // Nomi usati nelle versioni precedenti.
 export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };

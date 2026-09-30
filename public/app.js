@@ -11,11 +11,17 @@ const KINDS = [
   { id: 'spese', label: 'Spese' },
   { id: 'svago', label: 'Svago' },
   { id: 'carburante', label: 'Carburante' },
+  { id: 'entrate', label: 'Altre entrate' },
+  { id: 'donazioni', label: 'Donazioni' },
+  { id: 'tasse', label: 'Tasse' },
 ];
-const EXPENSES = KINDS.filter((k) => k.id !== 'stipendio');
+// Tipi che si assegnano a un documento (le altre voci vengono dalla banca).
+const DOC_KINDS = KINDS.filter((k) => !['entrate', 'donazioni', 'tasse'].includes(k.id));
+const INCOME = new Set(['stipendio', 'entrate']);
+const EXPENSES = KINDS.filter((k) => !INCOME.has(k.id));
 // Voci senza stato "pagato": lo stipendio (entrata) e le spese correnti, che arrivano dall'estratto conto.
 const SPENDING = new Set(['spese', 'svago', 'carburante']);
-const NO_PAYMENT = new Set(['stipendio', ...SPENDING]);
+const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'donazioni', 'tasse']);
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 const $ = (s) => document.querySelector(s);
@@ -79,20 +85,102 @@ function renderCards() {
     s.totalToPay > 0
       ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
       : card('Da pagare', money(0), 'Tutto pagato', 'due'),
-    card(`Stipendio medio ${state.year}`, money(s.avgIncome) || '—'),
+    card(`Entrate medie ${state.year}`, money(s.avgIncome) || '—'),
     card('Spese medie al mese', money(s.avgSpent) || '—'),
     card('Risparmio medio al mese', money(s.avgBalance) || '—'),
   ].join('');
 }
 
-// I valori delle celle vengono solo dai documenti (e dalle rate fisse nelle impostazioni):
-// qui non si modificano. Spese, Svago e Carburante vengono dall'estratto conto e si possono correggere a mano.
-const colLabel = (col) => KINDS.find((k) => k.id === col.kind).label;
+// I valori delle celle vengono solo dai documenti e dai movimenti bancari (e dalle rate fisse nelle impostazioni):
+// qui non si modificano. Fanno eccezione Spesa, Svago e Carburante, che si possono correggere a mano.
+
+// Uscite raggruppate: ogni gruppo è una colonna; "Bollette" si può aprire nelle sue voci (e per casa).
+const GROUPS = [
+  { id: 'bollette', label: 'Bollette', leaves: ['acqua', 'luce:budrio', 'luce:crispiano', 'gas:budrio', 'gas:crispiano', 'wifi'] },
+  { id: 'affitto', label: 'Affitto', leaves: ['affitto'] },
+  { id: 'prestito', label: 'Prestito', leaves: ['prestito'] },
+  { id: 'spese', label: 'Spesa', leaves: ['spese'] },
+  { id: 'svago', label: 'Svago', leaves: ['svago'] },
+  { id: 'carburante', label: 'Carburante', leaves: ['carburante'] },
+  { id: 'donazioni', label: 'Donazioni', leaves: ['donazioni'] },
+  { id: 'tasse', label: 'Tasse', leaves: ['tasse'] },
+];
+let savedOpen = {};
+try { savedOpen = JSON.parse(localStorage.getItem('gridOpen') ?? '{}'); } catch { /* storage non disponibile */ }
+state.open = { uscite: true, bollette: false, ...savedOpen };
+const saveOpen = () => { try { localStorage.setItem('gridOpen', JSON.stringify(state.open)); } catch { /* storage non disponibile */ } };
+
+const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
 const colName = (col) => (col.place ? `${colLabel(col)} ${PLACE_LABELS[col.place]}` : colLabel(col));
+
+// Somma di più celle della stessa riga (un gruppo): importo totale, parti pagabili e "pagato" solo se lo sono tutte.
+function sumCells(cells) {
+  const withAmount = cells.filter((c) => c.amount != null);
+  const parts = cells.flatMap((c) => c.parts);
+  return {
+    amount: withAmount.length ? Math.round(withAmount.reduce((a, c) => a + c.amount, 0) * 100) / 100 : null,
+    paid: parts.length > 0 && parts.every((p) => p.paid),
+    files: [], parts, manual: null, auto: null,
+  };
+}
+
+// Le colonne visibili, in base ai gruppi aperti. Ogni colonna sa dare la cella di un mese.
+function buildColumns() {
+  const { rows, columns: leaves, summary: s } = state.grid;
+  const leaf = Object.fromEntries(leaves.map((c) => [c.id, c]));
+  const cellOf = (id, month) => rows[month - 1].cells[id];
+  const out = [];
+  const add = (col) => { out.push(col); return col; };
+
+  add({
+    id: 'entrate', kind: 'entrate', label: 'Entrate', top: 'entrate', start: true, plain: true,
+    cell: (m) => ({ amount: rows[m - 1].income }),
+    tip: (m) => {
+      const st = cellOf('stipendio', m).amount;
+      const other = cellOf('entrate', m).amount;
+      return [st != null ? `Stipendio ${money(st)}` : '', other != null ? `Altre entrate ${money(other)}` : ''].filter(Boolean).join(' · ');
+    },
+    avg: () => s.avgIncome,
+  });
+
+  if (!state.open.uscite) {
+    add({ id: 'uscite', kind: 'uscite', label: 'Uscite', top: 'uscite', start: true, plain: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });
+  } else {
+    GROUPS.forEach((g, gi) => {
+      const members = g.leaves.map((id) => leaf[id]);
+      const isMulti = g.leaves.length > 1;
+      const first = members[0];
+      const col = isMulti
+        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
+        : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
+      add({ ...col, top: 'uscite', start: gi === 0, colorKey: g.id });
+      if (isMulti && state.open[g.id]) {
+        for (const l of members) add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
+      }
+    });
+  }
+  add({ id: 'spent', kind: 'spent', label: 'Totale spese', top: 'riepilogo', start: true, plain: true, total: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });
+  add({ id: 'balance', kind: 'balance', label: 'Saldo', top: 'riepilogo', plain: true, total: true, balance: true, cell: (m) => ({ amount: rows[m - 1].balance }), avg: () => s.avgBalance });
+
+  // Medie e importi da pagare (somma delle voci del gruppo).
+  for (const col of out) {
+    if (!col.avg) {
+      const vals = Array.from({ length: 12 }, (_, i) => col.cell(i + 1).amount).filter((a) => a != null);
+      col.average = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 100) / 100 : null;
+    } else col.average = col.avg();
+    col.due = col.leafIds && !NO_PAYMENT.has(col.kind) ? Math.round(col.leafIds.reduce((a, id) => a + (s.toPay[id] ?? 0), 0) * 100) / 100 : 0;
+  }
+  return out;
+}
 
 function cellHtml(col, month, c) {
   const kind = col.kind;
   const label = `${colName(col)} ${MONTHS[month - 1]}`;
+  if (col.plain) {
+    if (c.amount == null) return '<div class="static blank"><span class="num">–</span></div>';
+    const tone = col.balance ? (c.amount >= 0 ? 'pos' : 'neg') : '';
+    return `<div class="static ${tone}" ${col.tip ? `title="${esc(col.tip(month))}"` : ''}><span class="num">${money(c.amount)}</span></div>`;
+  }
   if (SPENDING.has(kind)) {
     return `<input class="expense-input" inputmode="decimal" data-kind="${kind}" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
   }
@@ -105,17 +193,19 @@ function cellHtml(col, month, c) {
     const tag = PLACE_LABELS[f.name.split('/')[0].toLowerCase()]?.[0] ?? String(i + 1);
     return `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il documento: ${esc(f.name)}">${multi ? tag : 'Apri'}</a>`;
   }).join('');
-  // Più case nella stessa cella (acqua, wifi): il totale e, sotto, il dettaglio per casa.
-  const split = c.parts.length > 1;
-  const detail = split ? c.parts.map((p) => `${PLACE_LABELS[p.place][0]} ${money(p.amount)}`).join(' · ') : '';
-  const tip = split ? c.parts.map((p) => `${PLACE_LABELS[p.place]}: ${money(p.amount)} (${p.paid ? 'pagato' : 'da pagare'})`).join(' · ') : (c.paid ? 'Pagato' : 'Da pagare');
-  return `<div class="pcell ${c.paid ? 'paid' : 'due'}${split ? ' split' : ''}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-col="${col.id}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${money(c.amount)} · ${tip}"><span class="amount"><span class="num">${money(c.amount)}</span>${split ? `<small class="parts">${detail}</small>` : ''}</span>${open ? `<span class="zone zone-open">${open}</span>` : ''}<span class="zone zone-pay${open ? '' : ' wide'}" data-pay="1" title="${c.paid ? 'Segna come da pagare' : 'Segna come pagato'}">${c.paid ? '↺' : '✓'}</span></div>`;
+  // Più voci nella stessa cella (gruppo o più case): il totale e, sotto, il dettaglio.
+  const showDetail = c.parts.length > 1 && col.leafIds?.length === 1;
+  const detail = showDetail ? c.parts.map((p) => `${PLACE_LABELS[p.place][0]} ${money(p.amount)}`).join(' · ') : '';
+  const tip = c.parts.length > 1
+    ? c.parts.map((p) => `${KINDS.find((k) => k.id === p.kind)?.label ?? p.kind} ${PLACE_LABELS[p.place]}: ${money(p.amount)} (${p.paid ? 'pagato' : 'da pagare'})`).join(' · ')
+    : (c.paid ? 'Pagato' : 'Da pagare');
+  return `<div class="pcell ${c.paid ? 'paid' : 'due'}${showDetail ? ' split' : ''}" role="checkbox" aria-checked="${c.paid}" tabindex="0" data-col="${col.id}" data-month="${month}" aria-label="${label}: ${c.paid ? 'pagato' : 'da pagare'}" title="${money(c.amount)} · ${esc(tip)}"><span class="amount"><span class="num">${money(c.amount)}</span>${showDetail ? `<small class="parts">${detail}</small>` : ''}</span>${open ? `<span class="zone zone-open">${open}</span>` : ''}<span class="zone zone-pay${open ? '' : ' wide'}" data-pay="1" title="${c.paid ? 'Segna come da pagare' : 'Segna come pagato'}">${c.paid ? '↺' : '✓'}</span></div>`;
 }
 
 async function togglePaid(colId, month) {
-  const col = state.grid.columns.find((c) => c.id === colId);
-  const cell = state.grid.rows.find((r) => r.month === month).cells[colId];
-  const items = cell.parts.map((p) => ({ kind: col.kind, year: state.year, month, place: p.place, paid: !cell.paid }));
+  const col = state.colMap[colId];
+  const cell = col.cell(month);
+  const items = cell.parts.map((p) => ({ kind: p.kind, year: state.year, month, place: p.place, paid: !cell.paid }));
   if (!items.length) return;
   await api('/api/paid', { method: 'POST', body: items });
   await loadGrid();
@@ -128,24 +218,25 @@ async function saveExpense(input) {
   await loadGrid();
 }
 
-// Gruppi di colonne: uno spazio ben visibile separa guadagno, spese e riepilogo.
-// Luce e gas hanno una colonna per casa.
+// Quattro gruppi: mese, entrate, uscite (comprimibili) e riepilogo. Uno spazio ben visibile li separa.
 function renderGrid() {
-  const { rows, columns, summary: s } = state.grid;
-  const groupStart = new Set(['stipendio', 'acqua']);
-  const cls = (col) => (groupStart.has(col.id) ? 'gstart' : '');
-  const head = columns.map((c) => `<th class="${cls(c)}"><span class="dot" style="background:var(--${c.kind})"></span>${colLabel(c)}${c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : ''}</th>`).join('');
-  const body = rows.map((r) => {
-    const tone = r.balance == null ? '' : r.balance >= 0 ? 'pos' : 'neg';
-    return `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${columns.map((c) => `<td class="num ${cls(c)}">${cellHtml(c, r.month, r.cells[c.id])}</td>`).join('')}
-      <td class="num gstart total">${money(r.spent)}</td><td class="num total ${tone}">${money(r.balance)}</td></tr>`;
+  const { rows } = state.grid;
+  const cols = buildColumns();
+  state.colMap = Object.fromEntries(cols.map((c) => [c.id, c]));
+  const dot = (c) => (c.plain && c.kind !== 'entrate' && c.kind !== 'uscite' ? '' : `<span class="dot" style="background:var(--${c.colorKey ?? c.kind})"></span>`);
+  const head = cols.map((c) => {
+    const toggle = c.toggle ? `<button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Chiudi' : 'Apri'} le voci di ${esc(c.label)}">${c.isOpen ? '▾' : '▸'}</button>` : '';
+    const sub = c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : '';
+    return `<th class="${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}">${toggle}${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}</th>`;
   }).join('');
+  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
-    <tr><th>Media ${state.year}</th>${columns.map((c) => `<td class="num ${cls(c)}">${money(s.average[c.id]) || '–'}</td>`).join('')}<td class="num gstart total">${money(s.avgSpent) || '–'}</td><td class="num total">${money(s.avgBalance) || '–'}</td></tr>
-    <tr><th>Da pagare</th>${columns.map((c) => `<td class="num ${cls(c)}">${NO_PAYMENT.has(c.kind) ? '' : (s.toPay[c.id] ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${colName(c)} fino a oggi">${money(s.toPay[c.id])}</button>` : '–')}</td>`).join('')}<td class="gstart total"></td><td class="total"></td></tr>`;
-  const spendCols = columns.filter((c) => c.kind !== 'stipendio').length;
-  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Guadagno</th><th class="gstart g-spend" colspan="${spendCols}">Spese</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
-  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}<th class="gstart" title="Comprende tutte le case">Totale spese</th><th title="Comprende tutte le case">Saldo</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+    <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${money(c.average) || '–'}</td>`).join('')}</tr>
+    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
+  const usciteCols = cols.filter((c) => c.top === 'uscite').length;
+  const usciteToggle = `<button class="gtoggle" data-toggle="uscite" aria-expanded="${state.open.uscite}" title="${state.open.uscite ? 'Comprimi le uscite in un solo totale' : 'Mostra le uscite per gruppo'}">${state.open.uscite ? '▾' : '▸'}</button>`;
+  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Entrate</th><th class="gstart g-spend" colspan="${usciteCols}">${usciteToggle}Uscite</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
+  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
 // Il riquadro "Da pagare": salda in un colpo tutto ciò che è ancora da pagare, di tutti gli anni e di tutte le case.
@@ -159,18 +250,18 @@ async function payEverything() {
 }
 
 async function payAll(colId) {
-  const col = state.grid.columns.find((c) => c.id === colId);
+  const col = state.colMap[colId];
   const now = new Date();
   const items = [];
   // Solo l'anno mostrato, e solo fino al mese corrente.
-  for (const r of state.grid.rows) {
-    if (state.year < now.getFullYear() || r.month <= now.getMonth() + 1) {
-      for (const p of r.cells[colId].parts) if (!p.paid) items.push({ kind: col.kind, year: state.year, month: r.month, place: p.place, paid: true });
+  for (let month = 1; month <= 12; month++) {
+    if (state.year < now.getFullYear() || month <= now.getMonth() + 1) {
+      for (const p of col.cell(month).parts) if (!p.paid) items.push({ kind: p.kind, year: state.year, month, place: p.place, paid: true });
     }
   }
   const name = colName(col);
   if (!items.length) return toast(`Nel ${state.year} non c'è nulla da segnare per ${name}.`);
-  if (!confirm(`Segnare come pagati ${items.length} mesi di ${name} del ${state.year}?`)) return;
+  if (!confirm(`Segnare come pagati ${items.length} importi di ${name} del ${state.year}?`)) return;
   await api('/api/paid', { method: 'POST', body: items });
   await loadGrid();
 }
@@ -385,7 +476,7 @@ function openDoc(index) {
     <h2>Correggi documento</h2>
     <p class="fname" title="${esc(d.name)}"><a href="/api/file?key=${encodeURIComponent(d.key)}" target="_blank" rel="noopener">📄 ${esc(d.name)}</a></p>
     ${d.status === 'incompleto' ? `<p class="pill warn" style="justify-self:start">Non sono riuscito a leggere: ${esc(d.missing.join(', '))}</p>` : ''}
-    <label>Tipo<select name="kind"><option value="">—</option>${KINDS.map((k) => opt(k.id, k.label, d.kind)).join('')}</select></label>
+    <label>Tipo<select name="kind"><option value="">—</option>${DOC_KINDS.map((k) => opt(k.id, k.label, d.kind)).join('')}</select></label>
     <div class="row">
       <label>Mese<select name="month"><option value="">—</option>${MONTHS.map((m, i) => opt(i + 1, m, d.month)).join('')}</select></label>
       <label>Anno<input name="year" type="number" min="2000" max="2100" value="${d.year ?? ''}" placeholder="${year}"></label>
@@ -561,6 +652,7 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.sort) { setSort(t.dataset.sort); return; }
+  if (t.dataset.toggle) { state.open[t.dataset.toggle] = !state.open[t.dataset.toggle]; saveOpen(); renderGrid(); return; }
   if (t.id === 'bankReset') { state.bank.year = 0; state.bank.month = 0; loadAnalysis().catch((err) => toast(err.message)); return; }
   if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
   else if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }

@@ -2,12 +2,14 @@ import { CATEGORY_KIND } from './statements.js';
 
 // Costruisce la vista aggregata a partire da documenti, movimenti bancari, spunte e importi manuali.
 
-export const KINDS = ['stipendio', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese', 'svago', 'carburante'];
-export const EXPENSE_KINDS = KINDS.filter((k) => k !== 'stipendio');
+export const KINDS = ['stipendio', 'entrate', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese', 'svago', 'carburante', 'donazioni', 'tasse'];
+// Entrate: lo stipendio dalle buste paga e le altre entrate dai movimenti bancari.
+export const INCOME_KINDS = new Set(['stipendio', 'entrate']);
+export const EXPENSE_KINDS = KINDS.filter((k) => !INCOME_KINDS.has(k));
 // Voci che si compilano dai movimenti dell'estratto conto (o a mano, per correggere il totale).
 export const SPENDING_KINDS = new Set(['spese', 'svago', 'carburante']);
-// Voci senza stato "pagato": l'entrata e le spese correnti.
-export const NO_PAYMENT = new Set(['stipendio', ...SPENDING_KINDS]);
+// Voci senza stato "pagato": le entrate e le spese correnti (anche donazioni e tasse, che vengono dalla banca).
+export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'donazioni', 'tasse']);
 
 // Le bollette di utenze possono riguardare più case: si distinguono dalla prima cartella del percorso.
 // Tutto il resto (stipendio, affitto, spese…) appartiene alla casa di base.
@@ -77,7 +79,8 @@ export function buildCells(db, now = new Date()) {
     const m = /^(\d{4})-(\d{2})/.exec(t.date);
     if (!kind || !m) continue;
     const c = get(kind, +m[1], +m[2]);
-    c.auto = round((c.auto ?? 0) - t.amount);
+    // Le uscite hanno importo negativo; un rimborso (positivo) riduce la spesa. Le entrate si sommano.
+    c.auto = round((c.auto ?? 0) + (kind === 'entrate' ? t.amount : -t.amount));
   }
 
   for (const [k, amount] of Object.entries(db.manual)) {
@@ -125,11 +128,14 @@ export function buildGrid(db, year, now = new Date()) {
         paid: NO_PAYMENT.has(col.kind) ? null : withAmount.length > 0 && withAmount.every((c) => c.paid),
         files: mine.flatMap((c) => c.files),
         // Le parti pagabili (una per casa con un importo): servono a segnare pagato e a mostrare il dettaglio.
-        parts: withAmount.map((c) => ({ place: c.place, amount: c.amount, paid: c.paid })),
+        parts: withAmount.map((c) => ({ kind: c.kind, place: c.place, amount: c.amount, paid: c.paid })),
       };
     }
-    const spent = sum(ofMonth.filter((c) => c.kind !== 'stipendio' && c.amount != null).map((c) => c.amount));
-    const earned = row.cells.stipendio.amount;
+    const spent = sum(ofMonth.filter((c) => !INCOME_KINDS.has(c.kind) && c.amount != null).map((c) => c.amount));
+    // Entrate del mese: stipendio più altre entrate dalla banca.
+    const incomes = ofMonth.filter((c) => INCOME_KINDS.has(c.kind) && c.amount != null);
+    const earned = incomes.length ? sum(incomes.map((c) => c.amount)) : null;
+    row.income = earned;
     row.spent = spent || null;
     row.balance = earned != null ? round(earned - spent) : null;
     rows.push(row);
@@ -148,9 +154,9 @@ export function buildGrid(db, year, now = new Date()) {
   }
   summary.totalToPay = sum(EXPENSE_KINDS.map((k) => summary.toPayAll[k] ?? 0));
 
-  const expenses = inYear.filter((c) => c.kind !== 'stipendio');
+  const expenses = inYear.filter((c) => !INCOME_KINDS.has(c.kind));
   const spendMonths = new Set(expenses.map((c) => c.month));
-  summary.avgIncome = avg(inYear.filter((c) => c.kind === 'stipendio').map((c) => c.amount));
+  summary.avgIncome = avg(rows.map((r) => r.income).filter((a) => a != null));
   summary.avgSpent = spendMonths.size ? round(sum(expenses.map((c) => c.amount)) / spendMonths.size) : null;
   summary.avgBalance = summary.avgIncome != null && summary.avgSpent != null
     ? round(summary.avgIncome - summary.avgSpent) : null;

@@ -253,3 +253,14 @@ th.num .sortbtn { flex-direction: row-reverse; }
 .acat > summary .key { margin-right: 4px; }
 
 td.pos-in { color: var(--ok-ink); font-weight: 600; }
+
+/* --- tabella principale: entrate, uscite comprimibili, riepilogo --- */
+:root { --entrate: var(--viz-entrate); --uscite: var(--accent); --bollette: var(--viz-bollette); --donazioni: var(--viz-donazioni); --tasse: var(--viz-tasse); }
+.gtoggle { background: none; border: 0; padding: 0 6px 0 0; color: inherit; font-size: 12px; cursor: pointer; }
+.gtoggle:hover { color: var(--accent); }
+tr.groups th.g-spend { text-align: center; }
+th.subcol, td.subcol { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+thead th.subcol { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.static.pos { color: var(--ok-ink); font-weight: 600; }
+.static.neg { color: var(--late-ink); font-weight: 600; }
+td.total .static { font-weight: 600; }

@@ -22,7 +22,7 @@ npm test
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
 2. Premi **Aggiorna**: vengono letti solo i PDF nuovi o modificati
    (Maiusc + clic per rileggere tutto).
-3. Passa il mouse su una cella: a sinistra apri il PDF, a destra la segni pagata o da pagare.
+3. La tabella ha quattro gruppi: Mese, Entrate, Uscite (comprimibili con ▾ / ▸, le bollette si aprono nelle voci) e Riepilogo. Passa il mouse su una cella delle bollette: a sinistra apri il PDF, a destra la segni pagata o da pagare.
 4. Nella scheda **Documenti** trovi i file letti male (*Da controllare*): con **Modifica**
    correggi tipo, periodo e importo; la correzione sopravvive ai successivi aggiornamenti.
 
