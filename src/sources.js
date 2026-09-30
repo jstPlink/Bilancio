@@ -21,17 +21,17 @@ export function classifySource(value) {
 
 const PDF = /\.pdf$/i;
 
-async function* walkLocal(dir, ext) {
+async function* walkLocal(dir, ext, skipDir) {
   for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) yield* walkLocal(full, ext);
+    if (entry.isDirectory()) { if (!skipDir?.test(entry.name)) yield* walkLocal(full, ext, skipDir); }
     else if (ext.test(entry.name)) yield full;
   }
 }
 
-async function listLocal(dir, ext) {
+async function listLocal(dir, ext, skipDir) {
   const files = [];
-  for await (const full of walkLocal(dir, ext)) {
+  for await (const full of walkLocal(dir, ext, skipDir)) {
     const st = await fs.stat(full);
     files.push({
       key: `local:${full}`,
@@ -56,11 +56,12 @@ async function seafileDirents({ base, token }, dir) {
   return (await res.json()).dirent_list ?? [];
 }
 
-async function listSeafile(src, ext, dir = '/') {
+async function listSeafile(src, ext, skipDir, dir = "/") {
   const files = [];
   for (const e of await seafileDirents(src, dir)) {
     if (e.is_dir) {
-      files.push(...await listSeafile(src, ext, e.folder_path));
+      if (skipDir?.test(e.folder_name ?? e.folder_path.split("/").filter(Boolean).pop())) continue;
+      files.push(...await listSeafile(src, ext, skipDir, e.folder_path));
     } else if (ext.test(e.file_name)) {
       files.push({
         key: `seafile:${src.base}/d/${src.token}|${e.file_path}`,
@@ -80,19 +81,19 @@ async function listSeafile(src, ext, dir = '/') {
 
 // ------------------------------------------------------------------ comune
 
-export async function listSource(value, ext = PDF) {
+export async function listSource(value, ext = PDF, skipDir = null) {
   const src = classifySource(value);
   if (!src) return [];
   if (src.type === 'invalid') throw new Error(src.reason);
   if (src.type === 'seafile') {
     try {
-      return await listSeafile(src, ext);
+      return await listSeafile(src, ext, skipDir);
     } catch (e) {
       throw new Error(e.cause ? `Seafile non raggiungibile (${src.base}): ${e.cause.code ?? e.message}` : e.message);
     }
   }
   try {
-    return await listLocal(src.dir, ext);
+    return await listLocal(src.dir, ext, skipDir);
   } catch (e) {
     throw new Error(`Cartella non leggibile (${src.dir}): ${e.code ?? e.message}`);
   }

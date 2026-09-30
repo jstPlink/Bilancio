@@ -8,7 +8,7 @@ import { parsePdfStatement } from './pdfstatements.js';
 
 const SOURCES = [
   { setting: 'payslipsSource', tag: 'busta', label: 'Buste paga' },
-  { setting: 'billsSource', tag: 'bolletta', label: 'Bollette' },
+  { setting: 'billsSource', tag: 'bolletta', label: 'Bollette', skipDir: /^documenti$/i },
 ];
 const CONCURRENCY = 3;
 const RETRY_SCALE = 4; // secondo tentativo OCR, più lento ma più nitido
@@ -78,14 +78,14 @@ export async function refresh(db, { force = false, cacheDir } = {}) {
   try {
     // 1) elenco dei file di ogni sorgente
     const listings = [];
-    for (const { setting, tag, label } of SOURCES) {
+    for (const { setting, tag, label, skipDir } of SOURCES) {
       const value = db.settings[setting];
       if (!value?.trim()) {
         report.sources.push({ label, skipped: true });
         continue;
       }
       try {
-        const files = await listSource(value);
+        const files = await listSource(value, undefined, skipDir);
         listings.push({ tag, files });
         report.sources.push({ label, files: files.length });
       } catch (e) {
