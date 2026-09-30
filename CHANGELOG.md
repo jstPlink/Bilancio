@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.23.1
+- La password può essere lunga anche solo **4 caratteri** (prima 10). Meglio più lunga se il sito è raggiungibile da internet: il blocco dopo 5 errori rallenta i tentativi ma non sostituisce una password robusta.
+
 ## 0.23.0
 - **La password si crea dall'app**: al primo accesso la pagina di accesso chiede di scegliere la password (minimo 10 caratteri, da ripetere). Viene salvata cifrata (scrypt) nel database. Da localhost basta aprire la pagina; da qualsiasi altro indirizzo serve il **codice di configurazione** scritto nel log del server all'avvio (`docker logs bilancio`), così nessun estraneo può crearla al posto del proprietario. Finché la password non esiste, pagine e dati restano chiusi.
 - L'app è quindi sempre protetta. `BILANCIO_PASSWORD` resta come alternativa facoltativa (ha la precedenza). Tolto l'avviso rosso "nessuna password".

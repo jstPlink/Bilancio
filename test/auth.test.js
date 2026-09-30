@@ -106,7 +106,7 @@ test('prima configurazione: serve il codice del log da internet, non da localhos
   // da internet: senza codice o col codice sbagliato no, e la password deve essere abbastanza lunga
   assert.equal((await post(s.base, '/api/setup', { password: 'una-password-lunga' }, PROXIED)).status, 403);
   assert.equal((await post(s.base, '/api/setup', { password: 'una-password-lunga', code: 'AAAAA-BBBBB' }, PROXIED)).status, 403);
-  assert.equal((await post(s.base, '/api/setup', { password: 'corta', code }, PROXIED)).status, 400);
+  assert.equal((await post(s.base, '/api/setup', { password: 'abc', code }, PROXIED)).status, 400);
   const created = await post(s.base, '/api/setup', { password: 'una-password-lunga', code: code.toLowerCase() }, PROXIED);
   assert.equal(created.status, 200);
   const session = created.headers.get('set-cookie').split(';')[0];
@@ -131,7 +131,7 @@ test('prima configurazione: serve il codice del log da internet, non da localhos
 
 test('da localhost la prima password si crea senza codice; HTTP Basic per gli script', async () => {
   const s = await startServer({});
-  assert.equal((await post(s.base, '/api/setup', { password: '1234' })).status, 400);
+  assert.equal((await post(s.base, '/api/setup', { password: '123' })).status, 400);
   assert.equal((await post(s.base, '/api/setup', { password: 'password-da-localhost' })).status, 200);
   const basic = (pw) => ({ Authorization: `Basic ${Buffer.from(`qualsiasi:${pw}`).toString('base64')}` });
   assert.equal((await fetch(`${s.base}/api/grid?year=2026`, { headers: basic('password-da-localhost') })).status, 200);

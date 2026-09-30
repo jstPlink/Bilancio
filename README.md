@@ -97,7 +97,7 @@ server scrive nel log all'avvio (`docker logs bilancio`). Per usare un percorso 
 
 L'app è sempre protetta da una password.
 
-- **Prima volta:** apri il sito e la pagina di accesso ti chiede di **creare la password** (almeno 10 caratteri, da ripetere).
+- **Prima volta:** apri il sito e la pagina di accesso ti chiede di **creare la password** (almeno 4 caratteri, da ripetere; meglio di più se il sito è su internet).
   Da `http://localhost:4870` sul tuo computer basta questo. Da qualsiasi altro indirizzo (il sito sul server, il NAS, internet)
   serve anche il **codice di configurazione**, che il server scrive nel suo log all'avvio: in Docker `docker logs bilancio`.
   Così nessun estraneo può crearla al tuo posto.

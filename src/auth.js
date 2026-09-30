@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Accesso con password. L'app è sempre protetta:
-// - la prima volta non c'è nessuna password e la pagina /login chiede di crearne una (minimo 10 caratteri). La password si
+// - la prima volta non c'è nessuna password e la pagina /login chiede di crearne una (minimo 4 caratteri). La password si
 //   salva cifrata (scrypt) nel database. Da localhost basta aprire la pagina; da qualsiasi altro indirizzo serve anche il
 //   "codice di configurazione" che il server scrive nel suo log all'avvio, così nessun estraneo può prendere il tuo posto.
 // - in alternativa BILANCIO_PASSWORD (variabile d'ambiente) fissa la password e ha la precedenza.
@@ -14,7 +14,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const COOKIE = 'bilancio_sessione';
 const MAX_FAILS = 5;
 const LOCK_MS = 15 * 60 * 1000;
-export const MIN_PASSWORD = 10;
+export const MIN_PASSWORD = 4;
 const loginPage = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'login.html');
 
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
