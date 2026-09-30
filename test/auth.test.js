@@ -90,30 +90,27 @@ after(async () => {
 const post = (base, route, body, headers = {}) => fetch(`${base}${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
 const PROXIED = { 'cf-connecting-ip': '198.51.100.7' }; // come se la richiesta arrivasse da internet via Cloudflare
 
-test('prima configurazione: serve il codice del log da internet, non da localhost, e la password resta dopo un riavvio', async () => {
+test('prima configurazione: la password si crea dalla pagina di accesso e resta dopo un riavvio', async () => {
   const s = await startServer({});
-  const code = /configurazione: ([0-9A-F]{5}-[0-9A-F]{5})/.exec(s.output())?.[1];
-  assert.ok(code, 'il codice deve comparire nel log di avvio');
+  assert.match(s.output(), /PRIMA CONFIGURAZIONE/);
+  assert.doesNotMatch(s.output(), /codice/i);
 
   // prima della password non si leggono i dati e il login non è ancora possibile
   assert.equal((await fetch(`${s.base}/api/grid?year=2026`)).status, 401);
   assert.equal((await post(s.base, '/api/login', { password: 'x' })).status, 409);
-  const local = await (await fetch(`${s.base}/api/auth-state`)).json();
-  assert.deepEqual([local.mode, local.codeRequired], ['setup', false]);
-  const remote = await (await fetch(`${s.base}/api/auth-state`, { headers: PROXIED })).json();
-  assert.deepEqual([remote.mode, remote.codeRequired], ['setup', true]);
+  const state = await (await fetch(`${s.base}/api/auth-state`)).json();
+  assert.deepEqual([state.mode, state.minLength], ['setup', 4]);
+  assert.equal(state.codeRequired, undefined);
 
-  // da internet: senza codice o col codice sbagliato no, e la password deve essere abbastanza lunga
-  assert.equal((await post(s.base, '/api/setup', { password: 'una-password-lunga' }, PROXIED)).status, 403);
-  assert.equal((await post(s.base, '/api/setup', { password: 'una-password-lunga', code: 'AAAAA-BBBBB' }, PROXIED)).status, 403);
-  assert.equal((await post(s.base, '/api/setup', { password: 'abc', code }, PROXIED)).status, 400);
-  const created = await post(s.base, '/api/setup', { password: 'una-password-lunga', code: code.toLowerCase() }, PROXIED);
+  // anche da internet (via proxy) basta la password: niente codice
+  assert.equal((await post(s.base, '/api/setup', { password: 'abc' }, PROXIED)).status, 400);
+  const created = await post(s.base, '/api/setup', { password: 'una-password-lunga' }, PROXIED);
   assert.equal(created.status, 200);
   const session = created.headers.get('set-cookie').split(';')[0];
   assert.equal((await fetch(`${s.base}/api/grid?year=2026`, { headers: { Cookie: session } })).status, 200);
 
   // una volta creata, non si può rifare
-  assert.equal((await post(s.base, '/api/setup', { password: 'un-altra-password', code }, PROXIED)).status, 409);
+  assert.equal((await post(s.base, '/api/setup', { password: 'un-altra-password' }, PROXIED)).status, 409);
   assert.equal((await (await fetch(`${s.base}/api/auth-state`)).json()).mode, 'login');
   assert.equal((await post(s.base, '/api/login', { password: 'sbagliata' })).status, 401);
   assert.equal((await post(s.base, '/api/login', { password: 'una-password-lunga' })).status, 200);
@@ -129,7 +126,7 @@ test('prima configurazione: serve il codice del log da internet, non da localhos
   assert.ok(!db.includes(Buffer.from('una-password-lunga')), 'la password non deve stare in chiaro nel database');
 });
 
-test('da localhost la prima password si crea senza codice; HTTP Basic per gli script', async () => {
+test('HTTP Basic per gli script, uscita con logout', async () => {
   const s = await startServer({});
   assert.equal((await post(s.base, '/api/setup', { password: '123' })).status, 400);
   assert.equal((await post(s.base, '/api/setup', { password: 'password-da-localhost' })).status, 200);

@@ -12,7 +12,7 @@ services:
       - "4870:4870"
     environment:
       TZ: Europe/Rome
-      # La password di accesso si crea dalla pagina di accesso al primo avvio (codice di configurazione: docker logs bilancio).
+      # La password di accesso si crea dalla pagina di accesso al primo avvio: fallo subito, finché non esiste chiunque apra il sito può sceglierla.
       # Facoltativo: fissarla qui, al posto di crearla nell'app (ha la precedenza):
       # BILANCIO_PASSWORD: "una-password-lunga"
     volumes:

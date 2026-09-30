@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 // Accesso con password. L'app è sempre protetta:
 // - la prima volta non c'è nessuna password e la pagina /login chiede di crearne una (minimo 4 caratteri). La password si
-//   salva cifrata (scrypt) nel database. Da localhost basta aprire la pagina; da qualsiasi altro indirizzo serve anche il
-//   "codice di configurazione" che il server scrive nel suo log all'avvio, così nessun estraneo può prendere il tuo posto.
+//   salva cifrata (scrypt) nel database. Va creata subito: finché non esiste, chiunque apra il sito può sceglierla.
 // - in alternativa BILANCIO_PASSWORD (variabile d'ambiente) fissa la password e ha la precedenza.
 // - la sessione è un cookie firmato (HttpOnly, 30 giorni) che decade se si cambia la password.
 // - gli script possono usare l'autenticazione HTTP Basic (qualsiasi utente + la password).
@@ -21,7 +20,6 @@ const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const same = (a, b) => crypto.timingSafeEqual(sha(a), sha(b));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const scrypt = (password, salt) => crypto.scryptSync(String(password), salt, 32);
-const PROXY_HEADERS = ['x-forwarded-for', 'cf-connecting-ip', 'forwarded', 'x-real-ip'];
 
 function readCookie(req, name) {
   for (const part of String(req.headers.cookie ?? '').split(';')) {
@@ -34,7 +32,6 @@ function readCookie(req, name) {
 // envPassword: password fissata dall'ambiente (facoltativa). getRecord/saveRecord: dove si conserva la password creata nell'app.
 export function createAuth({ envPassword = '', getRecord = () => null, saveRecord = () => {}, sessionDays = 30 } = {}) {
   const fails = new Map(); // "chiave:indirizzo" -> { count, lockedUntil }
-  const setupCode = crypto.randomBytes(5).toString('hex').toUpperCase().replace(/^(.{5})(.{5})$/, '$1-$2');
 
   const hasPassword = () => Boolean(envPassword) || Boolean(getRecord());
   // Chiave per firmare i cookie: dipende dalla password, quindi cambiandola le sessioni decadono.
@@ -66,8 +63,6 @@ export function createAuth({ envPassword = '', getRecord = () => null, saveRecor
   const who = (req) => String(req.headers['cf-connecting-ip'] ?? String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()) || req.socket.remoteAddress || 'sconosciuto';
   const isHttps = (req) => req.secure || req.headers['x-forwarded-proto'] === 'https';
   const cookieHeader = (req, value, maxAgeMs) => `${COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAgeMs / 1000)}${isHttps(req) ? '; Secure' : ''}`;
-  // "Da questo computer": connessione diretta da localhost, non passata da un proxy o da Cloudflare.
-  const isLocalDirect = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) && !PROXY_HEADERS.some((h) => req.headers[h]);
 
   function basicOk(req) {
     const m = /^Basic (.+)$/i.exec(req.headers.authorization ?? '');
@@ -107,23 +102,12 @@ export function createAuth({ envPassword = '', getRecord = () => null, saveRecor
 
     app.get('/api/auth-state', (req, res) => {
       res.set('Cache-Control', 'no-store');
-      res.json({ mode: hasPassword() ? 'login' : 'setup', codeRequired: !hasPassword() && !isLocalDirect(req), minLength: MIN_PASSWORD });
+      res.json({ mode: hasPassword() ? 'login' : 'setup', minLength: MIN_PASSWORD });
     });
 
     // Creazione della prima password (solo finché non ne esiste una).
     app.post('/api/setup', async (req, res) => {
       if (hasPassword()) return res.status(409).json({ error: 'La password esiste già: usa la pagina di accesso.' });
-      const id = `setup:${who(req)}`;
-      const wait = lockedFor(id);
-      if (wait) return res.status(429).json({ error: `Troppi tentativi sbagliati. Riprova tra ${wait} minuti.` });
-      if (!isLocalDirect(req)) {
-        const given = String(req.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-        if (!given || !same(given, setupCode.replace('-', ''))) {
-          await sleep(500);
-          registerFail(id);
-          return res.status(403).json({ error: 'Codice di configurazione errato. Lo trovi nel log del server all\'avvio.' });
-        }
-      }
       const password = String(req.body?.password ?? '');
       if (password.length < MIN_PASSWORD) return res.status(400).json({ error: `La password deve avere almeno ${MIN_PASSWORD} caratteri.` });
       setPassword(password);
@@ -152,5 +136,5 @@ export function createAuth({ envPassword = '', getRecord = () => null, saveRecor
     });
   }
 
-  return { mount, hasPassword, setupCode, usesEnv: Boolean(envPassword), newToken, validToken, checkPassword, setPassword };
+  return { mount, hasPassword, usesEnv: Boolean(envPassword), newToken, validToken, checkPassword, setPassword };
 }

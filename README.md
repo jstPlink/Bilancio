@@ -89,8 +89,8 @@ che hai in locale, chiudi l'app e copia `data/bilancino.db` nella cartella `./da
 anche le Impostazioni (link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Senza database, al primo
 avvio apri le Impostazioni e inserisci i link.
 
-**Sicurezza.** Il sito è protetto da una password che crei al primo accesso (sezione successiva): per farlo da internet serve il codice che il
-server scrive nel log all'avvio (`docker logs bilancio`). Per usare un percorso locale come sorgente PDF, monta la cartella nel container
+**Sicurezza.** Il sito è protetto da una password che crei al primo accesso (sezione successiva): **creala subito dopo l'avvio**, perché finché non
+esiste chiunque apra il sito può sceglierla. Per usare un percorso locale come sorgente PDF, monta la cartella nel container
 (vedi il file compose) e indica il percorso interno (es. `/documenti`).
 
 ## Password di accesso
@@ -98,9 +98,7 @@ server scrive nel log all'avvio (`docker logs bilancio`). Per usare un percorso 
 L'app è sempre protetta da una password.
 
 - **Prima volta:** apri il sito e la pagina di accesso ti chiede di **creare la password** (almeno 4 caratteri, da ripetere; meglio di più se il sito è su internet).
-  Da `http://localhost:4870` sul tuo computer basta questo. Da qualsiasi altro indirizzo (il sito sul server, il NAS, internet)
-  serve anche il **codice di configurazione**, che il server scrive nel suo log all'avvio: in Docker `docker logs bilancio`.
-  Così nessun estraneo può crearla al tuo posto.
+  Fallo appena avvii l'app, soprattutto se è su internet: finché la password non esiste, chiunque apra il sito può crearla.
 - **Dopo:** ogni browser nuovo chiede la password, poi la sessione dura 30 giorni. Il pulsante **Esci** in alto la chiude.
 - La password è salvata **cifrata** (scrypt) nel database, non in chiaro, e non viene mai pubblicata. Cambiandola, le sessioni
   aperte decadono.
@@ -119,3 +117,15 @@ sotto `environment`, oppure in locale in un file `.env` (copia `.env.example`). 
 
 **Script.** `scripts/importa-su-server.mjs` e simili usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
 qualsiasi nome e conta solo la password.
+
+## Localhost che punta al server
+
+Per avere un solo posto con dati e password, il localhost può **inoltrare tutto al server** invece di usare un database suo. Nel
+file `.env` (copia `.env.example`) scrivi:
+
+```
+BILANCIO_SERVER=https://indirizzo-del-tuo-server
+```
+
+Con `npm start` (o `npm run dev`) `http://localhost:4870` mostra allora l'app del server, con i suoi dati, il suo login e la sua
+password; in locale non si legge né si scrive nessun dato. Per tornare a un'app locale con database proprio, togli la riga.

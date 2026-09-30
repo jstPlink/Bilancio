@@ -1,0 +1,80 @@
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PASSWORD = 'password-del-server-1';
+const serverPort = 4960 + Math.floor(Math.random() * 15) * 2;
+const localPort = serverPort + 1;
+const server = `http://127.0.0.1:${serverPort}`;
+const local = `http://127.0.0.1:${localPort}`;
+const procs = [];
+const dirs = [];
+
+const launch = async (script, env, readyUrl) => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'bilancio-proxy-'));
+  dirs.push(dataDir);
+  const proc = spawn(process.execPath, ['--no-warnings', path.join(root, 'src', script)], {
+    env: { ...process.env, HOST: '127.0.0.1', BILANCIO_DATA: dataDir, BILANCIO_PASSWORD: '', BILANCIO_SERVER: '', ...env },
+    stdio: 'ignore',
+  });
+  procs.push(proc);
+  for (let i = 0; i < 60; i++) {
+    try { if ((await fetch(readyUrl)).ok) return { proc, dataDir }; } catch { /* non è ancora pronto */ }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`${script} non è partito`);
+};
+
+let upstream;
+let front;
+before(async () => {
+  upstream = await launch('server.js', { PORT: String(serverPort), BILANCIO_PASSWORD: PASSWORD }, `${server}/api/version`);
+  front = await launch('start.js', { PORT: String(localPort), BILANCIO_SERVER: server }, `${local}/api/version`);
+});
+after(async () => {
+  for (const p of procs) p.kill();
+  await new Promise((r) => setTimeout(r, 300));
+  for (const d of dirs) await fs.rm(d, { recursive: true, force: true }).catch(() => {});
+});
+
+test('il localhost inoltra al server: stessa versione, stesse pagine, stesso login', async () => {
+  const a = await (await fetch(`${server}/api/version`)).json();
+  const b = await (await fetch(`${local}/api/version`)).json();
+  assert.deepEqual(b, a);
+  assert.equal(b.protected, true);
+
+  // i dati sono chiusi anche dal localhost, e le pagine rimandano al login del server
+  assert.equal((await fetch(`${local}/api/grid?year=2026`)).status, 401);
+  const home = await fetch(`${local}/`, { redirect: 'manual', headers: { Accept: 'text/html' } });
+  assert.equal(home.status, 302);
+  assert.equal(home.headers.get('location'), '/login');
+  assert.match(await (await fetch(`${local}/login`)).text(), /Password/);
+
+  // il login passa dal localhost con il corpo JSON e restituisce un cookie utilizzabile
+  assert.equal((await fetch(`${local}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: 'no' }) })).status, 401);
+  const ok = await fetch(`${local}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: PASSWORD }) });
+  assert.equal(ok.status, 200);
+  const cookie = ok.headers.get('set-cookie');
+  assert.match(cookie, /bilancio_sessione=/);
+  assert.doesNotMatch(cookie, /Secure/i);
+  const session = cookie.split(';')[0];
+  assert.equal((await fetch(`${local}/api/grid?year=2026`, { headers: { Cookie: session } })).status, 200);
+  assert.equal((await fetch(`${local}/app.js`, { headers: { Cookie: session } })).status, 200);
+  // lo stesso cookie vale anche sul server: è davvero la stessa sessione
+  assert.equal((await fetch(`${server}/api/grid?year=2026`, { headers: { Cookie: session } })).status, 200);
+});
+
+test('in locale non viene creato nessun database, e se il server è spento si capisce perché', async () => {
+  assert.deepEqual(await fs.readdir(front.dataDir), []);
+  upstream.proc.kill();
+  await new Promise((r) => setTimeout(r, 500));
+  const res = await fetch(`${local}/api/grid?year=2026`);
+  assert.equal(res.status, 502);
+  assert.match((await res.json()).error, /non risponde/);
+  assert.equal((await fetch(`${local}/`, { headers: { Accept: 'text/html' } })).status, 502);
+});

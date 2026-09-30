@@ -33,10 +33,6 @@
     </div>
     <p class="intro" id="intro" hidden></p>
     <form id="form" autocomplete="on">
-      <label id="codeRow" hidden>Codice di configurazione
-        <input id="code" name="code" autocomplete="off" spellcheck="false" placeholder="Es. AB12C-D34E5">
-      </label>
-      <p class="hint" id="codeHint" hidden>Lo trovi nel log del server, all'avvio (in Docker: <code>docker logs bilancio</code>).</p>
       <label>Password
         <input id="password" name="password" type="password" autocomplete="current-password" autofocus required>
       </label>
@@ -63,11 +59,8 @@
       $('repeat').required = true;
       $('password').autocomplete = 'new-password';
       $('password').minLength = minLength;
-      $('codeRow').hidden = !s.codeRequired;
-      $('codeHint').hidden = !s.codeRequired;
-      $('code').required = s.codeRequired;
       $('go').textContent = 'Crea la password';
-      (s.codeRequired ? $('code') : $('password')).focus();
+      $('password').focus();
     }).catch(() => { $('error').textContent = 'Server non raggiungibile. Riprova.'; });
 
     $('form').addEventListener('submit', async (e) => {
@@ -83,7 +76,7 @@
         const res = await fetch(setup ? '/api/setup' : '/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(setup ? { password, code: $('code').value } : { password }),
+          body: JSON.stringify({ password }),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) { location.replace('/'); return; }

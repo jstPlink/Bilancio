@@ -305,7 +305,6 @@ app.listen(port, host, () => {
     if (process.env.BILANCIO_PASSWORD.length < 8) console.warn('ATTENZIONE: la password è molto corta, usane una più lunga.');
   } else if (auth.hasPassword()) console.log('Accesso protetto da password.');
   else {
-    console.log('PRIMA CONFIGURAZIONE: apri il sito e crea la password.');
-    console.log(`  Da questo computer (localhost) non serve altro. Da qualsiasi altro indirizzo inserisci il codice di configurazione: ${auth.setupCode}`);
+    console.log('PRIMA CONFIGURAZIONE: apri il sito e crea subito la password (finché non esiste, chiunque apra il sito può sceglierla).');
   }
 });
