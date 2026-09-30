@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
 import { buildGrid, cellKey, effectiveDoc, KINDS, NO_PAYMENT, SPENDING_KINDS } from './grid.js';
-import { CATEGORIES, normalize, parseStatement } from './statements.js';
+import { CATEGORIES, CATEGORY_KIND, normalize, parseStatement } from './statements.js';
 import { refresh, progress } from './scanner.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -32,7 +32,7 @@ app.get('/api/settings', (req, res) => res.json(db().settings));
 app.put('/api/settings', async (req, res) => {
   const b = req.body ?? {};
   const s = db().settings;
-  for (const key of ['payslipsSource', 'billsSource']) {
+  for (const key of ['payslipsSource', 'billsSource', 'statementsSource']) {
     if (typeof b[key] === 'string') {
       const src = classifySource(b[key]);
       if (src?.type === 'invalid') return bad(res, src.reason);
@@ -171,6 +171,38 @@ app.get('/api/transactions', (req, res) => {
   const list = Object.values(db().transactions ?? {}).filter((t) => !year || t.date.startsWith(`${year}-`));
   list.sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description));
   res.json({ categories: CATEGORIES, transactions: list });
+});
+
+// Analisi temporanea: come vengono smistati tutti i movimenti, raggruppati per descrizione.
+app.get('/api/analysis', (req, res) => {
+  const list = Object.values(db().transactions ?? {});
+  const total = list.reduce((a, t) => a + Math.abs(t.amount), 0);
+  const cats = Object.fromEntries(CATEGORIES.map((c) => [c, { category: c, count: 0, total: 0, merchants: new Map() }]));
+  for (const t of list) {
+    const c = cats[t.category] ?? cats.altro;
+    const amount = Math.abs(t.amount);
+    c.count++;
+    c.total += amount;
+    const key = normalize(t.description) || t.description;
+    const m = c.merchants.get(key) ?? { id: t.id, name: t.description, count: 0, total: 0, from: t.date, to: t.date };
+    m.count++;
+    m.total += amount;
+    if (t.date < m.from) m.from = t.date;
+    if (t.date > m.to) m.to = t.date;
+    c.merchants.set(key, m);
+  }
+  const round = (n) => Math.round(n * 100) / 100;
+  res.json({
+    total: round(total),
+    count: list.length,
+    categories: CATEGORIES.map((k) => {
+      const c = cats[k];
+      return {
+        category: k, count: c.count, total: round(c.total), share: total ? c.total / total : 0, column: CATEGORY_KIND[k] ?? null,
+        merchants: [...c.merchants.values()].map((m) => ({ ...m, total: round(m.total) })).sort((a, b) => b.total - a.total),
+      };
+    }),
+  });
 });
 
 // Cambia categoria a un movimento e la ricorda per tutti quelli con la stessa descrizione.

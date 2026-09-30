@@ -3,6 +3,7 @@ import { openPdf } from './pdf.js';
 import { parseDocument } from './parsers.js';
 import { listSource } from './sources.js';
 import { createOcr } from './ocr.js';
+import { parseStatement } from './statements.js';
 
 const SOURCES = [
   { setting: 'payslipsSource', tag: 'busta', label: 'Buste paga' },
@@ -32,8 +33,33 @@ async function inParallel(items, limit, fn) {
 
 // Rilegge le sorgenti configurate e aggiorna `db.docs`.
 // Un PDF già letto e non modificato viene saltato, a meno di `force`.
+// Estratti conto in CSV dalla cartella/link configurato: solo file nuovi o modificati, movimenti senza duplicati.
+async function readStatements(db, report, force) {
+  const value = db.settings.statementsSource;
+  if (!value?.trim()) { report.sources.push({ label: 'Estratti conto', skipped: true }); return; }
+  try {
+    const files = await listSource(value, /\.csv$/i);
+    report.sources.push({ label: 'Estratti conto', files: files.length });
+    db.statementFiles ??= {};
+    db.transactions ??= {};
+    for (const file of files) {
+      if (!force && db.statementFiles[file.key] === file.version) continue;
+      try {
+        const items = parseStatement((await file.read()).toString('utf8'), db.rules);
+        for (const t of items) if (!db.transactions[t.id]) { db.transactions[t.id] = { ...t, file: file.name }; report.transactions++; }
+        db.statementFiles[file.key] = file.version;
+      } catch (e) {
+        report.errors.push({ source: file.name, message: e.message });
+      }
+    }
+  } catch (e) {
+    report.errors.push({ source: 'Estratti conto', message: e.message });
+    report.sources.push({ label: 'Estratti conto', failed: true });
+  }
+}
+
 export async function refresh(db, { force = false, cacheDir } = {}) {
-  const report = { added: 0, updated: 0, unchanged: 0, removed: 0, incomplete: 0, ocr: 0, errors: [], sources: [] };
+  const report = { added: 0, updated: 0, unchanged: 0, removed: 0, incomplete: 0, ocr: 0, transactions: 0, errors: [], sources: [] };
   const ocr = createOcr({ cacheDir, size: CONCURRENCY });
   Object.assign(progress, { running: true, done: 0, total: 0 });
 
@@ -55,6 +81,8 @@ export async function refresh(db, { force = false, cacheDir } = {}) {
         report.sources.push({ label, failed: true });
       }
     }
+
+    await readStatements(db, report, force);
 
     // 2) lettura dei soli file nuovi o modificati
     const queue = [];

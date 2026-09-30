@@ -27,6 +27,7 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="overview" aria-selected="true">Panoramica</button>
       <button role="tab" data-tab="moves" aria-selected="false">Movimenti</button>
+      <button role="tab" data-tab="analysis" aria-selected="false">Analisi <span class="badge warn">temporanea</span></button>
       <button role="tab" data-tab="docs" aria-selected="false">Documenti <span id="docBadge" class="badge warn" hidden></span></button>
       <div class="years" id="years" aria-label="Anno"></div>
     </nav>
@@ -40,13 +41,21 @@
     <section id="moves" hidden>
       <div class="movebar">
         <label class="primary upload">Carica estratto conto (CSV)<input id="statementFile" type="file" accept=".csv,text/csv" multiple hidden></label>
-        <span class="muted">Solo le uscite contano. Cibo e casa vanno in <b>Spese</b>; svago e carburante hanno la loro colonna. Cambia la categoria qui sotto: verrà ricordata.</span>
+        <span class="muted">Solo le uscite contano. <b>Spesa</b> (cibo, bevande, casa) va nella colonna Spese; svago e carburante hanno la loro colonna. Cambia la categoria qui sotto: verrà ricordata.</span>
       </div>
       <div id="movesEmpty" class="empty" hidden>
         <h2>Nessun movimento nel periodo</h2>
         <p>Carica l'esportazione CSV dell'estratto conto (in Revolut: Conti → Estratti → Excel/CSV).</p>
       </div>
       <div class="tablewrap"><table id="moveTable"></table></div>
+    </section>
+
+    <section id="analysis" hidden>
+      <div id="analysisEmpty" class="empty" hidden>
+        <h2>Nessun movimento da analizzare</h2>
+        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un CSV dalla scheda Movimenti.</p>
+      </div>
+      <div id="analysisBody"></div>
     </section>
 
     <section id="docs" hidden>

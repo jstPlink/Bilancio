@@ -150,7 +150,7 @@ async function payAll(kind) {
 
 // ------------------------------------------------------------------ movimenti
 
-const CATEGORY_LABELS = { cibo: 'Cibo', casa: 'Casa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro (non conta)' };
+const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro (non conta)' };
 
 async function loadMoves() {
   const { categories, transactions } = await api(`/api/transactions?year=${state.year}`);
@@ -161,9 +161,26 @@ async function loadMoves() {
       <td><select data-move="${t.id}" aria-label="Categoria di ${esc(t.description)}">${categories.map((c) => `<option value="${c}" ${c === t.category ? 'selected' : ''}>${CATEGORY_LABELS[c]}</option>`).join('')}</select></td></tr>`).join('')}</tbody>` : '';
 }
 
+// Scheda temporanea: come sono smistati tutti i movimenti (di tutti gli anni), per voce e per descrizione.
+const fmtDate = (d) => d.split('-').reverse().join('/');
+async function loadAnalysis() {
+  const a = await api('/api/analysis');
+  const open = new Set([...document.querySelectorAll('#analysis details[open]')].map((d) => d.dataset.cat));
+  $('#analysisEmpty').hidden = a.count > 0;
+  $('#analysisBody').innerHTML = a.count ? `
+    <p class="muted">${a.count} movimenti in uscita, ${money(a.total)} in tutto. Cambia la categoria di una descrizione dal menu: vale per tutti i movimenti uguali.</p>
+    <div class="cards">${a.categories.map((c) => `<div class="card"><div class="k">${CATEGORY_LABELS[c.category].replace(' (non conta)', '')}${c.column ? '' : ' · fuori dalla tabella'}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti · ${(c.share * 100).toFixed(1).replace('.', ',')}%</div></div>`).join('')}</div>
+    ${a.categories.map((c) => `<details class="acat" data-cat="${c.category}" ${open.has(c.category) || c.category === 'altro' ? 'open' : ''}>
+      <summary>${CATEGORY_LABELS[c.category].replace(' (non conta)', '')} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
+      <div class="tablewrap"><table class="atable"><thead><tr><th>Descrizione</th><th class="num">Volte</th><th class="num">Totale</th><th>Periodo</th><th>Categoria</th></tr></thead><tbody>${
+        c.merchants.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td>${fmtDate(m.from)}${m.to !== m.from ? ` – ${fmtDate(m.to)}` : ''}</td>
+        <td><select data-amove="${m.id}" aria-label="Categoria di ${esc(m.name)}">${a.categories.map((o) => `<option value="${o.category}" ${o.category === c.category ? 'selected' : ''}>${CATEGORY_LABELS[o.category]}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
+    </details>`).join('')}` : '';
+}
+
 async function setCategory(select) {
-  await api('/api/transactions', { method: 'PUT', body: { id: select.dataset.move, category: select.value } });
-  await Promise.all([loadMoves(), loadGrid()]);
+  await api('/api/transactions', { method: 'PUT', body: { id: select.dataset.move ?? select.dataset.amove, category: select.value } });
+  await Promise.all([loadMoves(), loadGrid(), loadAnalysis()]);
   toast('Categoria salvata: la ricorderò per i movimenti con la stessa descrizione.');
 }
 
@@ -262,7 +279,8 @@ async function openSettings() {
     <fieldset><legend>Dove si trovano i documenti</legend>
       <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
       <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
-      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password.</small>
+      <label>Estratti conto (CSV)<input name="statementsSource" value="${esc(s.statementsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale con i CSV" autocomplete="off"></label>
+      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password. Gli estratti conto si leggono dai file CSV della banca.</small>
     </fieldset>
     <fieldset><legend>Affitto</legend>
       <div class="row">
@@ -291,6 +309,7 @@ async function openSettings() {
         body: {
           payslipsSource: form.payslipsSource.value,
           billsSource: form.billsSource.value,
+          statementsSource: form.statementsSource.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
           loanAmount: parseInput(form.loanAmount.value) ?? 0,
@@ -312,6 +331,7 @@ function refreshSummary(r) {
   if (r.added) parts.push(`${r.added} nuovi`);
   if (r.updated) parts.push(`${r.updated} aggiornati`);
   if (r.removed) parts.push(`${r.removed} rimossi`);
+  if (r.transactions) parts.push(`${r.transactions} movimenti bancari`);
   if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
   if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
   let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';
@@ -335,9 +355,9 @@ async function autoScan() {
   }, 700);
   try {
     const r = await api('/api/refresh', { method: 'POST', body: {} });
-    const changed = r.added || r.updated || r.removed;
+    const changed = r.added || r.updated || r.removed || r.transactions;
     if (changed || r.errors.length) {
-      await Promise.all([loadGrid(), loadDocs()]);
+      await Promise.all([loadGrid(), loadDocs(), loadMoves()]);
       toast(refreshSummary(r), r.errors.length ? 9000 : 4500);
     }
   } catch (err) {
@@ -372,7 +392,7 @@ async function doRefresh(force = false) {
     btn.disabled = false;
     btn.querySelector('.spin').hidden = true;
     btn.querySelector('.label').textContent = 'Aggiorna';
-    await Promise.all([loadGrid(), loadDocs()]);
+    await Promise.all([loadGrid(), loadDocs(), loadMoves()]);
   }
 }
 
@@ -389,8 +409,10 @@ document.addEventListener('click', (e) => {
     $('#overview').hidden = t.dataset.tab !== 'overview';
     $('#docs').hidden = t.dataset.tab !== 'docs';
     $('#moves').hidden = t.dataset.tab !== 'moves';
-    $('#years').hidden = t.dataset.tab === 'docs';
+    $('#analysis').hidden = t.dataset.tab !== 'analysis';
+    $('#years').hidden = t.dataset.tab === 'docs' || t.dataset.tab === 'analysis';
     if (t.dataset.tab === 'moves') loadMoves().catch((err) => toast(err.message));
+    if (t.dataset.tab === 'analysis') loadAnalysis().catch((err) => toast(err.message));
   }
 });
 // Clic (o Spazio/Invio) su una cella: pagato / da pagare. Il link PDF apre invece il documento.
@@ -406,7 +428,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
 });
 document.addEventListener('change', (e) => {
-  if (e.target.dataset.move) setCategory(e.target).catch((err) => toast(err.message));
+  if (e.target.dataset.move || e.target.dataset.amove) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
 $('#statementFile').addEventListener('change', (e) => {

@@ -15,7 +15,7 @@ TRANSFER,Current,2026-03-11 10:00:00,2026-03-11 10:00:00,Bonifico a Mario,-50.00
 
 test('legge un CSV Revolut: solo uscite completate, con categoria', () => {
   const items = parseStatement(revolut);
-  assert.deepEqual(items.map((i) => i.category), ['cibo', 'carburante', 'svago', 'casa']);
+  assert.deepEqual(items.map((i) => i.category), ['spesa', 'carburante', 'svago', 'spesa']);
   assert.equal(items[0].date, '2026-03-03');
   assert.equal(items[0].amount, -54.2);
 });
@@ -34,7 +34,10 @@ test('le righe identiche non si duplicano reimportando', () => {
 });
 
 test('una regola imparata vince su quelle automatiche', () => {
-  assert.equal(categorize('Bar Sport'), 'cibo');
+  assert.equal(categorize('Bar Sport'), 'spesa');
+  assert.equal(categorize('AMAZON EU SARL'), 'svago');
+  assert.equal(categorize('Enoteca Rossi'), 'spesa');
+  assert.equal(categorize('Mediaworld Televisori'), 'svago');
   assert.equal(categorize('Bar Sport', { 'bar sport': 'svago' }), 'svago');
 });
 

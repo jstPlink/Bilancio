@@ -3,21 +3,24 @@ import crypto from 'node:crypto';
 // Estratti conto in CSV (Revolut o altre banche): ogni uscita diventa un movimento con una categoria.
 // Le categorie cibo e casa confluiscono nella colonna "Spese"; svago e carburante hanno la loro colonna.
 
-export const CATEGORIES = ['cibo', 'casa', 'svago', 'carburante', 'altro'];
-export const CATEGORY_KIND = { cibo: 'spese', casa: 'spese', svago: 'svago', carburante: 'carburante' };
+export const CATEGORIES = ['spesa', 'svago', 'carburante', 'altro'];
+export const CATEGORY_KIND = { spesa: 'spese', svago: 'svago', carburante: 'carburante' };
+export const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro' };
+// Nomi usati nelle versioni precedenti.
+export const LEGACY_CATEGORY = { cibo: 'spesa', casa: 'spesa' };
 
+// Spesa = cibo, bevande e prodotti per la casa. Svago = abbonamenti TV, Amazon, parchi, televisori, giocattoli.
 const RULES = [
   ['carburante', /\b(eni|agip|q8|tamoil|esso|shell|ip|api|repsol|erg|carburant\w*|benzin\w*|diesel|gpl|distributore|autostrad\w*|fuel|petrol)\b/i],
-  ['svago', /cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|netflix|spotify|disney|prime video|dazn|playstation|steam|nintendo|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
-  ['casa', /ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|risparmio casa|flying tiger/i],
-  ['cibo', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristorant\w*|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros/i],
+  ['svago', /amazon|amzn|prime video|netflix|spotify|disney|dazn|sky\b|now ?tv|infinity|apple\.com|google play|playstation|steam|nintendo|televisor\w*|\btv\b|mediaworld|unieuro|euronics|trony|giocattol\w*|toys|lego|giocheria|cinema|\buci\b|the space|multisala|teatro|museo|parco|park|gardaland|mirabilandia|zoomarine|acquapark|aqua ?park|cinecitt|leolandia|movieland|fiabilandia|adventure|avventura|ticketone|eventbrite|bowling|luna ?park|escape room|concert\w*|discoteca|stadio/i],
+  ['spesa', /supermerc\w*|\bcoop\b|conad|esselunga|carrefour|lidl|eurospin|\bmd\b|\bpam\b|despar|aldi|penny|iper\w*|bennet|famila|panificio|macelleria|ortofrutta|alimentar\w*|ristorant\w*|pizzeria|trattoria|osteria|\bbar\b|mcdonald|burger|kebab|glovo|just ?eat|deliveroo|gelateria|pasticceria|sushi|autogrill|naturasi|tigros|birr\w*|vino|enoteca|bevande|ikea|leroy|brico\w*|\bobi\b|tigot|acqua ?e ?sapone|\baction\b|detersiv\w*|casalinghi|farmacia|parafarmacia|\bdm\b|maisons du monde|zara home|flying tiger/i],
 ];
 
 export const normalize = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function categorize(description, rules = {}) {
   const learned = rules[normalize(description)];
-  if (learned) return learned;
+  if (learned) return LEGACY_CATEGORY[learned] ?? learned;
   for (const [category, re] of RULES) if (re.test(description)) return category;
   return 'altro';
 }

@@ -165,3 +165,10 @@ label.upload:focus-within { outline: 2px solid var(--accent); outline-offset: 2p
 #moveTable td, #moveTable th { text-align: left; }
 #moveTable td.num { text-align: right; padding: 8px 12px; }
 #moveTable select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+
+.acat { margin-top: 14px; }
+.acat > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.atable td, .atable th { text-align: left; }
+.atable td.num, .atable th.num { text-align: right; }
+.atable select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+#analysisBody .cards { margin-top: 10px; }
