@@ -108,7 +108,7 @@ const GROUPS = [
 ];
 let savedOpen = {};
 try { savedOpen = JSON.parse(localStorage.getItem('gridOpen') ?? '{}'); } catch { /* storage non disponibile */ }
-state.open = { bollette: false, ...savedOpen };
+state.open = { bollette: false, crispiano: true, ...savedOpen };
 const saveOpen = () => { try { localStorage.setItem('gridOpen', JSON.stringify(state.open)); } catch { /* storage non disponibile */ } };
 
 const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
@@ -153,7 +153,18 @@ function buildColumns() {
       : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
     add({ ...col, top: 'uscite', start: gi === 0, colorKey: g.id });
     if (isMulti && state.open[g.id]) {
-      for (const l of members) add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
+      const addLeaf = (l) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
+      const crispiano = members.filter((l) => l.place === 'crispiano');
+      members.filter((l) => l.place !== 'crispiano').forEach(addLeaf);
+      // Le voci di Crispiano si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
+      if (g.id === 'bollette' && crispiano.length) {
+        const ids = crispiano.map((l) => l.id);
+        add({
+          id: 'g:crispiano', kind: 'bollette', label: 'Crispiano', place: null, colorKey: 'bollette', top: 'uscite', sub: true,
+          cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids, toggle: 'crispiano', isOpen: state.open.crispiano,
+        });
+        if (state.open.crispiano) crispiano.forEach(addLeaf);
+      }
     }
   });
   add({ id: 'spent', kind: 'spent', label: 'Totale spese', top: 'riepilogo', start: true, plain: true, total: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });

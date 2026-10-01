@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.25.0
+- **Crispiano comprimibile** dentro Bollette: con Bollette aperta compare una colonna "Crispiano" con il suo pulsante apri/chiudi. Chiusa, mostra un solo totale (luce + gas di Crispiano, con lo stato pagato di tutte le voci insieme); aperta, mostra Luce e Gas di Crispiano separati, ognuno con il suo documento. Le voci di Crispiano sono ora raggruppate dopo quelle di Budrio. Lo stato viene ricordato.
+
 ## 0.24.0
 - **Tolto il "codice di configurazione"**: la prima password si crea dalla pagina di accesso con la sola password, da qualsiasi indirizzo. Va creata subito dopo l'avvio: finché non esiste, chiunque apra il sito può sceglierla.
 - **Localhost che punta al server**: con `BILANCIO_SERVER` nel file `.env`, `npm start` non usa un database locale ma inoltra ogni richiesta (pagine, dati, login) al server indicato. Dati e password sono un'unica copia, quella del server. Il cookie di sessione viene adattato a http://localhost, e se il server non risponde compare un messaggio chiaro.

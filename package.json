@@ -1,6 +1,6 @@
 {
   "name": "bilancio",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Buste paga e bollette di casa, in ordine.",
   "type": "module",
   "main": "src/server.js",
