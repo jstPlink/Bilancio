@@ -18,7 +18,8 @@ Vedi README.md per le schede, le impostazioni e il funzionamento.
 - `.env` è escluso da Git: l'indirizzo e le password non vanno mai in codice, documentazione, commit o messaggi di commit.
 - Se `.env` manca o non ha `BILANCIO_SERVER`, chiedi l'indirizzo all'utente una volta sola, scrivilo in `.env` e non lo riscrivere altrove.
 - Se il server non ha ancora una funzione nuova (le pagine sono locali ma i dati vengono dal server, quindi la chiamata dà «va aggiornato»), per farla provare
-  all'utente usa `npm run demo:banche` (scheda Banche) o una demo analoga con dati finti, su una porta a parte; non toccare il localhost collegato al server.
+  all'utente usa `npm run demo:banche` (scheda Banche) o una demo analoga con dati finti, su una porta a parte; non toccare il localhost collegato al server. Un processo di sfondo si interrompe da solo dopo un po': se la demo serve di nuovo, rilanciarla;
+  all'utente ricordare che può lanciarla da sé in un terminale con `npm run demo:banche`.
 - Per provare la grafica con dati finti usa un database a parte (cartella temporanea, `BILANCIO_DATA`, porta diversa) e fermalo a fine prova:
   mai riempire di dati di prova il database locale o il server dell'utente.
 

@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.30.1
+- **Documentazione**: la scheda Banche richiede che anche il server sia aggiornato (dalla 0.30.0); la demo va tenuta in un terminale aperto; dopo un push bisogna attendere la costruzione dell'immagine Docker prima di aggiornare il NAS; come provare la scheda con i dati veri.
+
 ## 0.30.0
 - **Scheda «Banche»** (solo schermo largo; prima fase del piano «Interfaccia sui dati delle banche collegate»): i dati originali di UniCredit e Revolut — conti con IBAN, tipo e saldi, andamento del saldo, quali campi la banca fornisce e in quanti movimenti, principali interlocutori, pagamenti ricorrenti, movimenti registrati e in sospeso con il record originale. **Copia separata**: si aggiorna solo con «Leggi dalla banca» (conta come una delle 4 letture giornaliere) e non entra in Panoramica, Movimenti né Statistiche.
 - `ENABLE_BANKING_API` cambia l'indirizzo dell'API, e `scripts/banca-finta.mjs` simula due banche per provare l'app senza toccare quelle vere. **`npm run demo:banche`** avvia banca finta e app di prova (porta 4871, password `demo-banche`, dati inventati) per provare la scheda Banche anche quando il server non è aggiornato.

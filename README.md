@@ -40,6 +40,8 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   ricostruito dal saldo attuale), **quali campi la banca fornisce davvero e in quanti movimenti**, i principali interlocutori, i pagamenti
   ricorrenti riconosciuti e tutti i movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga). **Leggi dalla banca**
   aggiorna la copia; conta come una delle 4 letture giornaliere concesse dalle banche (oltre a quella della lettura automatica all'apertura).
+  I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
+  altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
 - **Documenti.** **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
@@ -138,7 +140,8 @@ non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi p
 
 **Demo della scheda Banche.** `npm run demo:banche` avvia la banca finta e un'app di prova su `http://localhost:4871` (password `demo-banche`) con dati inventati,
 in un database a parte (`data/demo-banche`): serve a provare la scheda anche quando il server vero non ha ancora la versione nuova. UniCredit parte già
-letto, Revolut no, per provare «Leggi dalla banca». Non tocca il localhost collegato al server né i tuoi dati; Ctrl+C ferma tutto.
+letto, Revolut no, per provare «Leggi dalla banca». Non tocca il localhost collegato al server né i tuoi dati. Va lanciata **in un terminale che resta aperto**: finché il comando gira la demo risponde,
+Ctrl+C (o chiudere il terminale) la ferma; lanciata come processo di sfondo di uno strumento si interrompe da sola dopo un po'.
 
 **Prove senza banca vera, a mano.** `node scripts/banca-finta.mjs` avvia una banca finta (due conti con campi diversi, come nelle banche vere: uno in stile
 UniCredit, uno in stile Revolut). Poi avvia l'app con `ENABLE_BANKING_API=http://127.0.0.1:4890` (variabile d'ambiente, non nel `.env` del server vero)
@@ -150,7 +153,8 @@ e collega nel database di prova conti con `uid` `unicredit-1` e `revolut-1`. Il 
 tramite Enable Banking, in quattro fasi, ognuna da confermare prima della successiva:
 1. **Browser** — *fatto, da provare con i dati veri*: la scheda **Banche** (vedi «Le schede»). I dati originali si tengono in una copia separata
    sul server (`db.banking.snapshots`), che nessun'altra parte dell'app legge, e si aggiornano solo premendo **Leggi dalla banca**.
-   Per provarla senza toccare le banche vere c'è `scripts/banca-finta.mjs` (vedi sotto).
+   Per provarla con i dati veri: aggiorna il server, poi **Banche → Leggi dalla banca** per ogni banca. Per provarla senza toccare le banche vere
+   c'è `npm run demo:banche` (vedi sopra).
 2. **Decidere** insieme come gestire le informazioni (quali tenere, come abbinarle ai movimenti e alla Panoramica). Finché non si decide, i dati
    letti dalle banche per questa scheda **non si mescolano** a quelli dell'app.
 3. **Telefono**: portare la stessa interfaccia nell'app Android.
@@ -191,7 +195,8 @@ curl -O https://raw.githubusercontent.com/jstPlink/Bilancio/main/docker-compose.
 docker compose up -d                        # http://<ip-server>:4870
 ```
 
-Per aggiornare: `docker compose pull && docker compose up -d`.
+Per aggiornare: `docker compose pull && docker compose up -d`. Dopo un push o un nuovo tag GitHub costruisce l'immagine: attendi qualche minuto (la scheda
+*Actions* del repository mostra quando ha finito) prima di fare il `pull`, altrimenti scarichi ancora la versione precedente. I dati in `./data` non cambiano.
 Se il download dell'immagine risponde "denied" o "unauthorized", il pacchetto è ancora privato: su GitHub apri
 *Packages → bilancio → Package settings → Change visibility → Public* (si fa una volta sola dopo il primo build).
 
