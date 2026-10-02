@@ -2,6 +2,18 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.26.0
+- **Tabella principale compatta**: solo Mese, Entrate, Uscite e Bilancio (prima "Saldo"). Le Uscite si aprono con un clic nelle loro voci (bollette, affitto, prestito, spesa, svago, carburante, donazioni, tasse) e le Bollette, a loro volta, in quelle di ogni casa. Nella vista chiusa, sotto le uscite del mese compare quante voci restano da pagare.
+- **Celle pagato / da pagare ridisegnate**: riquadro arrotondato con sfondo tenue, bordo morbido e barretta laterale (verde o rossa), senza icone.
+- **Anno a tendina** al posto dei pulsanti.
+- **Movimenti accorpa la suddivisione delle spese**: riquadri per categoria cliccabili (filtrano i movimenti), filtri anno e mese, ricerca, e due viste: "Movimenti" e "Per descrizione" (le tabelle raggruppate della vecchia scheda Banca, ora con la media e un link "cerca").
+- **Più informazioni su ogni pagamento**: sotto la descrizione compaiono giorno e ora, metodo (carta, bonifico, prelievo…), commissione, valuta e testo della banca. Cliccando la riga si aprono i dettagli completi: saldo dopo il pagamento, conto, categoria (automatica o scelta), file di origine, gli altri pagamenti con la stessa descrizione (quante volte, totale, media, date) e i link per cercarla su Google e su Maps. L'app ora conserva anche questi dati dall'estratto conto Revolut (orario, tipo, commissione, valuta, saldo); i movimenti già salvati si completano da soli alla prossima lettura degli estratti, senza toccare le categorie.
+- **"Banca" diventa "Statistiche"** e contiene solo i grafici e la tabella mese per mese.
+- Tolti la descrizione sotto il nome dell'app e il testo sotto la tabella della panoramica.
+- **Crispiano comprimibile** anche nella nuova tabella compatta: dentro Bollette, la colonna "Crispiano" si apre e si chiude (chiusa mostra un solo totale con lo stato pagato di tutte le sue voci).
+- **Vista per telefono**: la tabella principale diventa un elenco di schede mensili, i filtri e le tabelle dei movimenti si adattano allo schermo stretto e i pulsanti sono più grandi.
+- **Localhost collegato al server**: con `BILANCIO_SERVER` le pagine sono quelle di questa cartella (si vedono subito le modifiche) e solo dati e login passano dal server, che prima rispondeva anche con le pagine della sua versione. La versione mostrata è quella locale. La documentazione dice che il localhost deve sempre puntare al server.
+
 ## 0.25.0
 - **Crispiano comprimibile** dentro Bollette: con Bollette aperta compare una colonna "Crispiano" con il suo pulsante apri/chiudi. Chiusa, mostra un solo totale (luce + gas di Crispiano, con lo stato pagato di tutte le voci insieme); aperta, mostra Luce e Gas di Crispiano separati, ognuno con il suo documento. Le voci di Crispiano sono ora raggruppate dopo quelle di Budrio. Lo stato viene ricordato.
 

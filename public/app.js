@@ -74,8 +74,8 @@ async function loadGrid() {
 }
 
 function renderYears() {
-  $('#years').innerHTML = state.grid.years
-    .map((y) => `<button data-year="${y}" aria-pressed="${y === state.year}">${y}</button>`).join('');
+  $('#yearSelect').innerHTML = state.grid.years
+    .map((y) => `<option value="${y}" ${y === state.year ? 'selected' : ''}>${y}</option>`).join('');
 }
 
 function renderCards() {
@@ -87,8 +87,8 @@ function renderCards() {
       ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
       : card('Da pagare', money(0), 'Tutto pagato', 'due'),
     card(`Entrate medie ${state.year}`, money(s.avgIncome) || '—'),
-    card('Spese medie al mese', money(s.avgSpent) || '—'),
-    card('Risparmio medio al mese', money(s.avgBalance) || '—'),
+    card('Uscite medie al mese', money(s.avgSpent) || '—'),
+    card('Bilancio medio al mese', money(s.avgBalance) || '—'),
   ].join('');
 }
 
@@ -108,7 +108,7 @@ const GROUPS = [
 ];
 let savedOpen = {};
 try { savedOpen = JSON.parse(localStorage.getItem('gridOpen') ?? '{}'); } catch { /* storage non disponibile */ }
-state.open = { bollette: false, crispiano: true, ...savedOpen };
+state.open = { uscite: false, bollette: false, crispiano: true, ...savedOpen };
 const saveOpen = () => { try { localStorage.setItem('gridOpen', JSON.stringify(state.open)); } catch { /* storage non disponibile */ } };
 
 const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
@@ -125,16 +125,18 @@ function sumCells(cells) {
   };
 }
 
-// Le colonne visibili, in base ai gruppi aperti. Ogni colonna sa dare la cella di un mese.
+// Le colonne visibili. Vista compatta: mese, entrate, uscite, bilancio. "Uscite" si apre nelle sue voci
+// e, dentro, "Bollette" si apre in quelle di ogni casa. Ogni colonna sa dare la cella di un mese.
 function buildColumns() {
   const { rows, columns: leaves, summary: s } = state.grid;
   const leaf = Object.fromEntries(leaves.map((c) => [c.id, c]));
   const cellOf = (id, month) => rows[month - 1].cells[id];
+  const payable = leaves.filter((l) => !NO_PAYMENT.has(l.kind)).map((l) => l.id);
   const out = [];
   const add = (col) => { out.push(col); return col; };
 
   add({
-    id: 'entrate', kind: 'entrate', label: 'Entrate', top: 'entrate', start: true, plain: true,
+    id: 'entrate', kind: 'entrate', label: 'Entrate', start: true, plain: true,
     cell: (m) => ({ amount: rows[m - 1].income }),
     tip: (m) => {
       const st = cellOf('stipendio', m).amount;
@@ -144,31 +146,44 @@ function buildColumns() {
     avg: () => s.avgIncome,
   });
 
-  GROUPS.forEach((g, gi) => {
-    const members = g.leaves.map((id) => leaf[id]);
-    const isMulti = g.leaves.length > 1;
-    const first = members[0];
-    const col = isMulti
-      ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
-      : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
-    add({ ...col, top: 'uscite', start: gi === 0, colorKey: g.id });
-    if (isMulti && state.open[g.id]) {
-      const addLeaf = (l) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], top: 'uscite', sub: true });
-      const crispiano = members.filter((l) => l.place === 'crispiano');
-      members.filter((l) => l.place !== 'crispiano').forEach(addLeaf);
-      // Le voci di Crispiano si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
-      if (g.id === 'bollette' && crispiano.length) {
-        const ids = crispiano.map((l) => l.id);
-        add({
-          id: 'g:crispiano', kind: 'bollette', label: 'Crispiano', place: null, colorKey: 'bollette', top: 'uscite', sub: true,
-          cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids, toggle: 'crispiano', isOpen: state.open.crispiano,
-        });
-        if (state.open.crispiano) crispiano.forEach(addLeaf);
-      }
-    }
+  // Il totale delle uscite del mese, con il numero di voci ancora da pagare.
+  add({
+    id: 'uscite', kind: 'uscite', label: 'Uscite', start: true, plain: true, total: true,
+    toggle: 'uscite', isOpen: state.open.uscite, leafIds: payable,
+    cell: (m) => {
+      const parts = payable.flatMap((id) => cellOf(id, m).parts);
+      return { amount: rows[m - 1].spent, parts, due: parts.filter((p) => !p.paid).length };
+    },
+    avg: () => s.avgSpent,
   });
-  add({ id: 'spent', kind: 'spent', label: 'Totale spese', top: 'riepilogo', start: true, plain: true, total: true, cell: (m) => ({ amount: rows[m - 1].spent }), avg: () => s.avgSpent });
-  add({ id: 'balance', kind: 'balance', label: 'Saldo', top: 'riepilogo', plain: true, total: true, balance: true, cell: (m) => ({ amount: rows[m - 1].balance }), avg: () => s.avgBalance });
+
+  if (state.open.uscite) {
+    GROUPS.forEach((g) => {
+      const members = g.leaves.map((id) => leaf[id]);
+      const isMulti = g.leaves.length > 1;
+      const first = members[0];
+      const col = isMulti
+        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
+        : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
+      add({ ...col, sub: true, depth: 1, colorKey: g.id });
+      if (isMulti && state.open[g.id]) {
+        const addLeaf = (l, depth = 2) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], sub: true, depth });
+        const crispiano = members.filter((l) => l.place === 'crispiano');
+        members.filter((l) => l.place !== 'crispiano').forEach((l) => addLeaf(l));
+        // Le voci di Crispiano si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
+        if (g.id === 'bollette' && crispiano.length) {
+          const ids = crispiano.map((l) => l.id);
+          add({
+            id: 'g:crispiano', kind: 'bollette', label: 'Crispiano', place: null, colorKey: 'bollette', sub: true, depth: 2,
+            cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids, toggle: 'crispiano', isOpen: state.open.crispiano,
+          });
+          if (state.open.crispiano) crispiano.forEach((l) => addLeaf(l, 3));
+        }
+      }
+    });
+  }
+
+  add({ id: 'balance', kind: 'balance', label: 'Bilancio', start: true, plain: true, total: true, balance: true, cell: (m) => ({ amount: rows[m - 1].balance }), avg: () => s.avgBalance });
 
   // Medie e importi da pagare (somma delle voci del gruppo).
   for (const col of out) {
@@ -187,7 +202,9 @@ function cellHtml(col, month, c) {
   if (col.plain) {
     if (c.amount == null) return '<div class="static blank"><span class="num">–</span></div>';
     const tone = col.balance ? (c.amount >= 0 ? 'pos' : 'neg') : '';
-    return `<div class="static ${tone}" ${col.tip ? `title="${esc(col.tip(month))}"` : ''}><span class="num">${money(c.amount)}</span></div>`;
+    const dueHint = c.due ? `<small class="duehint">${c.due} da pagare</small>` : '';
+    const tip = col.tip ? col.tip(month) : (c.due ? `${c.due} da pagare` : '');
+    return `<div class="static ${tone}${dueHint ? ' has-sub' : ''}" ${tip ? `title="${esc(tip)}"` : ''}><span class="num">${money(c.amount)}</span>${dueHint}</div>`;
   }
   if (SPENDING.has(kind)) {
     return `<input class="expense-input" inputmode="decimal" data-kind="${kind}" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
@@ -226,27 +243,31 @@ async function saveExpense(input) {
   await loadGrid();
 }
 
-// Quattro gruppi: mese, entrate, uscite (comprimibili) e riepilogo. Uno spazio ben visibile li separa.
+// Vista compatta: Mese, Entrate, Uscite, Bilancio. Le uscite si aprono nelle loro voci; uno spazio ben visibile separa i blocchi.
 function renderGrid() {
   const { rows } = state.grid;
   const cols = buildColumns();
   state.colMap = Object.fromEntries(cols.map((c) => [c.id, c]));
   const dot = (c) => (c.plain && c.kind !== 'entrate' && c.kind !== 'uscite' ? '' : `<span class="dot" style="background:var(--${c.colorKey ?? c.kind})"></span>`);
+  const cls = (c) => [c.start && 'gstart', c.sub && `subcol d${c.depth}`, c.total && 'total'].filter(Boolean).join(' ');
   const head = cols.map((c) => {
     const sub = c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : '';
     const name = `${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}`;
     if (c.toggle) {
-      return `<th class="toggle-th ${c.start ? 'gstart' : ''}"><button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Clic per chiudere' : 'Clic per aprire'} le voci di ${esc(c.label)}"><span class="chev">${c.isOpen ? "▾" : "▸"}</span><span class="tname">${name}</span><small class="toggle-hint">${c.isOpen ? 'chiudi' : 'apri'}</small></button></th>`;
+      return `<th class="toggle-th ${cls(c)}"><button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Clic per chiudere' : 'Clic per aprire'} le voci di ${esc(c.label)}"><span class="chev">${c.isOpen ? '▾' : '▸'}</span><span class="tname">${name}</span><small class="toggle-hint">${c.isOpen ? 'chiudi' : 'apri'}</small></button></th>`;
     }
-    return `<th class="${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}">${name}</th>`;
+    return `<th class="${cls(c)}">${name}</th>`;
   }).join('');
-  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
+  // Ogni cella porta il nome della sua colonna: sul telefono la tabella diventa un elenco di schede e le etichette sostituiscono l'intestazione.
+  const label = (c) => `data-label="${esc(colName(c))}"`;
+  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
-    <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${money(c.average) || '–'}</td>`).join('')}</tr>
-    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${c.start ? 'gstart' : ''}${c.sub ? ' subcol' : ''}${c.total ? ' total' : ''}">${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
-  const usciteCols = cols.filter((c) => c.top === 'uscite').length;
-  const groups = `<tr class="groups"><th class="g-month">Mese</th><th class="gstart g-income">Entrate</th><th class="gstart g-spend" colspan="${usciteCols}">Uscite</th><th class="gstart g-sum" colspan="2">Riepilogo</th></tr>`;
-  $('#grid').innerHTML = `<thead>${groups}<tr><th class="g-month"></th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+    <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${money(c.average) || '–'}</td>`).join('')}</tr>
+    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
+  $('#grid').innerHTML = `<thead><tr><th class="g-month">Mese</th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
+  // Pulsanti per aprire e chiudere le sezioni: servono sul telefono, dove l'intestazione non si vede.
+  const tools = cols.filter((c) => c.toggle).map((c) => `<button class="chip${c.isOpen ? ' on' : ''}" data-toggle="${c.toggle}" aria-pressed="${Boolean(c.isOpen)}">${c.isOpen ? '▾' : '▸'} ${esc(c.label)}</button>`).join('');
+  $('#gridTools').innerHTML = tools ? `<span class="muted">Dettaglio</span>${tools}` : '';
 }
 
 // Il riquadro "Da pagare": salda in un colpo tutto ciò che è ancora da pagare, di tutti gli anni e di tutte le case.
@@ -306,7 +327,7 @@ function setSort(spec) {
   const s = sorting[scope];
   if (s.key === key) s.dir = s.dir === 'asc' ? 'desc' : 'asc';
   else { s.key = key; s.dir = TEXT_KEYS.has(key) ? 'asc' : 'desc'; }
-  if (scope === 'moves') renderMoves(); else renderAnalysis();
+  renderMoves();
 }
 
 const categorySelect = (attr, id, current, label, positive = false) => {
@@ -315,37 +336,45 @@ const categorySelect = (attr, id, current, label, positive = false) => {
   return `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${options.map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${names[c]}</option>`).join('')}</select>`;
 };
 
-async function loadMoves() {
-  state.moves = (await api(`/api/transactions?year=${state.year}`)).transactions;
-  renderMoves();
-}
-
-function renderMoves() {
-  const list = state.moves ?? [];
-  $('#movesEmpty').hidden = list.length > 0;
-  $('#moveTable').hidden = list.length === 0;
-  const rows = sortList(list, 'moves', { date: (t) => t.date, description: (t) => t.description, amount: (t) => t.amount, category: (t) => t.category });
-  $('#moveTable').innerHTML = list.length ? `<thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${
-    rows.map((t) => `<tr><td>${fmtDate(t.date)}</td><td class="fname" title="${esc(t.description)}">${esc(t.description)}</td><td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td><td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>`).join('')}</tbody>` : '';
-}
-
-// ------------------------------------------------------------------ banca
-
 const CURRENT_YEAR = new Date().getFullYear();
-state.bank = { year: CURRENT_YEAR, month: 0, data: null };
+// Periodo e filtri condivisi da Movimenti e Statistiche.
+state.bank = { year: CURRENT_YEAR, month: 0, data: null, cat: '', q: '', view: 'moves', open: new Set() };
+state.moves = [];
 
-async function loadAnalysis() {
+// Carica movimenti e analisi del periodo scelto e ridisegna la scheda visibile.
+async function loadBank() {
   const { year, month } = state.bank;
-  state.bank.data = await api(`/api/analysis?year=${year}&month=${month}`);
-  renderAnalysis();
+  const [tx, analysis] = await Promise.all([
+    api(`/api/transactions?year=${year}`),
+    api(`/api/analysis?year=${year}&month=${month}`),
+  ]);
+  state.moves = tx.transactions;
+  state.bank.data = analysis;
+  renderBank();
+}
+const loadMoves = loadBank;
+const loadAnalysis = loadBank;
+
+function renderBank() {
+  renderFilters();
+  if (!$('#moves').hidden) renderMoves();
+  if (!$('#analysis').hidden) renderAnalysis();
 }
 
 function renderFilters() {
-  const { data, year, month } = state.bank;
+  const { data, year, month, cat, q } = state.bank;
   const years = [...new Set([...(data?.years ?? []), ...(year ? [year] : [])])].sort((a, b) => b - a);
-  $('#bankYear').innerHTML = `<option value="0">Tutti gli anni</option>${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}`;
-  $('#bankMonth').innerHTML = `<option value="0">Tutti i mesi</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
-  $('#bankReset').hidden = year === CURRENT_YEAR && !month;
+  const yearOptions = `<option value="0">Tutti gli anni</option>${years.map((y) => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}`;
+  const monthOptions = `<option value="0">Tutti i mesi</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
+  document.querySelectorAll('.f-year').forEach((el) => { el.innerHTML = yearOptions; });
+  document.querySelectorAll('.f-month').forEach((el) => { el.innerHTML = monthOptions; });
+  document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q; });
+}
+
+function resetBank() {
+  Object.assign(state.bank, { year: CURRENT_YEAR, month: 0, cat: '', q: '' });
+  $('#moveSearch').value = '';
+  loadBank().catch((err) => toast(err.message));
 }
 
 function periodLabel() {
@@ -365,32 +394,182 @@ function shortName(name) {
   return name.length > 54 ? `${name.slice(0, 52)}…` : name;
 }
 
+// ------------------------------------------------------- informazioni su un movimento
+
+const TYPE_LABELS = { CARD_PAYMENT: 'Carta', TRANSFER: 'Bonifico', ATM: 'Prelievo', DIRECT_DEBIT: 'Addebito diretto', TOPUP: 'Ricarica', FEE: 'Commissione', EXCHANGE: 'Cambio valuta', CARD_REFUND: 'Rimborso carta', REFUND: 'Rimborso' };
+
+// Come è stato pagato: dal tipo dell'estratto (Revolut) oppure, se manca, dalle parole della descrizione.
+function methodOf(t) {
+  if (t.type) return TYPE_LABELS[t.type] ?? t.type.toLowerCase().replace(/_/g, ' ');
+  const text = `${t.description} ${t.detail ?? ''}`;
+  if (/bonifico/i.test(text)) return 'Bonifico';
+  if (/sepa dd|\bsdd\b|addebito/i.test(text)) return 'Addebito diretto';
+  if (/prelievo|bancomat|\batm\b/i.test(text)) return 'Prelievo';
+  if (/pagamento (pos|carta)|\bpos\b|carta/i.test(text)) return 'Carta';
+  return '';
+}
+
+const dayOf = (date) => new Date(`${date}T12:00:00`);
+const weekday = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long' });
+const longDate = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const normText = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
+const sameKey = (t) => (t.amount > 0 ? 'in:' : '') + (normText(t.description) || t.description);
+const searchUrl = (t) => `https://www.google.com/search?q=${encodeURIComponent(t.description)}`;
+const mapsUrl = (t) => `https://www.google.com/maps/search/${encodeURIComponent(t.description)}`;
+const catName = (c) => CATEGORY_NAME[c] ?? c;
+
+// Riga di dati sotto la descrizione: tutto ciò che aiuta a capire di che pagamento si tratta.
+function metaLine(t) {
+  const bits = [methodOf(t), t.fee ? `commissione ${money(t.fee)}` : '', t.currency ? `in ${t.currency}` : '', t.detail ? t.detail.replace(/\s+/g, ' ').slice(0, 90) + (t.detail.length > 90 ? '…' : '') : ''].filter(Boolean);
+  return bits.length ? `<small class="meta">${bits.map(esc).join(' · ')}</small>` : '';
+}
+
+function detailRow(t, similarByKey) {
+  const same = similarByKey.get(sameKey(t)) ?? [t];
+  const total = same.reduce((a, x) => a + Math.abs(x.amount), 0);
+  const dates = same.map((x) => x.date).sort();
+  const others = [...same].filter((x) => x.id !== t.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  const fact = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : '');
+  const when = `${esc(longDate(t.date))}${t.time ? `, ore ${t.time}` : ''}${t.started ? ` <small class="muted">(iniziato il ${fmtDate(t.started)})</small>` : ''}`;
+  const origin = t.category === 'bollette' && t.matchedDoc ? `Bolletta già contata: ${esc(t.matchedDoc)}` : '';
+  return `<tr class="mvdetail"><td colspan="4"><div class="detailgrid">
+    <dl class="facts">
+      ${fact('Quando', when)}
+      ${fact('Come', esc(methodOf(t)) + (t.type && TYPE_LABELS[t.type] ? ` <small class="muted">(${esc(t.type)})</small>` : ''))}
+      ${fact('Importo', money(t.amount))}
+      ${fact('Commissione', t.fee ? money(t.fee) : '')}
+      ${fact('Valuta', esc(t.currency))}
+      ${fact('Saldo dopo', t.balance != null ? money(t.balance) : '')}
+      ${fact('Conto', esc(t.product))}
+      ${fact('Categoria', `${esc(catName(t.category))} <small class="muted">· ${t.manual ? 'scelta da te' : 'assegnata in automatico'}</small>`)}
+      ${fact('Documento', origin)}
+      ${fact('Dettaglio', t.detail ? `<span class="rawdetail">${esc(t.detail)}</span>` : '')}
+      ${fact('File', esc(t.file))}
+    </dl>
+    <div class="similar">
+      <h4>Stessa descrizione</h4>
+      <p>${same.length === 1 ? 'È l’unico movimento con questo nome.' : `${same.length} movimenti, ${money(total)} in tutto, ${money(total / same.length)} in media.<br>Dal ${fmtDate(dates[0])} al ${fmtDate(dates.at(-1))}.`}</p>
+      ${others.length ? `<ul>${others.map((x) => `<li>${fmtDate(x.date)}${x.time ? ` ${x.time}` : ''} <span class="num">${x.amount > 0 ? '+' : ''}${money(x.amount)}</span></li>`).join('')}</ul>` : ''}
+      <p class="links"><a href="${searchUrl(t)}" target="_blank" rel="noopener noreferrer" title="Apre una ricerca web con questa descrizione">Cerca su Google</a> · <a href="${mapsUrl(t)}" target="_blank" rel="noopener noreferrer" title="Apre Google Maps con questa descrizione">Su Maps</a></p>
+    </div>
+  </div></td></tr>`;
+}
+
+// ------------------------------------------------------------------ scheda Movimenti
+
+function filteredMoves() {
+  const { month, cat, q } = state.bank;
+  const needle = q.trim().toLowerCase();
+  return state.moves.filter((t) => {
+    if (month && Number(t.date.slice(5, 7)) !== month) return false;
+    if (cat && t.category !== cat) return false;
+    if (!needle) return true;
+    return `${t.description} ${t.detail ?? ''} ${methodOf(t)} ${t.amount} ${money(t.amount)} ${fmtDate(t.date)} ${catName(t.category)}`.toLowerCase().includes(needle);
+  });
+}
+
+function toggleExpand(id) {
+  const open = state.bank.open;
+  if (open.has(id)) open.delete(id); else open.add(id);
+  renderMoves();
+}
+
+// Riquadri delle categorie: la suddivisione delle spese. Un clic filtra i movimenti di quella categoria.
+function categoryCards(a) {
+  const card = (c, { muted = false, name = catName(c.category), color = CATEGORY_COLOR[c.category], note = '' } = {}) => {
+    const on = state.bank.cat === c.category;
+    const share = c.share != null ? ` · ${(c.share * 100).toFixed(1).replace('.', ',')}%` : '';
+    return `<button class="card catcard${on ? ' on' : ''}${muted ? ' muted-card' : ''}" data-cat="${c.category}" aria-pressed="${on}" title="${on ? 'Clic per togliere il filtro' : 'Clic per vedere solo questi movimenti'}"><div class="k"><i class="key" style="--c:${color}"></i> ${esc(name)}${note}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti${share}</div></button>`;
+  };
+  const inflow = a.inflows.find((c) => c.category === 'entrate');
+  const hidden = a.excluded.filter((c) => c.count);
+  return [
+    ...a.categories.filter((c) => c.count || state.bank.cat === c.category).map((c) => card(c, { note: c.column ? '' : ' <small>· fuori dalla tabella</small>' })),
+    inflow?.count ? card(inflow, { name: 'Altre entrate', color: 'var(--viz-entrate)' }) : '',
+    ...hidden.map((c) => card(c, { muted: true, note: ' <small>· non conta</small>' })),
+  ].join('');
+}
+
+function renderMoves() {
+  const a = state.bank.data;
+  const view = state.bank.view;
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view));
+  const empty = !state.moves.length && !(a && (a.count || a.months?.some((m) => m.bank && Object.values(m.bank).some(Boolean))));
+  $('#movesEmpty').hidden = !empty;
+  if (empty) { $('#movesBody').innerHTML = ''; return; }
+
+  const list = filteredMoves();
+  const out = list.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const inn = list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Compresi i giroconti e le bollette già contate nei documenti, che non entrano nei totali dell'app">(${periodLabel()})</span>. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
+  const cards = a ? `<div class="cards catcards">${categoryCards(a)}</div>` : '';
+  $('#movesBody').innerHTML = cards + summary + (view === 'groups' ? groupsView(a) : movesTable(list));
+}
+
+function movesTable(list) {
+  if (!list.length) return '<div class="empty"><p>Nessun movimento con questi filtri.</p></div>';
+  const rows = sortList(list, 'moves', { date: (t) => `${t.date} ${t.time ?? ''}`, description: (t) => t.description, amount: (t) => t.amount, category: (t) => t.category });
+  const similar = new Map();
+  for (const t of state.moves) {
+    const k = sameKey(t);
+    if (!similar.has(k)) similar.set(k, []);
+    similar.get(k).push(t);
+  }
+  const body = rows.map((t) => {
+    const open = state.bank.open.has(t.id);
+    return `<tr class="mv${open ? ' open' : ''}" data-mv="${t.id}">
+      <td class="dcol"><button class="expander" data-expand="${t.id}" aria-expanded="${open}" title="${open ? 'Nascondi' : 'Mostra'} i dettagli" aria-label="Dettagli di ${esc(t.description)}">${open ? '▾' : '▸'}</button><span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(shortName(t.description))}</span>${metaLine(t)}${t.matchedDoc ? `<small class="doc">→ ${esc(t.matchedDoc)}</small>` : ''}</td>
+      <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
+      <td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>${open ? detailRow(t, similar) : ''}`;
+  }).join('');
+  return `<div class="tablewrap"><table id="moveTable"><thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// Vista "Per descrizione": i movimenti raggruppati per categoria e, dentro, per descrizione uguale.
+function groupsView(a) {
+  if (!a) return '';
+  const { cat, q } = state.bank;
+  const needle = q.trim().toLowerCase();
+  const table = (c, positive = false) => {
+    if (cat && c.category !== cat) return '';
+    const merchants = c.merchants.filter((m) => !needle || m.name.toLowerCase().includes(needle));
+    if (!merchants.length) return '';
+    const rows = sortList(merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
+    const key = `${positive ? 'in-' : ''}${c.category}`;
+    const keepOpen = Boolean(document.querySelector(`#movesBody details[data-cat="${key}"][open]`));
+    const open = cat === c.category || keepOpen || (!cat && ((!positive && c.category === 'altro') || (positive && c.category === 'entrate')));
+    const title = positive
+      ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate non riconosciute (non contate)')
+      : ({ giroconti: 'Giroconti (soldi tra i miei conti, non contati in nessun dato)', bollette: 'Bollette già contate nei documenti (addebiti abbinati, non contati due volte)', sospesi: 'Da suddividere (es. addebiti PayPal: non contati finché non li dividi)' }[c.category] ?? catName(c.category));
+    const color = positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category];
+    return `<details class="acat" data-cat="${key}" ${open ? 'open' : ''}>
+      <summary><i class="key" style="--c:${color}"></i> ${esc(title)} <span class="muted">· ${merchants.length} descrizioni · ${money(c.total)}</span></summary>
+      <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}<th class="num">Media</th>${sortHead('bank', 'last', 'Ultimo')}<th>Categoria</th></tr></thead><tbody>${
+        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(shortName(m.name))}${m.doc ? `<small class="doc">→ ${esc(m.doc)}</small>` : ''} <a class="weblink" href="${searchUrl({ description: m.name })}" target="_blank" rel="noopener noreferrer" title="Cerca su Google">cerca</a></td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td class="num">${money(m.total / m.count)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, m.positive ?? positive)}</td></tr>`).join('')}</tbody></table></div>
+    </details>`;
+  };
+  return [...a.categories.map((c) => table(c)), ...a.inflows.filter((c) => c.count).map((c) => table(c, true)), ...a.excluded.filter((c) => c.count).map((c) => table(c))].join('')
+    || '<div class="empty"><p>Nessuna descrizione con questi filtri.</p></div>';
+}
+
+// ---------------------------------------------------------------- scheda Statistiche
+
 function renderAnalysis() {
   const a = state.bank.data;
   if (!a) return;
-  renderFilters();
   $('#analysisEmpty').hidden = a.count > 0 || a.months.length > 0;
   if (a.count === 0 && a.months.length === 0) { $('#analysisBody').innerHTML = ''; return; }
 
   const cats = a.categories;
   const top = cats.flatMap((c) => c.merchants.map((m) => ({ ...m, cat: c.category }))).sort((x, y) => y.total - x.total).slice(0, 10);
-  const table = (c, positive = false) => {
-    const rows = sortList(c.merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
-    return `<details class="acat" data-cat="${positive ? 'in-' : ''}${c.category}" ${(!positive && c.category === 'altro') || (positive && c.category === 'entrate') || document.querySelector(`#analysisBody details[data-cat="${positive ? 'in-' : ''}${c.category}"][open]`) ? 'open' : ''}>
-      <summary><i class="key" style="--c:${positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category]}"></i> ${positive ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate non riconosciute (non contate)') : (c.category === 'giroconti' ? 'Giroconti (soldi tra i miei conti, non contati in nessun dato)' : c.category === 'bollette' ? 'Bollette già contate nei documenti (addebiti abbinati, non contati due volte)' : c.category === 'sospesi' ? 'Da suddividere (es. addebiti PayPal: non contati finché non li dividi)' : CATEGORY_NAME[c.category])} <span class="muted">· ${c.merchants.length} descrizioni · ${money(c.total)}</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}${sortHead('bank', 'last', 'Data')}<th>Categoria</th></tr></thead><tbody>${
-        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(m.name)}${m.doc ? `<small class="doc">→ ${esc(m.doc)}</small>` : ''}</td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, m.positive ?? positive)}</td></tr>`).join('')}</tbody></table></div>
-    </details>`;
-  };
   const numbers = a.months.map((m) => {
     const out = m.bills + m.spesa + m.svago + m.carburante;
     return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.otherIncome) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.donazioni) || '–'}</td><td class="num">${money(m.bank.tasse) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
   }).join('');
 
   $('#analysisBody').innerHTML = `
-    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). Cambia la categoria di una descrizione dal menu: vale per tutte quelle uguali.</p>
-    <div class="cards">${cats.map((c) => `<div class="card"><div class="k"><i class="key" style="--c:${CATEGORY_COLOR[c.category]}"></i> ${CATEGORY_NAME[c.category]}${c.column ? '' : ' · fuori dalla tabella'}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti · ${(c.share * 100).toFixed(1).replace('.', ',')}%</div></div>`).join('')}</div>
-    ${(() => { const e = a.inflows.find((c) => c.category === 'entrate'); return e && e.count ? `<div class="cards"><div class="card"><div class="k"><i class="key line" style="--c:var(--viz-entrate)"></i> Altre entrate</div><div class="v">${money(e.total)}</div><div class="sub">${e.count} movimenti in entrata (oltre allo stipendio)</div></div></div>` : ''; })()}
+    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). La suddivisione per categoria e per descrizione è nella scheda Movimenti.</p>
     <section class="chartcard">
       <h3>Stipendio contro uscite</h3>
       <p class="muted">Bollette e affitto dai documenti, rata del prestito dagli estratti conto; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
@@ -410,15 +589,12 @@ function renderAnalysis() {
     </div>
     <details class="acat"><summary>Numeri mese per mese <span class="muted">· tabella dei grafici</span></summary>
       <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Altre entrate</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Donazioni</th><th class="num">Tasse</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
-    </details>
-    ${cats.map((c) => table(c)).join('')}
-    ${a.inflows.filter((c) => c.count).map((c) => table(c, true)).join('')}
-    ${a.excluded.filter((c) => c.count).map((c) => table(c)).join('')}`;
+    </details>`;
 
   const pick = (ym) => {
     state.bank.year = Number(ym.slice(0, 4));
     state.bank.month = Number(ym.slice(5));
-    loadAnalysis().catch((err) => toast(err.message));
+    loadBank().catch((err) => toast(err.message));
   };
   monthChart($('#chIncome'), a.months, {
     series: [
@@ -442,7 +618,7 @@ function renderAnalysis() {
 
 async function setCategory(select) {
   await api('/api/transactions', { method: 'PUT', body: { id: select.dataset.move ?? select.dataset.amove, category: select.value } });
-  await Promise.all([loadMoves(), loadGrid(), loadAnalysis()]);
+  await Promise.all([loadBank(), loadGrid()]);
   toast('Categoria salvata: la ricorderò per i movimenti con la stessa descrizione.');
 }
 
@@ -455,7 +631,7 @@ async function uploadStatements(files) {
     duplicates += r.duplicates;
   }
   toast(`Movimenti aggiunti: ${added}${duplicates ? ` (${duplicates} già presenti)` : ''}.`);
-  await Promise.all([loadMoves(), loadGrid(), loadAnalysis()]);
+  await Promise.all([loadBank(), loadGrid()]);
 }
 
 // ------------------------------------------------------------------ documenti
@@ -716,9 +892,11 @@ document.addEventListener('click', (e) => {
   if (!t) return;
   if (t.dataset.sort) { setSort(t.dataset.sort); return; }
   if (t.dataset.toggle) { state.open[t.dataset.toggle] = !state.open[t.dataset.toggle]; saveOpen(); renderGrid(); return; }
-  if (t.id === 'bankReset') { state.bank.year = CURRENT_YEAR; state.bank.month = 0; loadAnalysis().catch((err) => toast(err.message)); return; }
+  if (t.classList.contains('f-reset')) { resetBank(); return; }
+  if (t.dataset.view) { state.bank.view = t.dataset.view; renderMoves(); return; }
+  if (t.classList.contains('catcard')) { state.bank.cat = state.bank.cat === t.dataset.cat ? '' : t.dataset.cat; renderBank(); return; }
+  if (t.dataset.expand) { toggleExpand(t.dataset.expand); return; }
   if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
-  else if (t.dataset.year) { state.year = Number(t.dataset.year); loadGrid(); if (!$('#moves').hidden) loadMoves().catch((err) => toast(err.message)); }
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
   else if (t.dataset.tab) {
@@ -727,9 +905,8 @@ document.addEventListener('click', (e) => {
     $('#docs').hidden = t.dataset.tab !== 'docs';
     $('#moves').hidden = t.dataset.tab !== 'moves';
     $('#analysis').hidden = t.dataset.tab !== 'analysis';
-    $('#years').hidden = t.dataset.tab === 'docs' || t.dataset.tab === 'analysis';
-    if (t.dataset.tab === 'moves') loadMoves().catch((err) => toast(err.message));
-    if (t.dataset.tab === 'analysis') loadAnalysis().catch((err) => toast(err.message));
+    $('#years').hidden = t.dataset.tab !== 'overview';
+    if (t.dataset.tab === 'moves' || t.dataset.tab === 'analysis') loadBank().catch((err) => toast(err.message));
   }
 });
 // Clic (o Spazio/Invio) su una cella: pagato / da pagare. A sinistra, il link apre invece il documento.
@@ -745,12 +922,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
 });
 document.addEventListener('change', (e) => {
-  if (e.target.id === 'bankYear' || e.target.id === 'bankMonth') {
-    state.bank.year = Number($('#bankYear').value);
-    state.bank.month = Number($('#bankMonth').value);
-    loadAnalysis().catch((err) => toast(err.message));
+  if (e.target.classList.contains('f-year') || e.target.classList.contains('f-month')) {
+    const bar = e.target.closest('.bankbar');
+    state.bank.year = Number(bar.querySelector('.f-year').value);
+    state.bank.month = Number(bar.querySelector('.f-month').value);
+    loadBank().catch((err) => toast(err.message));
     return;
   }
+  if (e.target.id === 'yearSelect') { state.year = Number(e.target.value); loadGrid().catch((err) => toast(err.message)); return; }
   if (e.target.dataset.move || e.target.dataset.amove) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
@@ -759,12 +938,26 @@ $('#statementFile').addEventListener('change', (e) => {
   e.target.value = '';
   if (files.length) uploadStatements(files).catch((err) => toast(err.message, 8000));
 });
+let searchTimer;
+$('#moveSearch').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { state.bank.q = e.target.value; renderBank(); }, 150);
+});
+// Clic su una riga dei movimenti: mostra o nasconde i dettagli (non quando si usa il menu o un link).
+$('#movesBody').addEventListener('click', (e) => {
+  const row = e.target.closest('tr.mv');
+  if (!row || e.target.closest('select, a, button')) return;
+  toggleExpand(row.dataset.mv);
+});
 $('#refreshBtn').addEventListener('click', (e) => doRefresh(e.shiftKey));
 $('#refreshBtn').title = 'Rilegge i documenti nuovi o modificati (Maiusc+clic: rilegge tutto)';
 $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => toast(err.message)));
 
-api('/api/version').then(({ version, protected: hasPassword }) => {
-  $('#version').textContent = `v${version}`;
+api('/api/version').then(({ version, serverVersion, protected: hasPassword }) => {
+  // In localhost collegato al server: pagine locali, dati del server.
+  const local = serverVersion !== undefined;
+  $('#version').textContent = `v${version}${local ? ' · locale' : ''}`;
+  if (local) $('#version').title = `Pagine di questa cartella (v${version}) con i dati del server${serverVersion ? ` (v${serverVersion})` : ''}`;
   $('#logoutBtn').hidden = !hasPassword;
 }).catch(() => {});
 $('#logoutBtn').addEventListener('click', async () => {

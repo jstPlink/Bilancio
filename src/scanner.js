@@ -3,7 +3,7 @@ import { openPdf } from './pdf.js';
 import { parseDocument } from './parsers.js';
 import { listSource } from './sources.js';
 import { createOcr } from './ocr.js';
-import { parseStatement } from './statements.js';
+import { parseStatement, addOrEnrich } from './statements.js';
 import { parsePdfStatement } from './pdfstatements.js';
 
 const SOURCES = [
@@ -36,7 +36,7 @@ async function inParallel(items, limit, fn) {
 // Un PDF già letto e non modificato viene saltato, a meno di `force`.
 // Estratti conto (PDF UniCredit e Revolut, oppure CSV) dalla cartella/link configurato: solo file nuovi o modificati, movimenti senza duplicati.
 // Versione del lettore: quando cambia (es. ora legge anche le entrate) gli estratti conto si rileggono una volta.
-const STATEMENT_PARSER = 2;
+const STATEMENT_PARSER = 3;
 
 async function readStatements(db, report, force) {
   const value = db.settings.statementsSource;
@@ -62,7 +62,7 @@ async function readStatements(db, report, force) {
         } else {
           items = parseStatement((await file.read()).toString('utf8'), db.rules);
         }
-        for (const t of items) if (!db.transactions[t.id]) { db.transactions[t.id] = { ...t, file: file.name }; report.transactions++; }
+        for (const t of items) if (addOrEnrich(db.transactions, t, file.name) === 'added') report.transactions++;
         db.statementFiles[file.key] = file.version;
       } catch (e) {
         report.errors.push({ source: file.name, message: e.message });

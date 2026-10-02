@@ -42,17 +42,18 @@ after(async () => {
   for (const d of dirs) await fs.rm(d, { recursive: true, force: true }).catch(() => {});
 });
 
-test('il localhost inoltra al server: stessa versione, stesse pagine, stesso login', async () => {
+test('il localhost serve le pagine di questa cartella e inoltra al server dati e login', async () => {
   const a = await (await fetch(`${server}/api/version`)).json();
   const b = await (await fetch(`${local}/api/version`)).json();
-  assert.deepEqual(b, a);
+  const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(b.version, pkg.version); // la versione mostrata è quella del codice locale…
+  assert.equal(b.serverVersion, a.version); // …e quella del server si legge a parte
   assert.equal(b.protected, true);
 
-  // i dati sono chiusi anche dal localhost, e le pagine rimandano al login del server
+  // le pagine sono quelle locali (si vedono subito le modifiche), i dati restano chiusi finché non si fa il login sul server
   assert.equal((await fetch(`${local}/api/grid?year=2026`)).status, 401);
-  const home = await fetch(`${local}/`, { redirect: 'manual', headers: { Accept: 'text/html' } });
-  assert.equal(home.status, 302);
-  assert.equal(home.headers.get('location'), '/login');
+  assert.equal(await (await fetch(`${local}/app.js`)).text(), await fs.readFile(path.join(root, 'public', 'app.js'), 'utf8'));
+  assert.match(await (await fetch(`${local}/`)).text(), /<title>Bilancio<\/title>/);
   assert.match(await (await fetch(`${local}/login`)).text(), /Password/);
 
   // il login passa dal localhost con il corpo JSON e restituisce un cookie utilizzabile
@@ -76,5 +77,6 @@ test('in locale non viene creato nessun database, e se il server è spento si ca
   const res = await fetch(`${local}/api/grid?year=2026`);
   assert.equal(res.status, 502);
   assert.match((await res.json()).error, /non risponde/);
-  assert.equal((await fetch(`${local}/`, { headers: { Accept: 'text/html' } })).status, 502);
+  // la pagina si apre comunque (è locale) e mostrerà il messaggio d'errore dei dati
+  assert.equal((await fetch(`${local}/`, { headers: { Accept: 'text/html' } })).status, 200);
 });

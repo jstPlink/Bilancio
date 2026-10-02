@@ -30,9 +30,10 @@ npm test
 
 Indica il link (Seafile pubblico o cartella locale) dei CSV nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
 oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Le uscite si categorizzano (vedi sotto); le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate** nei grafici, mentre i giri tra i propri conti, le ricariche e le entrate dal datore di lavoro (già nelle buste paga) sono ignorati. Le categorie vengono assegnate da parole chiave in `src/statements.js`:
-**spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne; **giroconti** (soldi tra i propri conti), **bollette pagate** (addebiti già contati nei documenti) e **da suddividere** (es. addebiti PayPal) non contano in nessun dato; **donazioni**, **tasse** e **altro** restano fuori dalla tabella e si vedono nella scheda Banca.
-La scheda **Banca** mostra come sono smistati i movimenti (filtri per anno e mese, colonne ordinabili, grafici che incrociano stipendio, bollette e spese) e permette di correggere la categoria: l'app la
-ricorda per le descrizioni uguali. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
+**spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne; **giroconti** (soldi tra i propri conti), **bollette pagate** (addebiti già contati nei documenti) e **da suddividere** (es. addebiti PayPal) non contano in nessun dato; **donazioni**, **tasse** e **altro** restano fuori dalla tabella e si vedono nella scheda Movimenti.
+La scheda **Movimenti** mostra come sono smistati i movimenti: riquadri per categoria (un clic filtra), filtri per anno e mese, ricerca, colonne ordinabili e due viste, per movimento o per descrizione.
+Cliccando una riga si aprono i dettagli del pagamento (giorno e ora, metodo, commissione, valuta, saldo dopo, testo completo della banca, gli altri pagamenti con la stessa descrizione e un link per cercarla sul web).
+Permette anche di correggere la categoria: l'app la ricorda per le descrizioni uguali. La scheda **Statistiche** raccoglie i grafici che incrociano stipendio, bollette e spese. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
 della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`.
 
 ## Più case
@@ -120,12 +121,19 @@ qualsiasi nome e conta solo la password.
 
 ## Localhost che punta al server
 
-Per avere un solo posto con dati e password, il localhost può **inoltrare tutto al server** invece di usare un database suo. Nel
-file `.env` (copia `.env.example`) scrivi:
+**Regola: l'app lanciata in localhost deve puntare al server di casa**, non usare un database proprio. Così dati, password e documenti letti
+sono un'unica copia, quella del server, e in locale vedi esattamente i dati che hai online. Con `BILANCIO_SERVER` il localhost serve **le pagine
+di questa cartella** (HTML, JavaScript, stile: le modifiche al codice si vedono subito) e **inoltra al server i dati e il login** (tutto ciò che
+passa da `/api/`). Nel file `.env` (copia `.env.example`) scrivi:
 
 ```
 BILANCIO_SERVER=https://indirizzo-del-tuo-server
 ```
 
-Con `npm start` (o `npm run dev`) `http://localhost:4870` mostra allora l'app del server, con i suoi dati, il suo login e la sua
-password; in locale non si legge né si scrive nessun dato. Per tornare a un'app locale con database proprio, togli la riga.
+Con `npm start` (o `npm run dev`) `http://localhost:4870` mostra allora le pagine locali con i dati, il login e la password del server; in locale non si
+legge né si scrive nessun dato. Accanto al nome compare la versione locale e «locale» (passando il mouse, anche quella del server).
+Il file `.env` resta sul tuo computer (è escluso da Git): l'indirizzo del server non va scritto nel codice né in questa documentazione.
+Per tornare a un'app locale con database proprio (solo per provare), togli la riga.
+
+Le pagine nuove lavorano sui dati del server: quelle che dipendono da codice del server (per esempio nuovi campi dei movimenti, che l'estratto
+conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.

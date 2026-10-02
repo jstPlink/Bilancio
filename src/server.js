@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
 import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
-import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity } from './statements.js';
+import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity, addOrEnrich } from './statements.js';
 import { matchBillPayments } from './billmatch.js';
 import { createAuth } from './auth.js';
 import { refresh, progress } from './scanner.js';
@@ -183,7 +183,7 @@ app.post('/api/statements', async (req, res) => {
   try { items = parseStatement(req.body, db().rules); } catch (e) { return bad(res, e.message); }
   const all = (db().transactions ??= {});
   let added = 0;
-  for (const t of items) if (!all[t.id]) { all[t.id] = t; added++; }
+  for (const t of items) if (addOrEnrich(all, t) === 'added') added++;
   await store.save();
   res.json({ found: items.length, added, duplicates: items.length - added });
 });
@@ -195,7 +195,7 @@ app.get('/api/transactions', (req, res) => {
   res.json({ categories: CATEGORIES, transactions: list });
 });
 
-// Scheda Banca: come sono smistati i movimenti e come si incrociano con stipendio e bollette.
+// Schede Movimenti e Statistiche: come sono smistati i movimenti e come si incrociano con stipendio e bollette.
 // Filtri opzionali: ?year=2025&month=3 (anno e/o mese; i grafici mostrano i mesi che corrispondono).
 const BILL_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito']);
 const pad2 = (n) => String(n).padStart(2, '0');

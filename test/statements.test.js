@@ -113,3 +113,34 @@ test('gli addebiti SEPA di PayPal vanno in "da suddividere", non contano', () =>
   assert.equal(categorize('PAYPAL *NINTENDO 4029357733'), 'svago'); // un acquisto PayPal con il suo negozio si categorizza normalmente
   assert.equal(categorize('ADDEBITO SEPA DD PER FATTURA A VOSTRO CARICO Incasso 1 SDD da IT71 ENEL ENERGIA'), 'altro');
 });
+
+test('il CSV Revolut conserva orario, tipo, conto, commissione e saldo', async () => {
+  const { parseStatement: parse, addOrEnrich } = await import('../src/statements.js');
+  const csv = `Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-03-14 21:40:12,2026-03-15 08:00:00,Maracaibo,-23.50,0.50,USD,COMPLETED,120.30
+`;
+  const [t] = parse(csv);
+  assert.equal(t.description, 'Maracaibo');
+  assert.equal(t.type, 'CARD_PAYMENT');
+  assert.equal(t.time, '21:40');
+  assert.equal(t.started, '2026-03-14'); // iniziato il giorno prima di quello contabilizzato
+  assert.equal(t.fee, 0.5);
+  assert.equal(t.currency, 'USD');
+  assert.equal(t.balance, 120.3);
+  assert.equal(t.product, 'Current');
+
+  // Un movimento già salvato senza questi dati viene completato, senza toccare la categoria scelta a mano.
+  const old = { id: t.id, date: t.date, description: t.description, amount: t.amount, category: 'svago', manual: true };
+  const all = { [t.id]: old };
+  assert.equal(addOrEnrich(all, t, 'a.csv'), 'enriched');
+  assert.equal(old.time, '21:40');
+  assert.equal(old.category, 'svago');
+  assert.equal(addOrEnrich(all, t, 'a.csv'), 'same');
+  assert.equal(addOrEnrich({}, t, 'a.csv'), 'added');
+});
+
+test('senza le colonne extra i movimenti restano com\'erano', () => {
+  const [t] = parseStatement('Data;Descrizione;Importo\n05/04/2026;PAGAMENTO POS CONAD;-12,00\n');
+  assert.equal(t.time, undefined);
+  assert.equal(t.type, undefined);
+});

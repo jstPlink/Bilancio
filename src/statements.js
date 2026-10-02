@@ -130,6 +130,12 @@ export function parseStatement(text, rules = {}) {
   const iDebit = find(headers, /addebit/, /uscite/, /debit/);
   const iType = find(headers, /^type$/, /^tipo$/);
   const iState = find(headers, /^state$/, /^stato$/);
+  // Dati utili a riconoscere un pagamento: orario di inizio, conto, commissione, valuta e saldo dopo l'operazione.
+  const iStarted = find(headers, /started date/);
+  const iProduct = find(headers, /^product$/);
+  const iFee = find(headers, /^fee$/, /commission/);
+  const iCurrency = find(headers, /^currency$/);
+  const iBalance = find(headers, /^balance$/);
   if (iDate < 0 || iDesc < 0 || (iAmount < 0 && iDebit < 0)) {
     throw new Error('Colonne non riconosciute: servono data, descrizione e importo.');
   }
@@ -144,14 +150,26 @@ export function parseStatement(text, rules = {}) {
     if (!date || !description || amount == null || amount === 0) continue;
     if (iType >= 0 && skipType.test((r[iType] ?? '').trim())) continue;
     if (iState >= 0 && r[iState]?.trim() && !/^(completed|eseguit\w*|completat\w*)$/i.test(r[iState].trim())) continue;
-    out.push(makeTransaction({ date, description, amount }, rules, seen));
+    const started = iStarted >= 0 ? /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/.exec((r[iStarted] ?? '').trim()) : null;
+    const fee = iFee >= 0 ? parseAmount(r[iFee]) : null;
+    const currency = iCurrency >= 0 ? (r[iCurrency] ?? '').trim().toUpperCase() : '';
+    const extra = {
+      type: iType >= 0 ? (r[iType] ?? '').trim().toUpperCase() : '',
+      product: iProduct >= 0 ? (r[iProduct] ?? '').trim() : '',
+      time: started?.[2] ?? '',
+      started: started && started[1] !== date ? started[1] : '',
+      fee: fee ? Math.abs(fee) : null,
+      currency: currency && currency !== 'EUR' ? currency : '',
+      balance: iBalance >= 0 ? parseAmount(r[iBalance]) : null,
+    };
+    out.push(makeTransaction({ date, description, amount, extra }, rules, seen));
   }
   return out;
 }
 
 // Movimento completo con categoria. Senza `id` se ne ricava uno stabile da data, descrizione e importo
 // (le righe identiche nello stesso file si distinguono con un contatore).
-export function makeTransaction({ id, date, description, detail = '', amount }, rules, seen) {
+export function makeTransaction({ id, date, description, detail = '', amount, extra = {} }, rules, seen) {
   const rounded = Math.round(amount * 100) / 100;
   if (!id) {
     const base = `${date}|${description}|${rounded}`;
@@ -161,5 +179,19 @@ export function makeTransaction({ id, date, description, detail = '', amount }, 
   }
   const t = { id, date, description, amount: rounded, category: categorize(description, rules, detail, rounded) };
   if (detail) t.detail = detail.slice(0, 400);
+  for (const f of ENRICH_FIELDS) if (f !== 'detail' && extra[f] != null && extra[f] !== '') t[f] = extra[f];
   return t;
+}
+
+// Informazioni che si possono aggiungere a un movimento già salvato (categoria e scelte a mano non si toccano).
+export const ENRICH_FIELDS = ['type', 'product', 'time', 'started', 'fee', 'currency', 'balance', 'detail'];
+
+// Aggiunge il movimento se è nuovo; se c'è già, completa solo i dati che mancavano.
+// Restituisce 'added', 'enriched' oppure 'same'.
+export function addOrEnrich(all, t, file) {
+  const old = all[t.id];
+  if (!old) { all[t.id] = file ? { ...t, file } : t; return 'added'; }
+  let changed = false;
+  for (const f of ENRICH_FIELDS) if (t[f] != null && t[f] !== '' && old[f] == null) { old[f] = t[f]; changed = true; }
+  return changed ? 'enriched' : 'same';
 }
