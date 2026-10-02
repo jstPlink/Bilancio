@@ -5,34 +5,24 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_vertical"
-    android:paddingLeft="12dp"
-    android:paddingRight="12dp"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp"
     android:background="@drawable/widget_bg">
     <TextView
-        android:id="@+id/widget_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="Da pagare"
         android:textColor="#CCFFFFFF"
-        android:textSize="11sp"
+        android:textSize="12sp"
         android:singleLine="true" />
     <TextView
         android:id="@+id/widget_total"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="#FFFFFF"
-        android:textSize="22sp"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:singleLine="true" />
-    <TextView
-        android:id="@+id/widget_lines"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:paddingTop="6dp"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:maxLines="7"
-        android:ellipsize="end" />
 </LinearLayout>

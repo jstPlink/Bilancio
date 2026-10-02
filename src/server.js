@@ -13,7 +13,8 @@ import { parsePdfStatement } from './pdfstatements.js';
 import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
-import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, startLink, syncAll, syncConnection } from './banking.js';
+import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncAll, syncConnection } from './banking.js';
+import { buildExplore } from './bankexplorer.js';
 import { classifySource, openTarget } from './sources.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -340,12 +341,31 @@ app.post('/api/banking/sync', async (req, res) => {
   } catch (e) { await store.save(); bad(res, e.message); }
 });
 
+// Scheda «Banche»: i dati originali delle banche, in una copia separata che non entra in Panoramica, Movimenti né Statistiche.
+app.get('/api/banking/explore', (req, res) => res.json(buildExplore(db())));
+
+// Legge dalla banca (una o tutte) e aggiorna la copia. Conta come una lettura del limite giornaliero.
+app.post('/api/banking/explore/read', async (req, res) => {
+  try {
+    const client = bankClient(bankApp());
+    const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
+    if (!targets.length) return bad(res, 'Nessuna banca collegata.');
+    const errors = [];
+    for (const conn of targets) {
+      try { await readBankData({ client, db: db(), conn }); } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
+    }
+    await store.save();
+    res.json({ ...buildExplore(db()), errors });
+  } catch (e) { bad(res, e.message); }
+});
+
 app.delete('/api/banking/connections/:id', async (req, res) => {
   const b = bankingState(db());
   const conn = b.connections.find((c) => c.id === req.params.id);
   if (!conn) return res.status(404).json({ error: 'Collegamento non trovato.' });
   try { if (b.app) await bankClient(b.app).deleteSession(conn.id); } catch { /* il consenso scade comunque da solo */ }
   b.connections = b.connections.filter((c) => c !== conn);
+  delete b.snapshots?.[conn.id];
   await store.save();
   res.json(bankUi(req));
 });

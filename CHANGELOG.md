@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.30.0
+- **Scheda «Banche»** (solo schermo largo; prima fase del piano «Interfaccia sui dati delle banche collegate»): i dati originali di UniCredit e Revolut — conti con IBAN, tipo e saldi, andamento del saldo, quali campi la banca fornisce e in quanti movimenti, principali interlocutori, pagamenti ricorrenti, movimenti registrati e in sospeso con il record originale. **Copia separata**: si aggiorna solo con «Leggi dalla banca» (conta come una delle 4 letture giornaliere) e non entra in Panoramica, Movimenti né Statistiche.
+- `ENABLE_BANKING_API` cambia l'indirizzo dell'API, e `scripts/banca-finta.mjs` simula due banche per provare l'app senza toccare quelle vere. **`npm run demo:banche`** avvia banca finta e app di prova (porta 4871, password `demo-banche`, dati inventati) per provare la scheda Banche anche quando il server non è aggiornato.
+- **Widget «Da pagare»** ridotto a un blocchetto: scritta e totale ancora da pagare.
+- **Promemoria personalizzati** (Impostazioni → Promemoria, solo app Android): cosa controllare e ricorrenza (ogni giorno, settimana, mese o anno) con l'ora; si possono attivare, modificare ed eliminare. Calcolo delle ricorrenze collaudato (giorno 31 nei mesi corti, anni bisestili).
+- **Icona di notifica** con il logo dell'app in una tinta sola e il turchese dell'app.
+- Documentazione: aggiunta la sezione «Prossimi passi» con il piano per l'interfaccia sui dati delle banche collegate.
+
 ## 0.29.1
 - **Impostazioni a pagina**: freccia «indietro» in alto al posto di «Annulla» (chiede conferma se ci sono modifiche non salvate); **«Salva le modifiche» compare solo se qualcosa è cambiato**. Il tasto indietro di Android chiude il pannello aperto invece di uscire dall'app.
 - **Aggiorna** si sposta nella scheda **Documenti**, accanto a «Carica documento».

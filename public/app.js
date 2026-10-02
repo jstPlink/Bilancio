@@ -1,4 +1,5 @@
 import { monthChart, hBars, monthLong } from './charts.js';
+import { mountBanks } from './banks.js';
 
 const KINDS = [
   { id: 'stipendio', label: 'Stipendio' },
@@ -847,6 +848,7 @@ async function openSettings() {
       <small><b>Stipendio da:</b> ${esc(s.incomePayers) || '— (si impara dopo due buste paga abbinate ai bonifici)'}<br><b>I miei conti (nome):</b> ${esc(s.ownNames) || '— (si impara dai giri tra i tuoi conti)'}</small>
       <small>Se un movimento è classificato male, cambia la categoria in Movimenti: la scelta vale per tutte le descrizioni uguali.</small>
     </div></details>
+    ${window.Native?.remindersGet ? '<details class="fs" id="remBox"><summary>Promemoria</summary><div class="fsbody" id="remBody"></div></details>' : ''}
     <details class="fs" id="bkBox"><summary>Collega le banche</summary><div class="fsbody" id="bkBody"><p class="muted">Caricamento…</p></div></details>
     ${state.protected ? '<details class="fs"><summary>Account</summary><div class="fsbody"><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></div></details>' : ''}
     <p class="error" id="setErr" role="alert"></p>
@@ -859,6 +861,10 @@ async function openSettings() {
   const initial = snapshot();
   const dirty = () => snapshot() !== initial;
   const refreshFoot = () => { $('#setFoot').hidden = !dirty(); };
+  // Promemoria: i loro campi non fanno parte del «Salva» delle impostazioni (hanno un salvataggio loro) e Invio non invia il pannello.
+  form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.name?.startsWith('rem')) e.preventDefault(); });
+  form.addEventListener('change', (e) => { if (e.target.name === 'remRepeat') syncReminderEditor(); if (e.target.dataset.act === 'rem-toggle') reminderAction(e.target); });
+  if ($('#remBody')) renderReminders();
   form.addEventListener('input', refreshFoot);
   form.addEventListener('change', refreshFoot);
   const leave = () => { if (!dirty() || confirm('Hai modifiche non salvate. Uscire senza salvare?')) dlg.close(); };
@@ -867,6 +873,7 @@ async function openSettings() {
     if (e.target.closest('[data-act=close]')) leave();
     if (e.target.dataset.act === 'logout') logout();
     if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
+    if (e.target.dataset.act?.startsWith('rem-') && e.target.dataset.act !== 'rem-toggle') reminderAction(e.target);
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -888,6 +895,107 @@ async function openSettings() {
   });
   dlg.showModal();
   loadBanking().catch((err) => { $('#bkBody').innerHTML = `<p class="error">${esc(err.message)}</p>`; });
+}
+
+// ------------------------------------------------------------------- promemoria (solo app Android)
+
+const WEEKDAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+const REPEATS = { daily: 'Ogni giorno', weekly: 'Ogni settimana', monthly: 'Ogni mese', yearly: 'Ogni anno' };
+let reminders = [];
+let editingReminder = null; // promemoria in modifica (oggetto) o null
+
+const pad2 = (n) => String(n).padStart(2, '0');
+function reminderWhen(r) {
+  const time = `${pad2(r.hour)}:${pad2(r.minute)}`;
+  if (r.repeat === 'daily') return `Ogni giorno · ${time}`;
+  if (r.repeat === 'weekly') return `Ogni ${WEEKDAYS[r.day - 1].toLowerCase()} · ${time}`;
+  if (r.repeat === 'monthly') return `Ogni mese, il ${r.day} · ${time}`;
+  return `Ogni anno, il ${r.day} ${MONTHS[r.month - 1].toLowerCase()} · ${time}`;
+}
+
+function loadReminders() {
+  try { reminders = JSON.parse(window.Native.remindersGet()); } catch { reminders = []; }
+}
+
+function renderReminders() {
+  const box = $('#remBody');
+  if (!box) return;
+  loadReminders();
+  const nextText = (r) => (r.enabled && r.next ? `Prossimo: ${new Date(r.next).toLocaleString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'Disattivato');
+  const items = reminders.map((r) => `<div class="bkconn">
+    <label class="check"><input type="checkbox" data-act="rem-toggle" data-id="${esc(r.id)}" ${r.enabled ? 'checked' : ''}> <b>${esc(r.title)}</b></label>
+    <small class="muted">${esc(reminderWhen(r))} · ${esc(nextText(r))}</small>
+    <div class="foot"><button type="button" class="link" data-act="rem-edit" data-id="${esc(r.id)}">Modifica</button><button type="button" class="link danger" data-act="rem-delete" data-id="${esc(r.id)}">Elimina</button></div></div>`).join('');
+  const e = editingReminder;
+  const opt = (v, l, cur) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${l}</option>`;
+  const editor = e ? `<div class="bkconn">
+    <label>Cosa devo controllare?<input name="remTitle" value="${esc(e.title)}" placeholder="Es. Addebito del mutuo" autocomplete="off"></label>
+    <label>Ripeti<select name="remRepeat">${Object.entries(REPEATS).map(([v, l]) => opt(v, l, e.repeat)).join('')}</select></label>
+    <div class="row">
+      <label id="remWeekday">Giorno<select name="remWeekday">${WEEKDAYS.map((l, i) => opt(i + 1, l, e.day)).join('')}</select></label>
+      <label id="remMonth">Mese<select name="remMonthOf">${MONTHS.map((l, i) => opt(i + 1, l, e.month)).join('')}</select></label>
+      <label id="remDay">Giorno del mese<input name="remDay" type="number" min="1" max="31" inputmode="numeric" value="${e.day}"></label>
+      <label>Ora<input name="remTime" type="time" value="${pad2(e.hour)}:${pad2(e.minute)}"></label>
+    </div>
+    <p class="error" id="remErr" role="alert"></p>
+    <div class="foot"><button type="button" class="primary" data-act="rem-save">Salva promemoria</button><button type="button" class="link" data-act="rem-cancel">Annulla</button></div>
+  </div>` : '';
+  box.innerHTML = `<small>Ti ricorda di controllare certi pagamenti (un addebito, una rata, una scadenza) con una notifica, a una ricorrenza che scegli tu. Restano su questo telefono.</small>
+    ${items || (e ? '' : '<small class="muted">Nessun promemoria.</small>')}
+    ${editor}
+    ${e ? '' : '<div class="foot"><button type="button" class="ghost" data-act="rem-new">＋ Nuovo promemoria</button></div>'}`;
+  if (e) syncReminderEditor();
+}
+
+// Mostra solo i campi che servono alla ricorrenza scelta (giorno della settimana, del mese, mese).
+function syncReminderEditor() {
+  const rep = document.querySelector('[name=remRepeat]')?.value;
+  if (!rep) return;
+  $('#remWeekday').hidden = rep !== 'weekly';
+  $('#remMonth').hidden = rep !== 'yearly';
+  $('#remDay').hidden = !(rep === 'monthly' || rep === 'yearly');
+}
+
+function persistReminders(list) {
+  const answer = window.Native.remindersSave(JSON.stringify(list.map(({ next, ...r }) => r)));
+  if (answer !== 'ok') throw new Error(answer);
+}
+
+function reminderAction(el) {
+  const act = el.dataset.act;
+  const find = () => reminders.find((r) => r.id === el.dataset.id);
+  try {
+    if (act === 'rem-new') {
+      editingReminder = { id: crypto.randomUUID?.() ?? String(Date.now()), title: '', repeat: 'monthly', day: 1, month: 1, hour: 9, minute: 0, enabled: true };
+      renderReminders();
+    } else if (act === 'rem-edit') {
+      editingReminder = { ...find() };
+      renderReminders();
+    } else if (act === 'rem-cancel') {
+      editingReminder = null;
+      renderReminders();
+    } else if (act === 'rem-delete') {
+      if (!confirm('Eliminare questo promemoria?')) return;
+      persistReminders(reminders.filter((r) => r.id !== el.dataset.id));
+      renderReminders();
+    } else if (act === 'rem-toggle') {
+      persistReminders(reminders.map((r) => (r.id === el.dataset.id ? { ...r, enabled: el.checked } : r)));
+      renderReminders();
+    } else if (act === 'rem-save') {
+      const f = el.closest('form');
+      const [hour, minute] = (f.remTime.value || '09:00').split(':').map(Number);
+      const repeat = f.remRepeat.value;
+      const r = { ...editingReminder, title: f.remTitle.value.trim(), repeat, hour, minute };
+      r.day = repeat === 'weekly' ? Number(f.remWeekday.value) : Number(f.remDay.value) || 1;
+      r.month = repeat === 'yearly' ? Number(f.remMonthOf.value) : r.month;
+      if (!r.title) { $('#remErr').textContent = 'Scrivi cosa devo controllare.'; return; }
+      if ((repeat === 'monthly' || repeat === 'yearly') && !(r.day >= 1 && r.day <= 31)) { $('#remErr').textContent = 'Il giorno deve essere tra 1 e 31.'; return; }
+      persistReminders(reminders.some((x) => x.id === r.id) ? reminders.map((x) => (x.id === r.id ? r : x)) : [...reminders, r]);
+      editingReminder = null;
+      renderReminders();
+      toast('Promemoria salvato.');
+    }
+  } catch (err) { toast(err.message, 7000); }
 }
 
 // ------------------------------------------------------------------- banche collegate
@@ -1089,11 +1197,15 @@ function openMovesOf(kind, month) {
   showTab('moves');
 }
 
+// Scheda «Banche» (solo schermo largo): copia separata dei dati delle banche collegate.
+const banks = mountBanks($('#banksBody'), api, toast);
+
 function showTab(name) {
   document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
-  for (const id of ['overview', 'docs', 'moves', 'analysis']) $(`#${id}`).hidden = id !== name;
+  for (const id of ['overview', 'docs', 'moves', 'analysis', 'banks']) $(`#${id}`).hidden = id !== name;
   $('#years').hidden = name !== 'overview';
   if (name === 'moves' || name === 'analysis') loadBank().catch((err) => toast(err.message));
+  if (name === 'banks') banks.load().catch((err) => toast(err.message));
 }
 
 document.addEventListener('click', (e) => {

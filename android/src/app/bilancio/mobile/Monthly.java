@@ -32,7 +32,7 @@ public class Monthly extends BroadcastReceiver {
     }
 
     @Override public void onReceive(final Context context, Intent intent) {
-        if (!ACTION.equals(intent.getAction())) { schedule(context); return; } // dopo un riavvio o un aggiornamento dell'app
+        if (!ACTION.equals(intent.getAction())) { schedule(context); Reminders.scheduleAll(context); return; } // dopo un riavvio o un aggiornamento dell'app
         final PendingResult pending = goAsync();
         new Thread(new Runnable() {
             @Override public void run() {
@@ -64,6 +64,7 @@ public class Monthly extends BroadcastReceiver {
         PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         Notification n = new Notification.Builder(c, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat)
+            .setColor(0xFF0F766E)
             .setContentTitle(title)
             .setContentText(text.split("\n")[0])
             .setStyle(new Notification.BigTextStyle().bigText(text))

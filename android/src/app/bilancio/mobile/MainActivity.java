@@ -95,6 +95,7 @@ public class MainActivity extends Activity {
             requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, ASK_NOTIFICATIONS);
         }
         Monthly.schedule(this);
+        Reminders.scheduleAll(this);
     }
 
     @Override protected void onResume() {
@@ -234,6 +235,14 @@ public class MainActivity extends Activity {
     /** Le richieste con corpo (POST, PUT, caricamento file…) non arrivano a shouldInterceptRequest: le invia lo script, noi le inoltriamo. */
     private class Bridge {
         @JavascriptInterface public void haptic() { tick(); }
+
+        /** Promemoria personalizzati (Impostazioni): elenco con il prossimo scatto di ciascuno, in JSON. */
+        @JavascriptInterface public String remindersGet() { return Reminders.listJson(MainActivity.this); }
+
+        /** Salva l'elenco dei promemoria; risponde «ok» oppure il motivo dell'errore. */
+        @JavascriptInterface public String remindersSave(String json) {
+            try { Reminders.save(MainActivity.this, json); return "ok"; } catch (Exception e) { return "Errore: " + e.getMessage(); }
+        }
 
         @JavascriptInterface public void send(final int id, final String method, final String path, final String headersJson, final String body, final boolean base64) {
             pool.execute(new Runnable() {

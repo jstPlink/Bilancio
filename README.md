@@ -34,6 +34,12 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   l'app la ricorda per tutte le descrizioni uguali.
 - **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
+- **Banche** (solo su schermo largo). I dati originali che UniCredit e Revolut mettono a disposizione, in una **copia separata**: non entra in
+  Panoramica, Movimenti né Statistiche, serve a capire cosa si può ottenere. Per ogni banca collegata: consenso e letture di oggi, i conti
+  (nome, IBAN, valuta, tipo, prodotto, saldi, tutti i dati del conto), l'andamento del saldo (quello scritto dalla banca nei movimenti, oppure
+  ricostruito dal saldo attuale), **quali campi la banca fornisce davvero e in quanti movimenti**, i principali interlocutori, i pagamenti
+  ricorrenti riconosciuti e tutti i movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga). **Leggi dalla banca**
+  aggiorna la copia; conta come una delle 4 letture giornaliere concesse dalle banche (oltre a quella della lettura automatica all'apertura).
 - **Documenti.** **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
@@ -57,10 +63,14 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 ```
 
 L'app Android ha in più:
-- **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): totale ancora da pagare e le prime voci. Si aggiorna ogni mezz'ora,
-  quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
+- **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
+  mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
+- **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
+  ogni settimana (giorno della settimana), ogni mese (giorno del mese; il 31 in un mese corto vale l'ultimo giorno) o ogni anno (giorno e mese), con l'ora.
+  Si possono disattivare, modificare o eliminare. Restano sul telefono e usano la sveglia di sistema (può ritardare di qualche minuto).
+- L'icona nella barra delle notifiche è il logo dell'app in una tinta sola (quadrato arrotondato con il segno ±), con il colore turchese dell'app.
 
 Servono l'SDK Android (build-tools e una piattaforma, di norma in `~/Android/Sdk`, oppure `ANDROID_HOME`) e Java 17; non serve Gradle.
 L'indirizzo del server viene da `BILANCIO_SERVER` nel file `.env` e finisce solo nell'APK (`android/build/` è escluso da Git). L'APK è firmato
@@ -125,6 +135,26 @@ banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90
 **Limiti:** le banche concedono 4 letture al giorno per collegamento; **Aggiorna** legge le banche solo se l'ultima lettura ha più di 3 ore. Il consenso
 dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
 non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
+
+**Demo della scheda Banche.** `npm run demo:banche` avvia la banca finta e un'app di prova su `http://localhost:4871` (password `demo-banche`) con dati inventati,
+in un database a parte (`data/demo-banche`): serve a provare la scheda anche quando il server vero non ha ancora la versione nuova. UniCredit parte già
+letto, Revolut no, per provare «Leggi dalla banca». Non tocca il localhost collegato al server né i tuoi dati; Ctrl+C ferma tutto.
+
+**Prove senza banca vera, a mano.** `node scripts/banca-finta.mjs` avvia una banca finta (due conti con campi diversi, come nelle banche vere: uno in stile
+UniCredit, uno in stile Revolut). Poi avvia l'app con `ENABLE_BANKING_API=http://127.0.0.1:4890` (variabile d'ambiente, non nel `.env` del server vero)
+e collega nel database di prova conti con `uid` `unicredit-1` e `revolut-1`. Il collegamento vero richiede invece le credenziali di Enable Banking.
+
+## Prossimi passi
+
+**Interfaccia sui dati delle banche collegate** (in corso). Serve a capire il potenziale di ciò che UniCredit e Revolut rendono disponibile
+tramite Enable Banking, in quattro fasi, ognuna da confermare prima della successiva:
+1. **Browser** — *fatto, da provare con i dati veri*: la scheda **Banche** (vedi «Le schede»). I dati originali si tengono in una copia separata
+   sul server (`db.banking.snapshots`), che nessun'altra parte dell'app legge, e si aggiornano solo premendo **Leggi dalla banca**.
+   Per provarla senza toccare le banche vere c'è `scripts/banca-finta.mjs` (vedi sotto).
+2. **Decidere** insieme come gestire le informazioni (quali tenere, come abbinarle ai movimenti e alla Panoramica). Finché non si decide, i dati
+   letti dalle banche per questa scheda **non si mescolano** a quelli dell'app.
+3. **Telefono**: portare la stessa interfaccia nell'app Android.
+4. **Rilascio**: versione, changelog, commit e push, solo alla fine.
 
 ## Più case
 

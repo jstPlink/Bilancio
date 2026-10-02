@@ -6,3 +6,9 @@ data/
 refresh-result.json
 *.tmp.mjs
 android/build/
+
+# Chiavi e certificati: non vanno mai in Git
+*.pem
+*.key
+*.jks
+*.keystore

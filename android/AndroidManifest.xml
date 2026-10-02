@@ -31,6 +31,11 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".ReminderReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="app.bilancio.mobile.REMINDER" />
+            </intent-filter>
+        </receiver>
         <provider android:name=".FileProvider" android:authorities="app.bilancio.mobile.files"
             android:exported="false" android:grantUriPermissions="true" />
     </application>

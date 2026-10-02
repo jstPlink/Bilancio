@@ -4,7 +4,8 @@
 import crypto from 'node:crypto';
 import { makeTransaction } from './statements.js';
 
-export const API = 'https://api.enablebanking.com';
+// ENABLE_BANKING_API permette di provare l'app con una banca finta (vedi scripts/banca-finta.mjs).
+export const API = (process.env.ENABLE_BANKING_API || 'https://api.enablebanking.com').replace(/\/+$/, '');
 
 // Le banche proposte. `countries`: ordine di preferenza se l'aggregatore ne elenca più di uno.
 export const BANKS = {
@@ -64,6 +65,8 @@ export function createClient(app, fetchImpl = fetch) {
     createSession: (code) => call('POST', '/sessions', { body: { code } }),
     deleteSession: (id) => call('DELETE', `/sessions/${encodeURIComponent(id)}`),
     transactions: (uid, query) => call('GET', `/accounts/${encodeURIComponent(uid)}/transactions`, { query }),
+    balances: (uid) => call('GET', `/accounts/${encodeURIComponent(uid)}/balances`),
+    details: (uid) => call('GET', `/accounts/${encodeURIComponent(uid)}/details`),
   };
 }
 
@@ -74,6 +77,7 @@ export function bankingState(db) {
   db.banking.app ??= null;
   db.banking.connections ??= [];
   db.banking.pending ??= {};
+  db.banking.snapshots ??= {}; // copia separata dei dati originali delle banche, per la scheda «Banche»: nient'altro la legge
   return db.banking;
 }
 
@@ -174,11 +178,11 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map()) {
 
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
 
-async function fetchAccount(client, uid, dateFrom) {
+async function fetchAccount(client, uid, dateFrom, status = 'BOOK') {
   const out = [];
   let key;
   for (let page = 0; page < 30; page++) {
-    const res = await client.transactions(uid, { date_from: dateFrom, transaction_status: 'BOOK', continuation_key: key });
+    const res = await client.transactions(uid, { date_from: dateFrom, transaction_status: status, continuation_key: key });
     out.push(...(res.transactions ?? []));
     key = res.continuation_key;
     if (!key) break;
@@ -242,4 +246,40 @@ export async function syncAll({ client, db, now = Date.now(), minAgeMs = 0 }) {
     }
   }
   return total;
+}
+
+// ------------------------------------------------------------------ copia dei dati originali (scheda «Banche»)
+
+const RAW_CAP = 5000; // movimenti originali conservati per conto
+
+// Legge dalla banca tutto ciò che mette a disposizione (dettagli del conto, saldi, movimenti registrati e in sospeso, con tutti
+// i campi originali) e ne tiene una copia a parte in `db.banking.snapshots`. È volutamente separata dal resto dell'app:
+// non crea né cambia movimenti, categorie, Panoramica, Movimenti o Statistiche. Conta come una lettura del limite giornaliero.
+export async function readBankData({ client, db, conn, now = Date.now() }) {
+  const label = BANKS[conn.bank]?.label ?? conn.bank;
+  if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca dalle Impostazioni.`);
+  conn.calls = (conn.calls ?? []).filter((t) => t > now - DAY);
+  if (conn.calls.length >= SYNCS_PER_DAY) throw new Error(`${label}: massimo ${SYNCS_PER_DAY} letture al giorno (limite delle banche). Riprova più tardi.`);
+  conn.calls.push(now);
+
+  const soft = async (fn) => { try { return { value: await fn() }; } catch (e) { return { error: e.message }; } };
+  const snap = { fetchedAt: new Date(now).toISOString(), accounts: {} };
+  const summary = { accounts: 0, booked: 0, pending: 0 };
+  for (const account of conn.accounts) {
+    const a = { booked: [], pending: [], balances: [], details: null, unavailable: [] };
+    // Movimenti registrati: un anno di storico, o 90 giorni se la banca non lo concede.
+    let booked = await soft(() => fetchAccount(client, account.uid, isoDay(now - FIRST_SYNC_DAYS * DAY)));
+    if (booked.error) booked = await soft(() => fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)));
+    if (booked.error) a.unavailable.push({ what: 'movimenti registrati', why: booked.error }); else a.booked = booked.value.slice(0, RAW_CAP);
+    const pending = await soft(() => fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'));
+    if (pending.error) a.unavailable.push({ what: 'movimenti in sospeso', why: pending.error }); else a.pending = pending.value;
+    const balances = await soft(() => client.balances(account.uid));
+    if (balances.error) a.unavailable.push({ what: 'saldi', why: balances.error }); else a.balances = balances.value.balances ?? [];
+    const details = await soft(() => client.details(account.uid));
+    if (details.error) a.unavailable.push({ what: 'dettagli del conto', why: details.error }); else a.details = details.value;
+    snap.accounts[account.uid] = a;
+    summary.accounts++; summary.booked += a.booked.length; summary.pending += a.pending.length;
+  }
+  bankingState(db).snapshots[conn.id] = snap;
+  return summary;
 }
