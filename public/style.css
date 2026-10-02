@@ -90,6 +90,9 @@ td.pos { color: var(--ok-ink); } td.neg { color: var(--late-ink); }
 
 dialog { border: 0; border-radius: 16px; padding: 0; width: min(480px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgb(0 0 0 / .3); }
 dialog::backdrop { background: rgb(10 20 18 / .45); }
+/* Finestra aperta: scorre solo lei, la pagina sotto resta ferma. */
+dialog[open] { max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; overscroll-behavior: none; }
 .dlg { padding: 20px; display: grid; gap: 14px; }
 .dlg h2 { font-size: 18px; }
 .dlg label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -329,10 +332,11 @@ tr.mvdetail td { padding: 0; background: color-mix(in srgb, var(--accent) 3%, va
 th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 @media (max-width: 720px) {
-  .top { padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); gap: 8px; position: static; }
-  .brand h1 { font-size: 18px; }
-  .brand svg { width: 26px; height: 26px; }
-  .actions { gap: 8px; width: 100%; justify-content: flex-end; flex-wrap: wrap; }
+  .top { padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); gap: 8px; position: static; flex-wrap: nowrap; }
+  .brand svg, .brand .name, #logoutBtn { display: none; }
+  .brand h1 { font-size: 13px; }
+  .brand .version { margin: 0; }
+  .actions { gap: 8px; margin-left: auto; flex-wrap: nowrap; }
   #lastRefresh { display: none; }
   button.primary, button.ghost { min-height: 40px; }
   main { padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); }
@@ -343,30 +347,24 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   .years select { flex: 1; max-width: 180px; min-height: 40px; }
 
   .cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+  #cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #cards > :first-child { grid-column: 1 / -1; }
-  #cards > :last-child:nth-child(even) { grid-column: 1 / -1; }
   .card { padding: 12px 14px; }
   .card .v { font-size: 22px; }
+  #cards > :not(:first-child) { padding: 10px; }
+  #cards > :not(:first-child) .k { font-size: 12px; }
+  #cards > :not(:first-child) .v { font-size: 15px; }
 
-  /* Tabella principale: una scheda per mese, con le etichette al posto dell'intestazione. */
-  .tablewrap:has(#grid) { background: none; border: 0; box-shadow: none; overflow: visible; }
-  #grid, #grid tbody, #grid tfoot, #grid tr, #grid th, #grid td { display: block; }
-  #grid { min-width: 0; }
-  #grid thead { display: none; }
-  #grid tbody tr, #grid tfoot tr { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); margin-bottom: 10px; padding: 8px 14px 10px; }
-  #grid tbody th[scope=row], #grid tfoot th { background: none; border: 0; padding: 4px 0 6px; font-size: 16px; color: var(--ink); }
-  #grid td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border: 0; background: none; min-height: 44px; }
-  #grid td::before { content: attr(data-label); color: var(--muted); font-size: 14px; flex: none; }
-  #grid td.d1::before { padding-left: 12px; }
-  #grid td.d2::before { padding-left: 24px; }
-  #grid td.d3::before { padding-left: 36px; }
-  #grid tbody td.num:has(> .pcell) { padding: 3px 0; }
-  #grid td:has(> .static.blank) { display: none; }
-  #grid td.total, #grid td.gstart { border-left: 0; }
-  #grid td .static { width: auto; min-height: 0; padding: 0; }
-  #grid .pcell { width: auto; min-width: 150px; justify-content: flex-end; }
-  #grid .expense-input { width: auto; min-width: 96px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px; }
-  #grid tfoot tr { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+  /* Tabella principale: tre colonne (Entrate, Uscite, Bilancio) in una vera tabella, una riga per mese. */
+  .tablewrap:has(#grid) { border-radius: 12px; }
+  #grid { min-width: 0; table-layout: auto; }
+  #grid th, #grid td { padding: 10px 8px; font-size: 14px; }
+  #grid thead th { font-size: 12.5px; position: static; }
+  #grid thead th.g-month, #grid tbody th[scope=row], #grid tfoot th { padding-left: 12px; }
+  #grid tbody th[scope=row] { color: var(--ink); font-size: 14px; }
+  #grid td.total, #grid td.gstart, #grid th.gstart { border-left: 0; }
+  #grid .static { width: auto; min-height: 0; padding: 0; }
+  #grid tfoot td, #grid tfoot th { font-size: 13px; }
 
   /* Movimenti: filtri a tutta larghezza e un riquadro per ogni pagamento. */
   .bankbar { gap: 8px; }
@@ -396,5 +394,5 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   .chartrow { grid-template-columns: minmax(0, 1fr); }
   .chartcard { padding: 12px; }
   .hb-row { grid-template-columns: minmax(70px, 30%) minmax(0, 1fr) auto; gap: 6px; font-size: 12px; }
-  dialog { width: calc(100vw - 20px); }
+  dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
 }

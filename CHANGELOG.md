@@ -2,6 +2,13 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.28.0
+- **Telefono: tabella a colonne** (Mese, Entrate, Uscite, Bilancio), una riga per mese, al posto delle schede.
+- **Intestazione più stretta sul telefono**: senza logo e nome, con la versione sulla stessa riga di Aggiorna e Impostazioni.
+- **«Esci» nelle impostazioni** (sezione Account); sul telefono non compare più in alto.
+- **Finestre sopra a tutto**: Impostazioni e le altre finestre occupano lo schermo del telefono, scorrono da sole e la pagina sotto resta ferma.
+- **Panoramica**: Entrate medie, Uscite medie e Bilancio medio affiancate su una riga; tolti l'anno e «al mese» dalle etichette.
+
 ## 0.27.0
 - **Telefono: solo la vista compatta** (Mese, Entrate, Uscite, Bilancio). Su schermo largo tutte le voci (bollette, Crispiano, affitto, prestito…) sono sempre aperte; tolti i pulsanti per aprire e chiudere.
 - **Grafici adattati al telefono**: il grafico rientra nello schermo, senza scorrimento a destra, e si ridisegna se ruoti il telefono.

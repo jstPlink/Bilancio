@@ -86,9 +86,9 @@ function renderCards() {
     s.totalToPay > 0
       ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
       : card('Da pagare', money(0), 'Tutto pagato', 'due'),
-    card(`Entrate medie ${state.year}`, money(s.avgIncome) || '—'),
-    card('Uscite medie al mese', money(s.avgSpent) || '—'),
-    card('Bilancio medio al mese', money(s.avgBalance) || '—'),
+    card('Entrate medie', money(s.avgIncome) || '—'),
+    card('Uscite medie', money(s.avgSpent) || '—'),
+    card('Bilancio medio', money(s.avgBalance) || '—'),
   ].join('');
 }
 
@@ -253,12 +253,10 @@ function renderGrid() {
     const name = `${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}`;
     return `<th class="${cls(c)}">${name}</th>`;
   }).join('');
-  // Ogni cella porta il nome della sua colonna: sul telefono la tabella diventa un elenco di schede e le etichette sostituiscono l'intestazione.
-  const label = (c) => `data-label="${esc(colName(c))}"`;
-  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
+  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
-    <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${money(c.average) || '–'}</td>`).join('')}</tr>
-    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
+    <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${money(c.average) || '–'}</td>`).join('')}</tr>
+    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
   $('#grid').innerHTML = `<thead><tr><th class="g-month">Mese</th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
@@ -733,11 +731,15 @@ async function openSettings() {
       <label>Chi mi paga lo stipendio (separati da virgola)<input name="incomePayers" value="${esc(s.incomePayers)}" placeholder="Es. Azienda Esempio" autocomplete="off"></label>
       <small>Servono a non contare i giroconti tra i miei conti e lo stipendio, già presente nelle buste paga. Restano sul tuo database: non vengono mai pubblicati.</small>
     </fieldset>
+    ${state.protected ? '<fieldset><legend>Account</legend><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></fieldset>' : ''}
     <p class="error" id="setErr" role="alert"></p>
     <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
   </form>`;
   const form = dlg.querySelector('form');
-  form.addEventListener('click', (e) => { if (e.target.dataset.act === 'close') dlg.close(); });
+  form.addEventListener('click', (e) => {
+    if (e.target.dataset.act === 'close') dlg.close();
+    if (e.target.dataset.act === 'logout') logout();
+  });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -958,10 +960,12 @@ api('/api/version').then(({ version, serverVersion, protected: hasPassword }) =>
   const local = serverVersion !== undefined;
   $('#version').textContent = `v${version}${local ? ' · locale' : ''}`;
   if (local) $('#version').title = `Pagine di questa cartella (v${version}) con i dati del server${serverVersion ? ` (v${serverVersion})` : ''}`;
+  state.protected = hasPassword;
   $('#logoutBtn').hidden = !hasPassword;
 }).catch(() => {});
-$('#logoutBtn').addEventListener('click', async () => {
+async function logout() {
   await fetch('/api/logout', { method: 'POST' }).catch(() => {});
   location.href = '/login';
-});
+}
+$('#logoutBtn').addEventListener('click', logout);
 Promise.all([loadGrid(), loadDocs()]).then(autoScan).catch((err) => toast(err.message));

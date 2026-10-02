@@ -37,8 +37,8 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 - **Documenti.** L'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
   (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora** per i file che non c'entrano.
 
-Sul telefono la tabella diventa un elenco di schede, una per mese, con le sole voci compatte (Entrate, Uscite, Bilancio); il dettaglio delle
-uscite resta per lo schermo largo. Anche Movimenti mostra un riquadro per ogni pagamento e i grafici stanno nella larghezza dello schermo.
+Sul telefono la tabella resta una tabella a colonne con le sole voci compatte (Mese, Entrate, Uscite, Bilancio); il dettaglio delle
+uscite resta per lo schermo largo. L'intestazione mostra solo la versione, e *Esci* sta nelle Impostazioni. Anche Movimenti mostra un riquadro per ogni pagamento e i grafici stanno nella larghezza dello schermo.
 
 **App sul telefono.** Bilancio è installabile come app (PWA): apri il sito con Chrome (Android: menu → *Installa app*) o Safari (iPhone:
 Condividi → *Aggiungi a Home*) e si apre a schermo intero con la sua icona. Serve un indirizzo https. I dati restano sempre sul server,
