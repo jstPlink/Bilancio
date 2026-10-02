@@ -106,10 +106,8 @@ const GROUPS = [
   { id: 'donazioni', label: 'Donazioni', leaves: ['donazioni'] },
   { id: 'tasse', label: 'Tasse', leaves: ['tasse'] },
 ];
-let savedOpen = {};
-try { savedOpen = JSON.parse(localStorage.getItem('gridOpen') ?? '{}'); } catch { /* storage non disponibile */ }
-state.open = { uscite: false, bollette: false, crispiano: true, ...savedOpen };
-const saveOpen = () => { try { localStorage.setItem('gridOpen', JSON.stringify(state.open)); } catch { /* storage non disponibile */ } };
+// Telefono: solo le colonne compatte (Mese, Entrate, Uscite, Bilancio). Schermo largo: tutte le voci sempre aperte.
+const phone = window.matchMedia('(max-width: 720px)');
 
 const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
 const colName = (col) => (col.place ? `${colLabel(col)} ${PLACE_LABELS[col.place]}` : colLabel(col));
@@ -149,7 +147,7 @@ function buildColumns() {
   // Il totale delle uscite del mese, con il numero di voci ancora da pagare.
   add({
     id: 'uscite', kind: 'uscite', label: 'Uscite', start: true, plain: true, total: true,
-    toggle: 'uscite', isOpen: state.open.uscite, leafIds: payable,
+    leafIds: payable,
     cell: (m) => {
       const parts = payable.flatMap((id) => cellOf(id, m).parts);
       return { amount: rows[m - 1].spent, parts, due: parts.filter((p) => !p.paid).length };
@@ -157,16 +155,16 @@ function buildColumns() {
     avg: () => s.avgSpent,
   });
 
-  if (state.open.uscite) {
+  if (!phone.matches) {
     GROUPS.forEach((g) => {
       const members = g.leaves.map((id) => leaf[id]);
       const isMulti = g.leaves.length > 1;
       const first = members[0];
       const col = isMulti
-        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves, toggle: g.id, isOpen: state.open[g.id] }
+        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves }
         : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
       add({ ...col, sub: true, depth: 1, colorKey: g.id });
-      if (isMulti && state.open[g.id]) {
+      if (isMulti) {
         const addLeaf = (l, depth = 2) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], sub: true, depth });
         const crispiano = members.filter((l) => l.place === 'crispiano');
         members.filter((l) => l.place !== 'crispiano').forEach((l) => addLeaf(l));
@@ -175,9 +173,9 @@ function buildColumns() {
           const ids = crispiano.map((l) => l.id);
           add({
             id: 'g:crispiano', kind: 'bollette', label: 'Crispiano', place: null, colorKey: 'bollette', sub: true, depth: 2,
-            cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids, toggle: 'crispiano', isOpen: state.open.crispiano,
+            cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids,
           });
-          if (state.open.crispiano) crispiano.forEach((l) => addLeaf(l, 3));
+          crispiano.forEach((l) => addLeaf(l, 3));
         }
       }
     });
@@ -243,7 +241,7 @@ async function saveExpense(input) {
   await loadGrid();
 }
 
-// Vista compatta: Mese, Entrate, Uscite, Bilancio. Le uscite si aprono nelle loro voci; uno spazio ben visibile separa i blocchi.
+// Su schermo largo tutte le voci (Uscite → Bollette → Crispiano…) sono sempre aperte; sul telefono restano Mese, Entrate, Uscite, Bilancio.
 function renderGrid() {
   const { rows } = state.grid;
   const cols = buildColumns();
@@ -253,9 +251,6 @@ function renderGrid() {
   const head = cols.map((c) => {
     const sub = c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : '';
     const name = `${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}`;
-    if (c.toggle) {
-      return `<th class="toggle-th ${cls(c)}"><button class="gtoggle" data-toggle="${c.toggle}" aria-expanded="${Boolean(c.isOpen)}" title="${c.isOpen ? 'Clic per chiudere' : 'Clic per aprire'} le voci di ${esc(c.label)}"><span class="chev">${c.isOpen ? '▾' : '▸'}</span><span class="tname">${name}</span><small class="toggle-hint">${c.isOpen ? 'chiudi' : 'apri'}</small></button></th>`;
-    }
     return `<th class="${cls(c)}">${name}</th>`;
   }).join('');
   // Ogni cella porta il nome della sua colonna: sul telefono la tabella diventa un elenco di schede e le etichette sostituiscono l'intestazione.
@@ -265,12 +260,18 @@ function renderGrid() {
     <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${money(c.average) || '–'}</td>`).join('')}</tr>
     <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}" ${label(c)}>${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
   $('#grid').innerHTML = `<thead><tr><th class="g-month">Mese</th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
-  // Pulsanti per aprire e chiudere le sezioni: servono sul telefono, dove l'intestazione non si vede.
-  const tools = cols.filter((c) => c.toggle).map((c) => `<button class="chip${c.isOpen ? ' on' : ''}" data-toggle="${c.toggle}" aria-pressed="${Boolean(c.isOpen)}">${c.isOpen ? '▾' : '▸'} ${esc(c.label)}</button>`).join('');
-  $('#gridTools').innerHTML = tools ? `<span class="muted">Dettaglio</span>${tools}` : '';
 }
 
 // Il riquadro "Da pagare": salda in un colpo tutto ciò che è ancora da pagare, di tutti gli anni e di tutte le case.
+phone.addEventListener('change', () => { if (state.grid) renderGrid(); });
+// Il grafico si ridisegna quando cambia la larghezza (rotazione del telefono, finestra ridimensionata).
+let chartWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  if (window.innerWidth === chartWidth) return;
+  chartWidth = window.innerWidth;
+  if (!$('#analysis')?.hidden) renderAnalysis();
+});
+
 async function payEverything() {
   const due = state.grid.summary.totalToPay;
   if (!(due > 0)) return;
@@ -891,7 +892,6 @@ document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.sort) { setSort(t.dataset.sort); return; }
-  if (t.dataset.toggle) { state.open[t.dataset.toggle] = !state.open[t.dataset.toggle]; saveOpen(); renderGrid(); return; }
   if (t.classList.contains('f-reset')) { resetBank(); return; }
   if (t.dataset.view) { state.bank.view = t.dataset.view; renderMoves(); return; }
   if (t.classList.contains('catcard')) { state.bank.cat = state.bank.cat === t.dataset.cat ? '' : t.dataset.cat; renderBank(); return; }

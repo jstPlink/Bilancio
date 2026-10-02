@@ -51,9 +51,9 @@ export function monthChart(host, months, { series, lines = [], onPick }) {
   if (!months.length) { host.append(html('p', 'muted', 'Nessun dato nel periodo scelto.')); return; }
   host.append(legend([...series.map((s) => ({ label: s.label, color: s.color })), ...lines.map((l) => ({ label: l.label, color: l.color, line: true }))]));
 
-  const W = Math.max(320, host.clientWidth || 640);
+  const W = Math.max(240, Math.floor(host.clientWidth || 640));
   const H = 290;
-  const m = { l: 62, r: 12, t: 12, b: 28 };
+  const m = { l: W < 400 ? 48 : 62, r: 8, t: 12, b: 28 };
   const pw = W - m.l - m.r;
   const ph = H - m.t - m.b;
   const stacks = months.map((mo) => series.reduce((a, s) => a + (s.get(mo) || 0), 0));
@@ -64,7 +64,7 @@ export function monthChart(host, months, { series, lines = [], onPick }) {
   const barW = Math.min(24, band * 0.7);
 
   const wrap = html('div', 'chart-wrap');
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Grafico mese per mese' }, wrap);
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', 'aria-label': 'Grafico mese per mese' }, wrap);
   for (const t of ticks) {
     el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: 'grid' }, svg);
     const label = el('text', { x: m.l - 8, y: y(t) + 4, class: 'axis', 'text-anchor': 'end' }, svg);

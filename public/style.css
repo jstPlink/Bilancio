@@ -208,7 +208,7 @@ th .place { display: block; font-size: 11px; font-weight: 500; color: var(--mute
 .chartcard h3 { font-size: 15px; }
 .chartcard > .muted { margin: 2px 0 8px; }
 .chartrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; }
-.chart { position: relative; min-width: 0; }
+.chart { position: relative; min-width: 0; max-width: 100%; overflow-x: clip; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 6px; font-size: 12px; color: var(--muted); }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 i.key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
@@ -243,13 +243,6 @@ td.pos-in { color: var(--ok-ink); font-weight: 600; }
 
 /* --- tabella principale: entrate, uscite comprimibili, riepilogo --- */
 :root { --entrate: var(--viz-entrate); --uscite: var(--accent); --bollette: var(--viz-bollette); --donazioni: var(--viz-donazioni); --tasse: var(--viz-tasse); }
-/* L'intera cella "Bollette" è il pulsante: grande, con freccia e promemoria "apri/chiudi". */
-th.toggle-th { padding: 0; }
-.gtoggle { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1px; width: 100%; min-height: 52px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 9%, transparent); border: 0; border-radius: 0; color: inherit; font: inherit; font-weight: 700; cursor: pointer; position: relative; text-align: right; }
-.gtoggle:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--ink); }
-.gtoggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.gtoggle .chev { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 18px; line-height: 1; color: var(--accent); }
-.gtoggle .toggle-hint { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 th.subcol, td.subcol { background: color-mix(in srgb, var(--accent) 4%, transparent); }
 thead th.subcol { background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
 .static.pos { color: var(--ok-ink); font-weight: 600; }
@@ -333,9 +326,6 @@ tr.mvdetail td { padding: 0; background: color-mix(in srgb, var(--accent) 3%, va
 @media (max-width: 900px) { .detailgrid { grid-template-columns: 1fr; padding-left: 18px; } }
 
 /* --- vista per telefono --- */
-.gridtools { display: none; }
-.chip { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; color: var(--muted); font-weight: 600; min-height: 40px; }
-.chip.on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--ink); }
 th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 @media (max-width: 720px) {
@@ -377,7 +367,6 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   #grid .pcell { width: auto; min-width: 150px; justify-content: flex-end; }
   #grid .expense-input { width: auto; min-width: 96px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 40px; }
   #grid tfoot tr { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
-  .gridtools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 
   /* Movimenti: filtri a tutta larghezza e un riquadro per ogni pagamento. */
   .bankbar { gap: 8px; }
@@ -404,6 +393,8 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   .detailgrid { padding: 12px 14px; }
   .atable { min-width: 560px; }
   #docTable { min-width: 640px; }
-  .chartrow { grid-template-columns: 1fr; }
+  .chartrow { grid-template-columns: minmax(0, 1fr); }
+  .chartcard { padding: 12px; }
+  .hb-row { grid-template-columns: minmax(70px, 30%) minmax(0, 1fr) auto; gap: 6px; font-size: 12px; }
   dialog { width: calc(100vw - 20px); }
 }

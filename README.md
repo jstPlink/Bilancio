@@ -1,10 +1,10 @@
 # Bilancio
 
-Buste paga e bollette di casa, in ordine.
+Buste paga, bollette e spese di casa, in ordine.
 
-Bilancio legge i PDF di buste paga e bollette da una cartella, ne estrae tipo, mese e importo
-e li mostra in una panoramica per anno: stipendi, acqua, luce, gas, wifi, affitto, con medie,
-saldo mensile e quanto resta da pagare.
+Bilancio legge i PDF di buste paga e bollette e gli estratti conto della banca da una cartella (o da un link Seafile),
+ne ricava tipo, mese e importo e li mostra in una panoramica per anno: entrate, uscite, bilancio mensile e quanto resta
+da pagare. Si usa dal browser, anche dal telefono, e i dati restano sul tuo computer o sul tuo server.
 
 ## Avvio
 
@@ -14,39 +14,85 @@ npm start        # http://localhost:4870
 npm test
 ```
 
+Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al server» più sotto.
+
+## Le schede
+
+- **Panoramica.** Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
+  entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
+  nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci di *Crispiano* in una sola
+  colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
+  da pagare di ogni colonna; il riquadro **Da pagare** in alto salda tutto con un clic.
+  - Le celle che vengono da un documento (bollette, affitto) sono **verdi se pagate e rosse se da pagare**. Un clic cambia lo stato;
+    passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
+  - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
+    *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
+- **Movimenti.** I movimenti dell'estratto conto con la loro suddivisione: riquadri per categoria (un clic filtra), filtri per anno e mese,
+  ricerca e due viste, *Movimenti* (uno per riga) e *Per descrizione* (raggruppati per categoria e descrizione uguale). Sotto ogni descrizione
+  si vedono giorno e ora, metodo (carta, bonifico, prelievo…), commissione e valuta; cliccando la riga si apre il dettaglio con il saldo dopo
+  il pagamento, il testo completo della banca, gli altri pagamenti con la stessa descrizione e i link per cercarla su Google e su Maps. Dal
+  menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. Da qui si può anche caricare un CSV a mano.
+- **Statistiche.** I grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
+  e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
+- **Documenti.** L'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
+  (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora** per i file che non c'entrano.
+
+Sul telefono la tabella diventa un elenco di schede, una per mese, con le sole voci compatte (Entrate, Uscite, Bilancio); il dettaglio delle
+uscite resta per lo schermo largo. Anche Movimenti mostra un riquadro per ogni pagamento e i grafici stanno nella larghezza dello schermo.
+
+**App sul telefono.** Bilancio è installabile come app (PWA): apri il sito con Chrome (Android: menu → *Installa app*) o Safari (iPhone:
+Condividi → *Aggiungi a Home*) e si apre a schermo intero con la sua icona. Serve un indirizzo https. I dati restano sempre sul server,
+nulla viene salvato sul telefono. Le icone si rigenerano con `node scripts/genera-icone.mjs`.
+
 ## Uso
 
 1. Apri **Impostazioni** (ingranaggio) e indica dove si trovano i documenti:
-   - **Buste paga** e **Bollette**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`,
-     senza password) oppure un percorso locale. Le sottocartelle vengono lette in automatico.
+   - **Buste paga**, **Bollette** ed **Estratti conto**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`, senza password)
+     oppure un percorso locale. Le sottocartelle vengono lette in automatico.
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
-2. Premi **Aggiorna**: vengono letti solo i PDF nuovi o modificati
-   (Maiusc + clic per rileggere tutto).
-3. La tabella ha quattro gruppi: Mese, Entrate, Uscite (per gruppo; la cella Bollette si apre e si chiude con un clic e mostra le voci) e Riepilogo. Passa il mouse su una cella delle bollette: a sinistra apri il PDF, a destra la segni pagata o da pagare.
-4. Nella scheda **Documenti** trovi i file letti male (*Da controllare*): con **Modifica**
-   correggi tipo, periodo e importo; la correzione sopravvive ai successivi aggiornamenti.
+   - **Riconoscere i miei movimenti**: il tuo nome e chi ti paga lo stipendio, per non contare i giroconti tra i tuoi conti né lo stipendio
+     due volte. Restano sul tuo database.
+2. Premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
+   **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
+   lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
+3. Controlla la scheda **Documenti** per i file *Da controllare*.
 
 ## Estratti conto (spese)
 
-Indica il link (Seafile pubblico o cartella locale) dei CSV nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
-oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Le uscite si categorizzano (vedi sotto); le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate** nei grafici, mentre i giri tra i propri conti, le ricariche e le entrate dal datore di lavoro (già nelle buste paga) sono ignorati. Le categorie vengono assegnate da parole chiave in `src/statements.js`:
-**spesa** (cibo, bevande, casa) va nella colonna Spese, **svago** e **carburante** nelle loro colonne; **giroconti** (soldi tra i propri conti), **bollette pagate** (addebiti già contati nei documenti) e **da suddividere** (es. addebiti PayPal) non contano in nessun dato; **donazioni**, **tasse** e **altro** restano fuori dalla tabella e si vedono nella scheda Movimenti.
-La scheda **Movimenti** mostra come sono smistati i movimenti: riquadri per categoria (un clic filtra), filtri per anno e mese, ricerca, colonne ordinabili e due viste, per movimento o per descrizione.
-Cliccando una riga si aprono i dettagli del pagamento (giorno e ora, metodo, commissione, valuta, saldo dopo, testo completo della banca, gli altri pagamenti con la stessa descrizione e un link per cercarla sul web).
-Permette anche di correggere la categoria: l'app la ricorda per le descrizioni uguali. La scheda **Statistiche** raccoglie i grafici che incrociano stipendio, bollette e spese. Ricaricare lo stesso file non duplica nulla. Gli estratti conto in PDF (UniCredit e Revolut) si leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo
-della banca. Per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`.
+Indica il link (Seafile pubblico o cartella locale) degli estratti conto nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
+oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
+leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo della banca. Per un'altra banca serve un nuovo
+lettore in `src/pdfstatements.js`. Ricaricare lo stesso file non duplica nulla.
+
+Del CSV Revolut l'app conserva anche orario, tipo di operazione, conto, commissione, valuta e saldo dopo il pagamento: servono a capire
+di che pagamento si tratta. I movimenti già salvati si completano da soli alla lettura successiva, senza toccare le categorie.
+
+Le uscite si categorizzano con parole chiave in `src/statements.js`:
+
+- **spesa** (cibo, bevande, casa) va nella colonna *Spesa*; **svago** e **carburante** nelle loro colonne;
+- **prestito** (la rata del mutuo) alimenta la colonna *Prestito*; **donazioni** e **tasse** hanno le loro;
+- **giroconti** (soldi tra i propri conti), **bollette pagate** (addebiti già contati nei documenti) e **da suddividere** (es. addebiti PayPal)
+  non contano in nessun dato; **altro** resta fuori dalla tabella e si vede nella scheda Movimenti.
+
+Le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate**; i giri tra i propri conti, le ricariche e le entrate dal datore di
+lavoro (già nelle buste paga) sono ignorati.
 
 ## Più case
 
-Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: luce e gas hanno una colonna per casa; acqua e wifi sommano le case e mostrano il dettaglio nella cella.
+Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: luce e gas hanno una colonna per casa; acqua e wifi
+sommano le case e mostrano il dettaglio nella cella.
 
 ## Come legge i PDF
 
-`src/parsers.js` cerca etichette tipiche ("Netto in busta", "Totale da pagare", "Data emissione",
-parole chiave come *kWh*, *Smc*, *servizio idrico*, *fibra*…). Se un fornitore usa un layout
-diverso basta aggiungere l'etichetta alle liste in quel file. Il testo estratto da ogni PDF è
-visibile nella finestra di modifica del documento, utile per capire cosa non torna.
-I PDF scansionati (solo immagine) non contengono testo e vanno inseriti a mano.
+`src/parsers.js` cerca etichette tipiche ("Netto in busta", "Totale da pagare", "Data emissione", parole chiave come *kWh*, *Smc*,
+*servizio idrico*, *fibra*…). Se un fornitore usa un layout diverso basta aggiungere l'etichetta alle liste in quel file. Il mese di una
+bolletta è quello scritto nel nome del file (es. `Acqua 2025.10.pdf`); per un intervallo vale l'ultimo mese. Se esistono più file per la
+stessa cella, contano solo quelli con il mese nel nome. Il testo estratto da ogni PDF è visibile nella finestra di modifica del documento,
+utile per capire cosa non torna.
+
+**Scansioni.** I PDF che sono solo immagini si leggono con l'**OCR** (Tesseract, in italiano; il dizionario si scarica la prima volta e resta in
+`data/tessdata`). Se la prima lettura è incompleta si riprova a risoluzione più alta; se anche così manca un dato, il documento resta *Da
+controllare*.
 
 ## Dati e privacy
 
@@ -137,3 +183,18 @@ Per tornare a un'app locale con database proprio (solo per provare), togli la ri
 
 Le pagine nuove lavorano sui dati del server: quelle che dipendono da codice del server (per esempio nuovi campi dei movimenti, che l'estratto
 conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.
+
+## Sviluppo e rilascio
+
+```
+public/        pagine (index.html, app.js, charts.js, style.css, login.html)
+src/           server Express: server.js, grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
+               statements.js e pdfstatements.js (banca), billmatch.js, ocr.js, sources.js (cartelle e Seafile), auth.js, store.js
+scripts/       importa-su-server.mjs, reimposta-password.mjs
+test/          node --test
+```
+
+- `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.
+- **A ogni push la versione sale**: `npm version <x.y.z> --no-git-tag-version`, una voce in `CHANGELOG.md`, commit e tag `vX.Y.Z` (push anche dei tag).
+  La versione compare accanto al nome nell'app.
+- I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.

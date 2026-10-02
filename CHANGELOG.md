@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.27.0
+- **Telefono: solo la vista compatta** (Mese, Entrate, Uscite, Bilancio). Su schermo largo tutte le voci (bollette, Crispiano, affitto, prestito…) sono sempre aperte; tolti i pulsanti per aprire e chiudere.
+- **Grafici adattati al telefono**: il grafico rientra nello schermo, senza scorrimento a destra, e si ridisegna se ruoti il telefono.
+- **App installabile (PWA)**: manifest, icone e meta per aggiungere Bilancio alla schermata Home di Android e iPhone, a schermo intero. Le icone si rigenerano con `scripts/genera-icone.mjs`.
+
+## 0.26.1
+- **Documentazione aggiornata**: il README descrive ora le schede (Panoramica, Movimenti, Statistiche, Documenti), la tabella compatta, la vista per telefono, le impostazioni, la lettura delle scansioni con OCR, la scansione automatica all'apertura e la struttura del codice per chi sviluppa.
+
 ## 0.26.0
 - **Tabella principale compatta**: solo Mese, Entrate, Uscite e Bilancio (prima "Saldo"). Le Uscite si aprono con un clic nelle loro voci (bollette, affitto, prestito, spesa, svago, carburante, donazioni, tasse) e le Bollette, a loro volta, in quelle di ogni casa. Nella vista chiusa, sotto le uscite del mese compare quante voci restano da pagare.
 - **Celle pagato / da pagare ridisegnate**: riquadro arrotondato con sfondo tenue, bordo morbido e barretta laterale (verde o rossa), senza icone.

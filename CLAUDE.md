@@ -1,6 +1,7 @@
 # Bilancio
 
-App web locale (Node, Express) che legge buste paga e bollette in PDF. Vedi README.md.
+App web (Node, Express) che legge buste paga, bollette in PDF e estratti conto della banca e li mostra in una panoramica per anno.
+Vedi README.md per le schede, le impostazioni e il funzionamento.
 
 ## Regole di rilascio
 

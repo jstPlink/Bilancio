@@ -85,7 +85,7 @@ export function createAuth({ envPassword = '', getRecord = () => null, saveRecor
   };
 
   // Percorsi raggiungibili senza sessione: la pagina di accesso, le sue chiamate e il controllo di salute del container.
-  const open = new Set(['/login', '/login.html', '/api/login', '/api/logout', '/api/version', '/api/auth-state', '/api/setup']);
+  const open = new Set(['/login', '/login.html', '/api/login', '/api/logout', '/api/version', '/api/auth-state', '/api/setup', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-touch-icon.png']);
 
   function mount(app) {
     app.use((req, res, next) => {
