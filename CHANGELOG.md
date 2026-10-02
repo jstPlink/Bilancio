@@ -2,6 +2,16 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.29.0
+- **App Android** (cartella `android/`, `npm run apk`): una vera app che contiene le pagine di `public/` e inoltra dati e login al server; installabile con `npm run apk:installa`. Include il **widget «Da pagare»** (2×1 di base, totale e prime voci), la **notifica del primo del mese** per i conti in sospeso, il **feedback aptico** sui tocchi e l'apertura dei PDF.
+- **Carica documento** (scheda Documenti): scegli file, nome e tipo (estratto conto CSV/PDF, bolletta con utenza e casa, busta paga). I PDF si leggono con importo e mese e restano sul server (`data/uploads`).
+- **Movimenti**: un solo elenco, con i pagamenti allo stesso ente accorpati in una riga che si apre sui singoli; ricerca, filtro per categoria e ordinamento (prezzo, quantità di transazioni, nome, categoria, data). Lo stipendio è una voce sola.
+- **Statistiche**: in cima i riquadri per categoria (spesa, svago, carburante…); un tocco apre i movimenti di quella categoria.
+- **Panoramica**: un tocco su Entrate, Uscite, Bilancio o sul mese apre Movimenti filtrati su quel mese; colonna Mese ben distinta, Entrate e Uscite con lo stesso colore, linee tra le colonne, tab più evidenti, tre targhette affiancate; su telefono tabella compatta (Mese, Entrate, Uscite, Bilancio).
+- **Banche collegate** (Impostazioni): UniCredit e Revolut direttamente dalla banca, in sola lettura, con Enable Banking (gratuito per uso personale). Limite di 4 letture al giorno, consenso fino a 180 giorni, movimenti già importati da file non duplicati.
+- **Riconoscimento automatico** di chi ti paga lo stipendio e del tuo nome (da buste paga e movimenti): la sezione manuale delle Impostazioni non serve più. Impostazioni a sezioni richiudibili.
+- Messaggio chiaro quando il server è più vecchio dell'app («va aggiornato»).
+
 ## 0.28.0
 - **Telefono: tabella a colonne** (Mese, Entrate, Uscite, Bilancio), una riga per mese, al posto delle schede.
 - **Intestazione più stretta sul telefono**: senza logo e nome, con la versione sulla stessa riga di Aggiorna e Impostazioni.

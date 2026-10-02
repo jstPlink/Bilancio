@@ -1,0 +1,258 @@
+package app.bilancio.mobile;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.util.Base64;
+import android.view.View;
+import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Toast;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.json.JSONObject;
+
+/**
+ * Bilancio per Android: una WebView che mostra le pagine incluse nell'APK (cartella assets/www, cioè public/)
+ * e inoltra al server di casa dati e login (tutto ciò che passa da /api/), come fa il localhost collegato al server.
+ * L'indirizzo del server viene da assets/config.json, scritto in fase di build dal file .env (mai nel codice).
+ */
+public class MainActivity extends Activity {
+    // Origine fittizia https: le richieste a questo host non escono mai, le gestisce l'app.
+    private static final String HOST = "app.bilancio.local";
+    private static final int PICK_FILE = 41;
+    private static final int ASK_NOTIFICATIONS = 42;
+
+    private WebView web;
+    private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    private ValueCallback<Uri[]> chooser;
+    private String shim;
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        try {
+            Server.version(this); // controlla che la configurazione ci sia
+            shim = new String(Server.readAll(getAssets().open("shim.js")), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            Toast.makeText(this, "Configurazione mancante: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        int bg = night ? Color.parseColor("#0E1513") : Color.parseColor("#F4F6F5");
+        getWindow().setStatusBarColor(bg);
+        getWindow().setNavigationBarColor(bg);
+        if (!night) getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
+        web = new WebView(this);
+        web.setBackgroundColor(bg);
+        setContentView(web);
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        web.addJavascriptInterface(new Bridge(), "Native");
+        web.setWebViewClient(new Client());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                if (chooser != null) chooser.onReceiveValue(null);
+                chooser = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                try { startActivityForResult(Intent.createChooser(i, "Scegli un file"), PICK_FILE); }
+                catch (Exception e) { chooser = null; return false; }
+                return true;
+            }
+        });
+        web.loadUrl("https://" + HOST + "/");
+
+        // Notifica del primo del mese: serve il permesso (Android 13+) e un promemoria programmato.
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, ASK_NOTIFICATIONS);
+        }
+        Monthly.schedule(this);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        DueWidget.refreshAll(this); // il widget si aggiorna ogni volta che apri l'app
+    }
+
+    @Override protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == PICK_FILE && chooser != null) {
+            chooser.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
+            chooser = null;
+        }
+    }
+
+    @Override public void onBackPressed() {
+        if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
+    }
+
+    // ------------------------------------------------------------------ pagine incluse nell'app
+
+    private WebResourceResponse toWebResponse(Server.Reply r) {
+        if (r.status == 0 || (r.status >= 300 && r.status < 400)) {
+            String msg = "{\"error\":\"Il server non risponde. Controlla la connessione.\"}";
+            return new WebResourceResponse("application/json", "utf-8", 502, "Bad Gateway", new HashMap<String, String>(), new ByteArrayInputStream(msg.getBytes(StandardCharsets.UTF_8)));
+        }
+        String mime = r.mime.split(";")[0].trim();
+        return new WebResourceResponse(mime, "utf-8", r.status, r.reason, r.headers, new ByteArrayInputStream(r.body));
+    }
+
+    private WebResourceResponse asset(String path) {
+        if (path.equals("/") || path.isEmpty()) path = "/index.html";
+        else if (path.equals("/login")) path = "/login.html";
+        String name = path.substring(1);
+        try {
+            byte[] data = Server.readAll(getAssets().open("www/" + name));
+            String mime = mimeOf(name);
+            if (name.endsWith(".html")) {
+                // Le richieste non-GET a /api/ passano dal codice nativo: lo script che le devia va in testa alla pagina.
+                String html = new String(data, StandardCharsets.UTF_8).replaceFirst("<head>", "<head><script>" + java.util.regex.Matcher.quoteReplacement(shim) + "</script>");
+                data = html.getBytes(StandardCharsets.UTF_8);
+            }
+            Map<String, String> h = new HashMap<>();
+            h.put("Cache-Control", "no-cache");
+            return new WebResourceResponse(mime, "utf-8", 200, "OK", h, new ByteArrayInputStream(data));
+        } catch (Exception e) {
+            return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<String, String>(), new ByteArrayInputStream("Non trovato".getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    private static String mimeOf(String name) {
+        if (name.endsWith(".html")) return "text/html";
+        if (name.endsWith(".js")) return "text/javascript";
+        if (name.endsWith(".css")) return "text/css";
+        if (name.endsWith(".svg")) return "image/svg+xml";
+        if (name.endsWith(".png")) return "image/png";
+        if (name.endsWith(".webmanifest") || name.endsWith(".json")) return "application/json";
+        return "application/octet-stream";
+    }
+
+    // ------------------------------------------------------------------ apertura dei documenti
+
+    private void openDocument(final String pathAndQuery) {
+        pool.execute(new Runnable() {
+            @Override public void run() {
+                Server.Reply r = Server.get(MainActivity.this, pathAndQuery);
+                if (r.status != 200) { toast("Impossibile aprire il documento."); return; }
+                try {
+                    String name = "documento.pdf";
+                    String cd = r.headers.get("Content-Disposition");
+                    if (cd != null) {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("filename\\*?=(?:UTF-8'')?\"?([^\";]+)").matcher(cd);
+                        if (m.find()) name = Uri.decode(m.group(1));
+                    }
+                    name = name.replaceAll("[^A-Za-z0-9._-]", "_");
+                    File dir = new File(getCacheDir(), "files");
+                    dir.mkdirs();
+                    File f = new File(dir, name);
+                    try (FileOutputStream o = new FileOutputStream(f)) { o.write(r.body); }
+                    final Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setDataAndType(Uri.parse("content://app.bilancio.mobile.files/" + Uri.encode(name)), r.mime.split(";")[0].trim());
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            try { startActivity(i); } catch (Exception e) { toast("Nessuna app per aprire questo documento."); }
+                        }
+                    });
+                } catch (Exception e) { toast("Impossibile aprire il documento."); }
+            }
+        });
+    }
+
+    private void toast(final String text) {
+        runOnUiThread(new Runnable() { @Override public void run() { Toast.makeText(MainActivity.this, text, Toast.LENGTH_LONG).show(); } });
+    }
+
+    // ------------------------------------------------------------------ WebView
+
+    private class Client extends WebViewClient {
+        @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
+            Uri u = req.getUrl();
+            if (!HOST.equals(u.getHost())) return null;
+            String path = u.getPath() == null ? "/" : u.getPath();
+            if (!path.startsWith("/api/")) return asset(path);
+            String q = u.getEncodedQuery();
+            return toWebResponse(Server.forward(MainActivity.this, req.getMethod(), path + (q == null ? "" : "?" + q), req.getRequestHeaders(), null));
+        }
+
+        @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
+            Uri u = req.getUrl();
+            if (HOST.equals(u.getHost())) {
+                if ("/api/file".equals(u.getPath())) {
+                    String q = u.getEncodedQuery();
+                    openDocument("/api/file" + (q == null ? "" : "?" + q));
+                    return true;
+                }
+                return false;
+            }
+            try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { /* nessuna app disponibile */ }
+            return true;
+        }
+    }
+
+    /** Feedback aptico: un lieve «tick» a ogni tocco su pulsanti, tab, celle e menu (lo chiama lo script iniettato nelle pagine). */
+    private void tick() {
+        Vibrator v = getSystemService(Vibrator.class);
+        if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK));
+    }
+
+    /** Le richieste con corpo (POST, PUT, caricamento file…) non arrivano a shouldInterceptRequest: le invia lo script, noi le inoltriamo. */
+    private class Bridge {
+        @JavascriptInterface public void haptic() { tick(); }
+
+        @JavascriptInterface public void send(final int id, final String method, final String path, final String headersJson, final String body, final boolean base64) {
+            pool.execute(new Runnable() {
+                @Override public void run() {
+                    Map<String, String> headers = new HashMap<>();
+                    try {
+                        JSONObject h = new JSONObject(headersJson);
+                        for (Iterator<String> it = h.keys(); it.hasNext(); ) { String k = it.next(); headers.put(k, h.getString(k)); }
+                    } catch (Exception e) { /* senza intestazioni */ }
+                    byte[] payload = null;
+                    if (!body.isEmpty()) payload = base64 ? Base64.decode(body, Base64.DEFAULT) : body.getBytes(StandardCharsets.UTF_8);
+                    final Server.Reply r = Server.forward(MainActivity.this, method, path, headers, payload);
+                    final String b64 = Base64.encodeToString(r.body, Base64.NO_WRAP);
+                    final JSONObject rh = new JSONObject();
+                    try { rh.put("Content-Type", r.mime); } catch (Exception e) { /* ignora */ }
+                    // Segnare pagato, leggere i documenti o caricarne uno cambia le cose da pagare: il widget si aggiorna.
+                    if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/paid") || path.startsWith("/api/pay-all") || path.startsWith("/api/refresh") || path.startsWith("/api/upload"))) {
+                        DueWidget.refreshAll(MainActivity.this);
+                    }
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            web.evaluateJavascript("window.__bilancioResult(" + id + "," + r.status + "," + rh + "," + JSONObject.quote(b64) + ")", null);
+                        }
+                    });
+                }
+            });
+        }
+    }
+}

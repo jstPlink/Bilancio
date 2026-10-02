@@ -27,14 +27,16 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
     passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
   - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
     *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
-- **Movimenti.** I movimenti dell'estratto conto con la loro suddivisione: riquadri per categoria (un clic filtra), filtri per anno e mese,
-  ricerca e due viste, *Movimenti* (uno per riga) e *Per descrizione* (raggruppati per categoria e descrizione uguale). Sotto ogni descrizione
-  si vedono giorno e ora, metodo (carta, bonifico, prelievo…), commissione e valuta; cliccando la riga si apre il dettaglio con il saldo dopo
-  il pagamento, il testo completo della banca, gli altri pagamenti con la stessa descrizione e i link per cercarla su Google e su Maps. Dal
-  menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. Da qui si può anche caricare un CSV a mano.
-- **Statistiche.** I grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
+- **Movimenti.** I movimenti dell'estratto conto in un solo elenco, con filtri per anno e mese e ricerca. I pagamenti allo stesso ente (stessa
+  descrizione) sono accorpati in una riga con quantità, totale e media: un tocco la apre sui singoli pagamenti. Di ogni pagamento si vedono giorno
+  e ora, metodo (carta, bonifico, prelievo…), commissione e valuta; toccandolo si apre il dettaglio con il saldo dopo il pagamento, il testo
+  completo della banca, gli altri pagamenti con la stessa descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria:
+  l'app la ricorda per tutte le descrizioni uguali.
+- **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
-- **Documenti.** L'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
+- **Documenti.** **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
+  *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
+  I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
   (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora** per i file che non c'entrano.
 
 Sul telefono la tabella resta una tabella a colonne con le sole voci compatte (Mese, Entrate, Uscite, Bilancio); il dettaglio delle
@@ -44,23 +46,51 @@ uscite resta per lo schermo largo. L'intestazione mostra solo la versione, e *Es
 Condividi → *Aggiungi a Home*) e si apre a schermo intero con la sua icona. Serve un indirizzo https. I dati restano sempre sul server,
 nulla viene salvato sul telefono. Le icone si rigenerano con `node scripts/genera-icone.mjs`.
 
+## App Android (APK)
+
+Oltre alla PWA c'è un'app Android vera, in `android/`: una WebView che contiene le pagine di `public/` e inoltra al server dati e login (`/api/`),
+come il localhost collegato al server. Perciò le modifiche alla grafica si vedono nell'app senza aggiornare il server.
+
+```bash
+npm run apk              # costruisce android/build/Bilancio-<versione>.apk
+npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wireless attivo)
+```
+
+L'app Android ha in più:
+- **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): totale ancora da pagare e le prime voci. Si aggiorna ogni mezz'ora,
+  quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
+- **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
+  per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
+
+Servono l'SDK Android (build-tools e una piattaforma, di norma in `~/Android/Sdk`, oppure `ANDROID_HOME`) e Java 17; non serve Gradle.
+L'indirizzo del server viene da `BILANCIO_SERVER` nel file `.env` e finisce solo nell'APK (`android/build/` è escluso da Git). L'APK è firmato
+con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la stessa chiave.
+
 ## Uso
 
 1. Apri **Impostazioni** (ingranaggio) e indica dove si trovano i documenti:
    - **Buste paga**, **Bollette** ed **Estratti conto**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`, senza password)
      oppure un percorso locale. Le sottocartelle vengono lette in automatico.
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
-   - **Riconoscere i miei movimenti**: il tuo nome e chi ti paga lo stipendio, per non contare i giroconti tra i tuoi conti né lo stipendio
-     due volte. Restano sul tuo database.
+   - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
+     stipendio né i giri tra i tuoi conti.
 2. Premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
 3. Controlla la scheda **Documenti** per i file *Da controllare*.
 
+## Riconoscimento automatico di nome e datore di lavoro
+
+Non va scritto nulla: a ogni aggiornamento (e dopo un caricamento o la lettura delle banche) `src/identity.js` lo ricava dai dati.
+- **Chi ti paga lo stipendio**: il bonifico in entrata con lo stesso importo del netto di una busta paga, per almeno due mesi, entro il 20 del mese dopo.
+- **Il tuo nome**: un'uscita che ricompare identica come entrata su un altro conto (entro 3 giorni), con lo stesso nome come destinatario e come mittente, almeno due volte.
+Con questi nomi i bonifici dello stipendio e i giri tra i tuoi conti diventano *Giroconti* (non contati) e lo stipendio compare come una sola voce in Movimenti.
+I nomi si aggiungono a quelli già salvati e le categorie scelte a mano non si toccano. Se qualcosa è classificato male, cambia la categoria in Movimenti.
+
 ## Estratti conto (spese)
 
 Indica il link (Seafile pubblico o cartella locale) degli estratti conto nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
-oppure carica un CSV a mano dalla scheda **Movimenti** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
+oppure caricalo a mano da **Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
 leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo della banca. Per un'altra banca serve un nuovo
 lettore in `src/pdfstatements.js`. Ricaricare lo stesso file non duplica nulla.
 
@@ -76,6 +106,25 @@ Le uscite si categorizzano con parole chiave in `src/statements.js`:
 
 Le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate**; i giri tra i propri conti, le ricariche e le entrate dal datore di
 lavoro (già nelle buste paga) sono ignorati.
+
+## Banche collegate (UniCredit, Revolut)
+
+In **Impostazioni → Collega le banche** l'app legge i movimenti direttamente dalla banca (open banking PSD2, accesso **in sola lettura**), senza scaricare
+estratti. Usa [Enable Banking](https://enablebanking.com), gratuito per uso personale se si collegano i propri conti.
+
+1. Crea un account su enablebanking.com e, nel Control Panel, registra un'applicazione **di produzione** con l'indirizzo di ritorno che le Impostazioni
+   mostrano (`https://<il-tuo-server>/api/banking/callback`; deve essere https). Poi «Activate by linking accounts» per i tuoi conti.
+2. Il browser scarica un file `.pem` (chiave privata): il suo nome è l'**ID applicazione**. Incollali in Impostazioni → *Credenziali Enable Banking*.
+   Restano solo sul server (database) e non tornano mai all'interfaccia.
+3. Premi **Collega UniCredit** / **Collega Revolut**: si apre il sito della banca per autorizzare; al ritorno i conti sono collegati e i movimenti letti.
+
+**Dati disponibili:** conti (nome, IBAN, valuta) e movimenti *registrati* (data, importo, entrata/uscita, controparte, causale, IBAN della controparte e,
+se la banca lo dà, il saldo dopo il movimento). Non le carte di credito UniCredit, né investimenti o pagamenti ricorrenti. Lo storico dipende dalla
+banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90 giorni.
+
+**Limiti:** le banche concedono 4 letture al giorno per collegamento; **Aggiorna** legge le banche solo se l'ultima lettura ha più di 3 ore. Il consenso
+dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
+non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
 
 ## Più case
 
@@ -188,9 +237,10 @@ conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.
 
 ```
 public/        pagine (index.html, app.js, charts.js, style.css, login.html)
-src/           server Express: server.js, grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
+src/           server Express: server.js, banking.js (banche collegate), uploads.js (documenti caricati), grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
                statements.js e pdfstatements.js (banca), billmatch.js, ocr.js, sources.js (cartelle e Seafile), auth.js, store.js
-scripts/       importa-su-server.mjs, reimposta-password.mjs
+scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs
+android/       app Android (manifest, codice Java, script che inietta le chiamate al server)
 test/          node --test
 ```
 

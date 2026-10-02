@@ -42,8 +42,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 
 main { max-width: 1760px; margin: 0 auto; padding: 16px; }
 .tabs { display: flex; gap: 4px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-.tabs > button[role=tab] { background: none; border: 0; padding: 8px 14px; border-radius: 10px; color: var(--muted); font-weight: 600; }
-.tabs > button[aria-selected=true] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.tabs > button[role=tab] { background: var(--surface); border: 1px solid var(--line-strong); padding: 8px 14px; border-radius: 10px; color: var(--ink); font-weight: 600; }
+.tabs > button[aria-selected=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow); }
 .years { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 .badge { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; text-align: center; }
 .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
@@ -146,13 +146,16 @@ td:has(> .expense-input) { text-align: right; }
 /* --- colonna mesi come il riepilogo, allineamenti dei totali, movimenti --- */
 :root { --summary-bg: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
 tbody th[scope=row], tbody tr:hover th[scope=row], thead th.g-month { background: var(--summary-bg); }
+/* La colonna dei mesi si stacca dalle altre: fondo più marcato, bordo a destra e testo pieno. */
+#grid tbody th[scope=row], #grid tbody tr:hover th[scope=row], #grid thead th.g-month, #grid tfoot th {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface)); color: var(--ink); font-weight: 700;
+  border-right: 2px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+}
 thead th.g-month { border-bottom: 1px solid var(--line); }
 thead th { white-space: nowrap; padding-right: 12px; }
 tbody td.num.total { padding: 8px 12px; min-width: 110px; }
 tfoot td.num { padding-right: 12px; }
 .movebar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
-label.upload { cursor: pointer; }
-label.upload:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 #moveTable td, #moveTable th { text-align: left; }
 #moveTable td.num { text-align: right; padding: 8px 12px; }
 #moveTable select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
@@ -287,12 +290,8 @@ tbody td.num:has(> .pcell) { padding: 3px 5px; }
 th.subcol.d2, td.subcol.d2 { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 /* Movimenti: barra dei filtri, riquadri delle categorie, tabella con dettagli. */
-.bankbar label.upload { display: inline-flex; align-items: center; align-self: flex-end; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); font-size: 15px; font-weight: 600; cursor: pointer; }
 .bankbar .grow { flex: 1 1 240px; }
 .bankbar .grow input { width: 100%; }
-.seg { display: inline-flex; align-self: flex-end; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
-.seg button { background: none; border: 0; padding: 8px 14px; color: var(--muted); font-weight: 600; }
-.seg button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
 .catcards { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 10px; }
 button.catcard { text-align: left; font: inherit; cursor: pointer; width: 100%; padding: 10px 14px; color: inherit; }
 button.catcard .v { font-size: 20px; }
@@ -301,6 +300,12 @@ button.catcard.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix
 button.catcard.muted-card { opacity: .7; background: transparent; box-shadow: none; }
 .catcard small { color: var(--muted); font-weight: 500; }
 .resultline { margin: 6px 0 10px; }
+.catfilter { margin: 6px 0 4px; }
+/* Pagamenti allo stesso ente: una riga di gruppo che si apre sui singoli pagamenti. */
+tr.mv.group td { border-top: 1px solid var(--line); }
+tr.mv.sub td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+tr.mv.sub td.dcol { padding-left: 34px; }
+tr.mv.group.open td { border-bottom-color: transparent; }
 
 #moveTable { min-width: 760px; }
 tr.mv { cursor: pointer; }
@@ -340,7 +345,7 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   #lastRefresh { display: none; }
   button.primary, button.ghost { min-height: 40px; }
   main { padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); }
-  .tabs { gap: 2px; margin-bottom: 12px; }
+  .tabs { gap: 6px; margin-bottom: 12px; }
   .tabs > button[role=tab] { flex: 1 1 auto; padding: 10px 6px; font-size: 13.5px; min-height: 40px; text-align: center; }
   .years { margin-left: 0; width: 100%; }
   .years label { width: 100%; justify-content: space-between; }
@@ -362,18 +367,18 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   #grid thead th { font-size: 12.5px; position: static; }
   #grid thead th.g-month, #grid tbody th[scope=row], #grid tfoot th { padding-left: 12px; }
   #grid tbody th[scope=row] { color: var(--ink); font-size: 14px; }
-  #grid td.total, #grid td.gstart, #grid th.gstart { border-left: 0; }
+  /* Entrate e Uscite hanno lo stesso fondo; una linea sottile separa anche Bilancio. */
+  #grid td.gstart, #grid th.gstart { border-left: 1px solid var(--line-strong); }
   #grid .static { width: auto; min-height: 0; padding: 0; }
   #grid tfoot td, #grid tfoot th { font-size: 13px; }
+  /* Media e importo da pagare sono già nelle targhette in alto. */
+  #grid tfoot { display: none; }
 
   /* Movimenti: filtri a tutta larghezza e un riquadro per ogni pagamento. */
   .bankbar { gap: 8px; }
   .bankbar > label { flex: 1 1 140px; }
   .bankbar select, .bankbar input[type=search] { width: 100%; min-height: 42px; }
-  .bankbar label.upload { width: 100%; justify-content: center; min-height: 44px; flex-basis: 100%; }
-  .bankbar .grow { flex-basis: 100%; }
-  .seg { width: 100%; }
-  .seg button { flex: 1; min-height: 42px; }
+    .bankbar .grow { flex-basis: 100%; }
   .catcards { grid-template-columns: 1fr 1fr; }
   #movesBody .tablewrap:has(#moveTable) { background: none; border: 0; box-shadow: none; overflow: visible; }
   #moveTable { min-width: 0; }
@@ -386,6 +391,10 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   #moveTable td.desc { grid-column: 1; grid-row: 2; }
   #moveTable td:last-child { grid-column: 1 / -1; padding-top: 8px; }
   #moveTable select { width: 100%; min-height: 42px; }
+  #moveTable tr.mv.sub { margin: -4px 0 8px 16px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius: 10px; }
+  #moveTable tr.mv.sub td, #moveTable tr.mv.sub td.dcol { padding-left: 0; }
+  #moveTable td.nocat { display: none; }
+  #moveTable tr.mv.group { border-left: 3px solid var(--accent); }
   #moveTable tr.mvdetail { display: block; margin: -8px 0 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 0 14px 14px; }
   #moveTable tr.mvdetail td { display: block; }
   .detailgrid { padding: 12px 14px; }
@@ -396,3 +405,26 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   .hb-row { grid-template-columns: minmax(70px, 30%) minmax(0, 1fr) auto; gap: 6px; font-size: 12px; }
   dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
 }
+
+/* Celle e mesi della Panoramica che aprono i Movimenti. */
+.static.go, th.go { cursor: pointer; }
+.static.go:hover, th.go:hover { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent); text-underline-offset: 3px; }
+.static.go:focus-visible, th.go:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+
+/* Banche collegate (Impostazioni). */
+.bkconn { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.bkconn small { display: block; }
+.bkconn .foot { justify-content: flex-start; gap: 14px; }
+.warnline { color: var(--warn-ink); background: var(--warn-bg); padding: 2px 8px; border-radius: 8px; justify-self: start; }
+.dlg textarea { padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 100%; font: 12px/1.35 ui-monospace, Consolas, monospace; resize: vertical; }
+.dlg code { font-size: 12px; overflow-wrap: anywhere; background: var(--bg); padding: 1px 5px; border-radius: 6px; }
+.dlg details > summary { cursor: pointer; padding: 4px 0; }
+
+/* Impostazioni: sezioni richiudibili. */
+.dlg details.fs { border: 1px solid var(--line); border-radius: 12px; }
+.dlg details.fs > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; font-weight: 600; font-size: 15px; min-height: 48px; }
+.dlg details.fs > summary::-webkit-details-marker { display: none; }
+.dlg details.fs > summary::after { content: '▸'; color: var(--muted); }
+.dlg details.fs[open] > summary::after { content: '▾'; }
+.dlg details.fs > .fsbody { display: grid; gap: 12px; padding: 0 14px 14px; }
+.dlg details.fs .foot { justify-content: flex-start; }

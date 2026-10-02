@@ -47,6 +47,7 @@ async function api(path, options) {
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { location.href = '/login'; throw new Error(data.error ?? 'Accesso richiesto.'); }
+  if (res.status === 404 && !data.error && String(path).startsWith('/api/')) throw new Error('Il server non ha ancora questa funzione: va aggiornato all\'ultima versione (docker compose pull && docker compose up -d).');
   if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
   return data;
 }
@@ -134,7 +135,7 @@ function buildColumns() {
   const add = (col) => { out.push(col); return col; };
 
   add({
-    id: 'entrate', kind: 'entrate', label: 'Entrate', start: true, plain: true,
+    id: 'entrate', kind: 'entrate', label: 'Entrate', start: true, plain: true, total: true,
     cell: (m) => ({ amount: rows[m - 1].income }),
     tip: (m) => {
       const st = cellOf('stipendio', m).amount;
@@ -202,7 +203,8 @@ function cellHtml(col, month, c) {
     const tone = col.balance ? (c.amount >= 0 ? 'pos' : 'neg') : '';
     const dueHint = c.due ? `<small class="duehint">${c.due} da pagare</small>` : '';
     const tip = col.tip ? col.tip(month) : (c.due ? `${c.due} da pagare` : '');
-    return `<div class="static ${tone}${dueHint ? ' has-sub' : ''}" ${tip ? `title="${esc(tip)}"` : ''}><span class="num">${money(c.amount)}</span>${dueHint}</div>`;
+    const go = ['entrate', 'uscite', 'balance'].includes(kind) ? ` data-go="${kind}" data-month="${month}" role="button" tabindex="0" aria-label="Movimenti di ${esc(label)}"` : '';
+    return `<div class="static ${tone}${dueHint ? ' has-sub' : ''}${go ? ' go' : ''}" ${tip ? `title="${esc(tip)}"` : ''}${go}><span class="num">${money(c.amount)}</span>${dueHint}</div>`;
   }
   if (SPENDING.has(kind)) {
     return `<input class="expense-input" inputmode="decimal" data-kind="${kind}" data-month="${month}" value="${inputValue(c.amount)}" placeholder="–" aria-label="${label}">`;
@@ -246,14 +248,14 @@ function renderGrid() {
   const { rows } = state.grid;
   const cols = buildColumns();
   state.colMap = Object.fromEntries(cols.map((c) => [c.id, c]));
-  const dot = (c) => (c.plain && c.kind !== 'entrate' && c.kind !== 'uscite' ? '' : `<span class="dot" style="background:var(--${c.colorKey ?? c.kind})"></span>`);
+  const dot = (c) => (c.plain ? '' : `<span class="dot" style="background:var(--${c.colorKey ?? c.kind})"></span>`);
   const cls = (c) => [c.start && 'gstart', c.sub && `subcol d${c.depth}`, c.total && 'total'].filter(Boolean).join(' ');
   const head = cols.map((c) => {
     const sub = c.place ? `<small class="place">${PLACE_LABELS[c.place]}</small>` : '';
     const name = `${dot(c)}${esc(c.place ? colLabel(c) : c.label ?? colLabel(c))}${sub}`;
     return `<th class="${cls(c)}">${name}</th>`;
   }).join('');
-  const body = rows.map((r) => `<tr><th scope="row">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
+  const body = rows.map((r) => `<tr><th scope="row" class="go" data-go="balance" data-month="${r.month}" role="button" tabindex="0" title="Movimenti di ${MONTHS[r.month - 1]}">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
     <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${money(c.average) || '–'}</td>`).join('')}</tr>
     <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
@@ -304,7 +306,15 @@ const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', c
 const fmtDate = (d) => d.split('-').reverse().join('/');
 
 // Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
-const sorting = { moves: { key: 'date', dir: 'desc' }, bank: { key: 'total', dir: 'desc' } };
+const sorting = { moves: { key: 'date', dir: 'desc' } };
+// Scelte del menu «Ordina per» (le intestazioni della tabella, su schermo largo, fanno lo stesso).
+const SORT_CHOICES = [
+  ['date:desc', 'Più recenti'], ['date:asc', 'Più vecchi'],
+  ['amount:desc', 'Prezzo decrescente'], ['amount:asc', 'Prezzo crescente'],
+  ['count:desc', 'Più transazioni'], ['count:asc', 'Meno transazioni'],
+  ['description:asc', 'Nome A–Z'], ['description:desc', 'Nome Z–A'],
+  ['category:asc', 'Categoria'],
+];
 const TEXT_KEYS = new Set(['description', 'name', 'category']);
 function sortList(list, scope, getters) {
   const { key, dir } = sorting[scope];
@@ -326,7 +336,7 @@ function setSort(spec) {
   const s = sorting[scope];
   if (s.key === key) s.dir = s.dir === 'asc' ? 'desc' : 'asc';
   else { s.key = key; s.dir = TEXT_KEYS.has(key) ? 'asc' : 'desc'; }
-  renderMoves();
+  renderBank();
 }
 
 const categorySelect = (attr, id, current, label, positive = false) => {
@@ -337,16 +347,18 @@ const categorySelect = (attr, id, current, label, positive = false) => {
 
 const CURRENT_YEAR = new Date().getFullYear();
 // Periodo e filtri condivisi da Movimenti e Statistiche.
-state.bank = { year: CURRENT_YEAR, month: 0, data: null, cat: '', q: '', view: 'moves', open: new Set() };
+state.bank = { year: CURRENT_YEAR, month: 0, data: null, cat: '', q: '', flow: '', open: new Set() };
 state.moves = [];
 
 // Carica movimenti e analisi del periodo scelto e ridisegna la scheda visibile.
 async function loadBank() {
   const { year, month } = state.bank;
-  const [tx, analysis] = await Promise.all([
+  const [tx, analysis, settings] = await Promise.all([
     api(`/api/transactions?year=${year}`),
     api(`/api/analysis?year=${year}&month=${month}`),
+    api('/api/settings').catch(() => null),
   ]);
+  state.payers = String(settings?.incomePayers ?? '').split(/[,;]/).map((p) => p.trim()).filter((p) => normText(p));
   state.moves = tx.transactions;
   state.bank.data = analysis;
   renderBank();
@@ -367,11 +379,23 @@ function renderFilters() {
   const monthOptions = `<option value="0">Tutti i mesi</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
   document.querySelectorAll('.f-year').forEach((el) => { el.innerHTML = yearOptions; });
   document.querySelectorAll('.f-month').forEach((el) => { el.innerHTML = monthOptions; });
-  document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q; });
+  const sortNow = `${sorting.moves.key}:${sorting.moves.dir}`;
+  const sortSelect = $('#moveSort');
+  if (sortSelect) {
+    const known = SORT_CHOICES.some(([v]) => v === sortNow);
+    sortSelect.innerHTML = (known ? '' : `<option value="${sortNow}" selected>Personalizzato</option>`) + SORT_CHOICES.map(([v, l]) => `<option value="${v}" ${v === sortNow ? 'selected' : ''}>${l}</option>`).join('');
+  }
+  const catSelect = $('#catSelect');
+  if (catSelect) {
+    const names = data ? [...data.categories, ...data.inflows.filter((c) => c.count), ...data.excluded.filter((c) => c.count)].map((c) => c.category) : [];
+    const list = [...new Set([...names, ...(cat ? [cat] : [])])];
+    catSelect.innerHTML = `<option value="">Tutte</option>${list.map((c) => `<option value="${c}" ${c === cat ? 'selected' : ''}>${esc(catName(c))}</option>`).join('')}`;
+  }
+  document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q && !state.bank.flow; });
 }
 
 function resetBank() {
-  Object.assign(state.bank, { year: CURRENT_YEAR, month: 0, cat: '', q: '' });
+  Object.assign(state.bank, { year: CURRENT_YEAR, month: 0, cat: '', q: '', flow: '' });
   $('#moveSearch').value = '';
   loadBank().catch((err) => toast(err.message));
 }
@@ -413,6 +437,9 @@ const weekday = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'lo
 const longDate = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const normText = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 const sameKey = (t) => (t.amount > 0 ? 'in:' : '') + (normText(t.description) || t.description);
+// Chi paga lo stipendio (Impostazioni → «Chi mi paga lo stipendio»): i suoi bonifici hanno descrizioni sempre un po' diverse, ma sono la stessa cosa.
+const payerOf = (t) => (t.amount > 0 ? (state.payers ?? []).find((p) => normText(t.description).includes(normText(p))) : undefined);
+const groupKey = (t) => { const p = payerOf(t); return p ? `in:@${normText(p)}` : sameKey(t); };
 const searchUrl = (t) => `https://www.google.com/search?q=${encodeURIComponent(t.description)}`;
 const mapsUrl = (t) => `https://www.google.com/maps/search/${encodeURIComponent(t.description)}`;
 const catName = (c) => CATEGORY_NAME[c] ?? c;
@@ -424,7 +451,7 @@ function metaLine(t) {
 }
 
 function detailRow(t, similarByKey) {
-  const same = similarByKey.get(sameKey(t)) ?? [t];
+  const same = similarByKey.get(groupKey(t)) ?? [t];
   const total = same.reduce((a, x) => a + Math.abs(x.amount), 0);
   const dates = same.map((x) => x.date).sort();
   const others = [...same].filter((x) => x.id !== t.id).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
@@ -457,10 +484,12 @@ function detailRow(t, similarByKey) {
 // ------------------------------------------------------------------ scheda Movimenti
 
 function filteredMoves() {
-  const { month, cat, q } = state.bank;
+  const { month, cat, q, flow } = state.bank;
   const needle = q.trim().toLowerCase();
   return state.moves.filter((t) => {
     if (month && Number(t.date.slice(5, 7)) !== month) return false;
+    if (flow === 'in' && !(t.amount > 0)) return false;
+    if (flow === 'out' && !(t.amount < 0)) return false;
     if (cat && t.category !== cat) return false;
     if (!needle) return true;
     return `${t.description} ${t.detail ?? ''} ${methodOf(t)} ${t.amount} ${money(t.amount)} ${fmtDate(t.date)} ${catName(t.category)}`.toLowerCase().includes(needle);
@@ -491,8 +520,6 @@ function categoryCards(a) {
 
 function renderMoves() {
   const a = state.bank.data;
-  const view = state.bank.view;
-  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === view));
   const empty = !state.moves.length && !(a && (a.count || a.months?.some((m) => m.bank && Object.values(m.bank).some(Boolean))));
   $('#movesEmpty').hidden = !empty;
   if (empty) { $('#movesBody').innerHTML = ''; return; }
@@ -500,56 +527,74 @@ function renderMoves() {
   const list = filteredMoves();
   const out = list.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const inn = list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Compresi i giroconti e le bollette già contate nei documenti, che non entrano nei totali dell'app">(${periodLabel()})</span>. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
-  const cards = a ? `<div class="cards catcards">${categoryCards(a)}</div>` : '';
-  $('#movesBody').innerHTML = cards + summary + (view === 'groups' ? groupsView(a) : movesTable(list));
+  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Compresi i giroconti e le bollette già contate nei documenti, che non entrano nei totali dell'app">(${periodLabel()})</span>. I pagamenti allo stesso ente sono in una riga sola: toccala per vederli. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
+  const flowName = { in: 'solo entrate', out: 'solo uscite' }[state.bank.flow];
+  const filter = (state.bank.cat ? `<p class="catfilter">Categoria: <b>${esc(catName(state.bank.cat))}</b> <button class="link" data-clearcat="1">Togli il filtro</button></p>` : '')
+    + (flowName ? `<p class="catfilter">Mostro <b>${flowName}</b> <button class="link" data-clearflow="1">Mostra tutto</button></p>` : '');
+  $('#movesBody').innerHTML = filter + summary + movesTable(list);
+}
+
+// Un solo elenco: i pagamenti con la stessa descrizione (lo stesso ente) sono accorpati in una riga che si apre sui singoli movimenti.
+function moveEntries(list) {
+  const groups = new Map();
+  for (const t of list) {
+    const k = groupKey(t);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  return [...groups.entries()].map(([k, items]) => {
+    items.sort((a, b) => `${b.date} ${b.time ?? ''}`.localeCompare(`${a.date} ${a.time ?? ''}`));
+    const first = items[0];
+    return {
+      id: items.length > 1 ? `g:${k}` : first.id, items, group: items.length > 1, first, last: items.at(-1),
+      date: `${first.date} ${first.time ?? ''}`, description: first.description, category: first.category,
+      title: payerOf(first) ? `Stipendio · ${payerOf(first)}` : shortName(first.description),
+      // un menu per più descrizioni: la categoria si cambia per ognuna (una per descrizione diversa)
+      ids: [...new Map(items.map((t) => [t.description, t.id])).values()],
+      amount: items.reduce((s, t) => s + t.amount, 0),
+    };
+  });
 }
 
 function movesTable(list) {
   if (!list.length) return '<div class="empty"><p>Nessun movimento con questi filtri.</p></div>';
-  const rows = sortList(list, 'moves', { date: (t) => `${t.date} ${t.time ?? ''}`, description: (t) => t.description, amount: (t) => t.amount, category: (t) => t.category });
+  const rows = sortList(moveEntries(list), 'moves', { date: (e) => e.date, description: (e) => e.title, amount: (e) => Math.abs(e.amount), count: (e) => e.items.length, category: (e) => e.category });
   const similar = new Map();
   for (const t of state.moves) {
-    const k = sameKey(t);
+    const k = groupKey(t);
     if (!similar.has(k)) similar.set(k, []);
     similar.get(k).push(t);
   }
-  const body = rows.map((t) => {
+  const expander = (id, open, label) => `<button class="expander" data-expand="${id}" aria-expanded="${open}" title="${open ? 'Nascondi' : 'Mostra'} i dettagli" aria-label="Dettagli di ${esc(label)}">${open ? '▾' : '▸'}</button>`;
+  const single = (t, cls = '') => {
     const open = state.bank.open.has(t.id);
-    return `<tr class="mv${open ? ' open' : ''}" data-mv="${t.id}">
-      <td class="dcol"><button class="expander" data-expand="${t.id}" aria-expanded="${open}" title="${open ? 'Nascondi' : 'Mostra'} i dettagli" aria-label="Dettagli di ${esc(t.description)}">${open ? '▾' : '▸'}</button><span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(shortName(t.description))}</span>${metaLine(t)}${t.matchedDoc ? `<small class="doc">→ ${esc(t.matchedDoc)}</small>` : ''}</td>
+    return `<tr class="mv${cls}${open ? ' open' : ''}" data-mv="${t.id}">
+      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${metaLine(t)}${t.matchedDoc ? `<small class="doc">→ ${esc(t.matchedDoc)}</small>` : ''}</td>
       <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
       <td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>${open ? detailRow(t, similar) : ''}`;
+  };
+  // Riga di un singolo pagamento dentro un gruppo aperto: senza menu della categoria (vale per tutto il gruppo).
+  const part = (t) => {
+    const open = state.bank.open.has(t.id);
+    return `<tr class="mv sub${open ? ' open' : ''}" data-mv="${t.id}">
+      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
+      <td class="desc">${metaLine(t) || '<small class="meta">&nbsp;</small>'}</td>
+      <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
+      <td class="nocat"></td></tr>${open ? detailRow(t, similar) : ''}`;
+  };
+  const body = rows.map((e) => {
+    if (!e.group) return single(e.first);
+    const open = state.bank.open.has(e.id);
+    const n = e.items.length;
+    const t = e.first;
+    return `<tr class="mv group${open ? ' open' : ''}" data-mv="${e.id}">
+      <td class="dcol">${expander(e.id, open, t.description)}<span>${fmtDate(t.date)}<small>ultimo · ${weekday(t.date)}</small></span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span><small class="meta">${n} pagamenti dal ${fmtDate(e.last.date)} · media ${money(Math.abs(e.amount) / n)}</small></td>
+      <td class="num ${e.amount > 0 ? 'pos-in' : ''}">${e.amount > 0 ? '+' : ''}${money(e.amount)}</td>
+      <td>${categorySelect('data-moves', e.ids.join(','), t.category, e.title, t.amount > 0)}</td></tr>${open ? e.items.map(part).join('') : ''}`;
   }).join('');
   return `<div class="tablewrap"><table id="moveTable"><thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-// Vista "Per descrizione": i movimenti raggruppati per categoria e, dentro, per descrizione uguale.
-function groupsView(a) {
-  if (!a) return '';
-  const { cat, q } = state.bank;
-  const needle = q.trim().toLowerCase();
-  const table = (c, positive = false) => {
-    if (cat && c.category !== cat) return '';
-    const merchants = c.merchants.filter((m) => !needle || m.name.toLowerCase().includes(needle));
-    if (!merchants.length) return '';
-    const rows = sortList(merchants, 'bank', { name: (m) => m.name, count: (m) => m.count, total: (m) => m.total, last: (m) => m.last });
-    const key = `${positive ? 'in-' : ''}${c.category}`;
-    const keepOpen = Boolean(document.querySelector(`#movesBody details[data-cat="${key}"][open]`));
-    const open = cat === c.category || keepOpen || (!cat && ((!positive && c.category === 'altro') || (positive && c.category === 'entrate')));
-    const title = positive
-      ? (c.category === 'entrate' ? 'Altre entrate' : 'Entrate non riconosciute (non contate)')
-      : ({ giroconti: 'Giroconti (soldi tra i miei conti, non contati in nessun dato)', bollette: 'Bollette già contate nei documenti (addebiti abbinati, non contati due volte)', sospesi: 'Da suddividere (es. addebiti PayPal: non contati finché non li dividi)' }[c.category] ?? catName(c.category));
-    const color = positive ? (c.category === 'entrate' ? 'var(--viz-entrate)' : 'var(--viz-altro)') : CATEGORY_COLOR[c.category];
-    return `<details class="acat" data-cat="${key}" ${open ? 'open' : ''}>
-      <summary><i class="key" style="--c:${color}"></i> ${esc(title)} <span class="muted">· ${merchants.length} descrizioni · ${money(c.total)}</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr>${sortHead('bank', 'name', 'Descrizione')}${sortHead('bank', 'count', 'Quantità', 'num')}${sortHead('bank', 'total', 'Importo', 'num')}<th class="num">Media</th>${sortHead('bank', 'last', 'Ultimo')}<th>Categoria</th></tr></thead><tbody>${
-        rows.map((m) => `<tr><td class="fname" title="${esc(m.name)}">${esc(shortName(m.name))}${m.doc ? `<small class="doc">→ ${esc(m.doc)}</small>` : ''} <a class="weblink" href="${searchUrl({ description: m.name })}" target="_blank" rel="noopener noreferrer" title="Cerca su Google">cerca</a></td><td class="num">${m.count}</td><td class="num">${money(m.total)}</td><td class="num">${money(m.total / m.count)}</td><td title="Primo: ${fmtDate(m.from)}">${fmtDate(m.last)}</td><td>${categorySelect('data-amove', m.id, c.category, m.name, m.positive ?? positive)}</td></tr>`).join('')}</tbody></table></div>
-    </details>`;
-  };
-  return [...a.categories.map((c) => table(c)), ...a.inflows.filter((c) => c.count).map((c) => table(c, true)), ...a.excluded.filter((c) => c.count).map((c) => table(c))].join('')
-    || '<div class="empty"><p>Nessuna descrizione con questi filtri.</p></div>';
 }
 
 // ---------------------------------------------------------------- scheda Statistiche
@@ -568,7 +613,8 @@ function renderAnalysis() {
   }).join('');
 
   $('#analysisBody').innerHTML = `
-    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). La suddivisione per categoria e per descrizione è nella scheda Movimenti.</p>
+    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). Tocca una categoria per vederne i movimenti.</p>
+    <div class="cards catcards">${categoryCards(a)}</div>
     <section class="chartcard">
       <h3>Stipendio contro uscite</h3>
       <p class="muted">Bollette e affitto dai documenti, rata del prestito dagli estratti conto; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
@@ -616,21 +662,91 @@ function renderAnalysis() {
 }
 
 async function setCategory(select) {
-  await api('/api/transactions', { method: 'PUT', body: { id: select.dataset.move ?? select.dataset.amove, category: select.value } });
+  const ids = (select.dataset.moves ?? select.dataset.move ?? select.dataset.amove).split(',');
+  for (const id of ids) await api('/api/transactions', { method: 'PUT', body: { id, category: select.value } });
   await Promise.all([loadBank(), loadGrid()]);
   toast('Categoria salvata: la ricorderò per i movimenti con la stessa descrizione.');
 }
 
-async function uploadStatements(files) {
-  let added = 0;
-  let duplicates = 0;
-  for (const file of files) {
-    const r = await api('/api/statements', { method: 'POST', headers: { 'Content-Type': 'text/csv' }, raw: await file.text() });
-    added += r.added;
-    duplicates += r.duplicates;
-  }
-  toast(`Movimenti aggiunti: ${added}${duplicates ? ` (${duplicates} già presenti)` : ''}.`);
-  await Promise.all([loadBank(), loadGrid()]);
+// Carica documento: si sceglie il file, il nome e che cosa è (estratto conto, bolletta o busta paga).
+const UPLOAD_TYPES = { estratto: 'Estratto conto', bolletta: 'Bolletta', busta: 'Busta paga' };
+const UPLOAD_HINTS = {
+  estratto: 'CSV (Revolut: Conti → Estratti → Excel/CSV) o PDF (UniCredit, Revolut): i movimenti si aggiungono a Movimenti, senza duplicati.',
+  bolletta: 'PDF della bolletta: ne leggo importo e mese. Se il mese non è nel PDF, scrivilo nel nome (es. «Luce 2026.09»).',
+  busta: 'PDF della busta paga: ne leggo il netto in busta e il mese.',
+};
+
+// Prima ipotesi sul tipo di documento, dal nome e dall'estensione del file.
+function guessUpload(fileName) {
+  const base = fileName.replace(/\.[^.]+$/, '');
+  if (/\.csv$/i.test(fileName) || /estratt|movimenti|statement/i.test(fileName)) return { base, type: 'estratto' };
+  if (/busta|cedolino|stipendi|payslip/i.test(fileName)) return { base, type: 'busta' };
+  const kind = /acqua|idric/i.test(fileName) ? 'acqua' : /luce|elettric|energia/i.test(fileName) ? 'luce' : /\bgas\b/i.test(fileName) ? 'gas' : /wifi|wi-fi|internet|fibra|telefon/i.test(fileName) ? 'wifi' : '';
+  const place = /crispiano/i.test(fileName) ? 'crispiano' : /budrio/i.test(fileName) ? 'budrio' : '';
+  return { base, type: 'bolletta', kind, place };
+}
+
+function openUpload() {
+  const dlg = $('#uploadDlg');
+  const opt = (v, l) => `<option value="${v}">${l}</option>`;
+  dlg.innerHTML = `<form class="dlg" method="dialog">
+    <h2>Carica documento</h2>
+    <label>File<input type="file" name="file" accept=".pdf,.csv,application/pdf,text/csv" required></label>
+    <label>Nome<input name="name" placeholder="Es. Luce 2026.09" autocomplete="off" required></label>
+    <label>Che documento è?<select name="type">${Object.entries(UPLOAD_TYPES).map(([v, l]) => opt(v, l)).join('')}</select></label>
+    <div class="row" id="upBill" hidden>
+      <label>Utenza<select name="kind">${['acqua', 'luce', 'gas', 'wifi'].map((k) => opt(k, KINDS.find((x) => x.id === k).label)).join('')}</select></label>
+      <label>Casa<select name="place">${Object.entries({ budrio: 'Budrio', crispiano: 'Crispiano' }).map(([v, l]) => opt(v, l)).join('')}</select></label>
+    </div>
+    <p class="muted" id="upHint"></p>
+    <p class="error" id="upErr" role="alert"></p>
+    <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary" id="upGo">Carica</button></div></form>`;
+  const form = dlg.querySelector('form');
+  const sync = () => {
+    $('#upBill').hidden = form.type.value !== 'bolletta';
+    $('#upHint').textContent = UPLOAD_HINTS[form.type.value];
+    form.file.accept = form.type.value === 'estratto' ? '.pdf,.csv,application/pdf,text/csv' : '.pdf,application/pdf';
+  };
+  sync();
+  form.type.addEventListener('change', sync);
+  form.file.addEventListener('change', () => {
+    const f = form.file.files[0];
+    if (!f) return;
+    const g = guessUpload(f.name);
+    if (!form.name.value.trim()) form.name.value = g.base;
+    form.type.value = g.type;
+    if (g.kind) form.kind.value = g.kind;
+    if (g.place) form.place.value = g.place;
+    sync();
+  });
+  form.addEventListener('click', (e) => { if (e.target.dataset.act === 'close') dlg.close(); });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = form.file.files[0];
+    const type = form.type.value;
+    const fail = (msg) => { $('#upErr').textContent = msg; };
+    if (!file) return fail('Scegli un file.');
+    if (type !== 'estratto' && !/\.pdf$/i.test(file.name)) return fail('Le bollette e le buste paga devono essere file PDF.');
+    const params = new URLSearchParams({ type, name: form.name.value });
+    if (type === 'bolletta') { params.set('kind', form.kind.value); params.set('place', form.place.value); }
+    const go = $('#upGo');
+    go.disabled = true;
+    go.textContent = 'Caricamento…';
+    fail('');
+    try {
+      const r = await api(`/api/upload?${params}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, raw: file });
+      dlg.close();
+      if (r.type === 'estratto') toast(`Movimenti aggiunti: ${r.added}${r.duplicates ? ` (${r.duplicates} già presenti)` : ''}.${r.warning ? ` Attenzione: ${r.warning}.` : ''}`, r.warning ? 9000 : 4500);
+      else if (r.doc.status === 'ok') toast(`Caricato: ${KINDS.find((k) => k.id === r.doc.kind)?.label ?? ''} ${MONTHS[r.doc.month - 1]} ${r.doc.year}, ${money(r.doc.amount)}.`);
+      else toast(`Caricato, ma da controllare: non ho letto ${r.doc.missing.join(', ')}. Apri Modifica nell'elenco.`, 9000);
+      await Promise.all([loadDocs(), loadGrid(), loadBank()]);
+    } catch (err) {
+      fail(err.message);
+      go.disabled = false;
+      go.textContent = 'Carica';
+    }
+  });
+  dlg.showModal();
 }
 
 // ------------------------------------------------------------------ documenti
@@ -713,25 +829,26 @@ async function openSettings() {
   const dlg = $('#settingsDlg');
   dlg.innerHTML = `<form class="dlg" method="dialog">
     <h2>Impostazioni</h2>
-    <fieldset><legend>Dove si trovano i documenti</legend>
+    <details class="fs"><summary>Dove si trovano i documenti</summary><div class="fsbody">
       <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
       <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
       <label>Estratti conto (CSV)<input name="statementsSource" value="${esc(s.statementsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale con i CSV" autocomplete="off"></label>
       <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password. Gli estratti conto si leggono dai file CSV della banca.</small>
-    </fieldset>
-    <fieldset><legend>Affitto</legend>
+    </div></details>
+    <details class="fs"><summary>Affitto</summary><div class="fsbody">
       <div class="row">
         <label>Importo mensile (€)<input name="rentAmount" inputmode="decimal" value="${inputValue(s.rentAmount || null)}" placeholder="0"></label>
         <label>Dal mese<input name="rentFrom" type="month" value="${esc(s.rentFrom)}"></label>
       </div>
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
-    </fieldset>
-    <fieldset><legend>Riconoscere i miei movimenti</legend>
-      <label>Il mio nome (più nomi separati da virgola)<input name="ownNames" value="${esc(s.ownNames)}" placeholder="Es. Mario Rossi" autocomplete="off"></label>
-      <label>Chi mi paga lo stipendio (separati da virgola)<input name="incomePayers" value="${esc(s.incomePayers)}" placeholder="Es. Azienda Esempio" autocomplete="off"></label>
-      <small>Servono a non contare i giroconti tra i miei conti e lo stipendio, già presente nelle buste paga. Restano sul tuo database: non vengono mai pubblicati.</small>
-    </fieldset>
-    ${state.protected ? '<fieldset><legend>Account</legend><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></fieldset>' : ''}
+    </div></details>
+    <details class="fs"><summary>Riconoscimento automatico</summary><div class="fsbody">
+      <small>Lo stipendio (già nelle buste paga) e i giri tra i tuoi conti non si contano due volte. Nome e datore di lavoro si ricavano da soli dalle buste paga e dai movimenti: non serve scriverli.</small>
+      <small><b>Stipendio da:</b> ${esc(s.incomePayers) || '— (si impara dopo due buste paga abbinate ai bonifici)'}<br><b>I miei conti (nome):</b> ${esc(s.ownNames) || '— (si impara dai giri tra i tuoi conti)'}</small>
+      <small>Se un movimento è classificato male, cambia la categoria in Movimenti: la scelta vale per tutte le descrizioni uguali.</small>
+    </div></details>
+    <details class="fs" id="bkBox"><summary>Collega le banche</summary><div class="fsbody" id="bkBody"><p class="muted">Caricamento…</p></div></details>
+    ${state.protected ? '<details class="fs"><summary>Account</summary><div class="fsbody"><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></div></details>' : ''}
     <p class="error" id="setErr" role="alert"></p>
     <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
   </form>`;
@@ -739,6 +856,7 @@ async function openSettings() {
   form.addEventListener('click', (e) => {
     if (e.target.dataset.act === 'close') dlg.close();
     if (e.target.dataset.act === 'logout') logout();
+    if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
   });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -749,8 +867,6 @@ async function openSettings() {
           payslipsSource: form.payslipsSource.value,
           billsSource: form.billsSource.value,
           statementsSource: form.statementsSource.value,
-          ownNames: form.ownNames.value,
-          incomePayers: form.incomePayers.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
         },
@@ -761,6 +877,63 @@ async function openSettings() {
     } catch (err) { $('#setErr').textContent = err.message; }
   });
   dlg.showModal();
+  loadBanking().catch((err) => { $('#bkBody').innerHTML = `<p class="error">${esc(err.message)}</p>`; });
+}
+
+// ------------------------------------------------------------------- banche collegate
+
+const BANK_HELP = `
+  <details><summary class="muted">Che dati leggo?</summary>
+    <p><small><b>Conti</b>: nome, IBAN (mascherato qui) e valuta. <b>Movimenti registrati</b>: data, importo, entrata o uscita, controparte (negozio o mittente), causale e, se la banca lo fornisce, il saldo dopo il movimento; finiscono in Movimenti, con le categorie di sempre. L'accesso è <b>in sola lettura</b>: l'app non può spostare denaro. <b>Non</b> sono disponibili le carte di credito UniCredit, gli investimenti né i pagamenti ricorrenti. Quanto storico arriva dipende dalla banca (al primo collegamento si chiede un anno, poi ci si ferma a ciò che concede). Le banche permettono 4 letture al giorno e il consenso va rinnovato ogni pochi mesi.</small></p>
+  </details>`;
+
+async function loadBanking() {
+  renderBanking(await api('/api/banking'));
+}
+
+function renderBanking(b) {
+  const box = $('#bkBody');
+  if (!box) return;
+  const when = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
+  const conns = b.connections.map((c) => `<div class="bkconn">
+    <b>${esc(c.label)}</b> <small class="muted">· ${c.accounts.map((a) => esc(a.name || a.iban)).join(', ')}</small>
+    <small class="${c.expired || (c.daysLeft != null && c.daysLeft < 14) ? 'warnline' : 'muted'}">${c.expired ? 'Collegamento scaduto: ricollega la banca' : `Valido ancora ${c.daysLeft} giorni`} · ultimo aggiornamento: ${when(c.lastSync)} · letture oggi ${c.syncsToday}/${c.syncsPerDay}</small>
+    <div class="foot"><button type="button" class="link" data-act="bk-sync" data-id="${esc(c.id)}">Aggiorna ora</button><button type="button" class="link danger" data-act="bk-remove" data-id="${esc(c.id)}">Scollega</button></div></div>`).join('');
+  const connect = b.banks.map((k) => `<button type="button" class="ghost" data-act="bk-connect" data-bank="${k.key}" ${b.configured ? '' : 'disabled'}>${b.connections.some((c) => c.bank === k.key) ? 'Ricollega' : 'Collega'} ${esc(k.label)}</button>`).join('');
+  box.innerHTML = `<small>Leggo i movimenti di UniCredit e Revolut direttamente dalla banca, senza scaricare estratti. Usa Enable Banking, gratuito per uso personale: serve una tua applicazione (qui sotto).</small>
+    ${conns}
+    <div class="row">${connect}</div>
+    ${BANK_HELP}
+    <details ${b.configured ? '' : 'open'}><summary class="muted">Credenziali Enable Banking</summary>
+      <p><small>1) Crea un account su enablebanking.com. 2) Nel Control Panel registra un'applicazione <b>di produzione</b>, con questo indirizzo di ritorno: <code>${esc(b.redirectUrl)}</code>. 3) Usa «Activate by linking accounts» per collegare i tuoi conti. Il browser scarica un file <b>.pem</b> (la chiave privata): il suo nome è l'ID dell'applicazione. Chiave e ID restano solo su questo server.</small></p>
+      <label>ID applicazione<input name="bkAppId" value="${esc(b.appId)}" autocomplete="off" spellcheck="false"></label>
+      <label>Chiave privata (.pem)<textarea name="bkKey" rows="4" spellcheck="false" autocomplete="off" placeholder="${b.hasKey ? 'Chiave già salvata: lascia vuoto per non cambiarla' : '-----BEGIN PRIVATE KEY-----'}"></textarea></label>
+      <div class="foot"><button type="button" class="ghost" data-act="bk-save">Salva credenziali</button></div>
+    </details>`;
+}
+
+async function bankAction(btn) {
+  const act = btn.dataset.act;
+  const form = btn.closest('form');
+  if (act === 'bk-save') {
+    renderBanking(await api('/api/banking/app', { method: 'PUT', body: { appId: form.bkAppId.value, privateKey: form.bkKey.value } }));
+    toast('Credenziali salvate. Ora puoi collegare le banche.');
+  } else if (act === 'bk-connect') {
+    const r = await api('/api/banking/connect', { method: 'POST', body: { bank: btn.dataset.bank } });
+    toast('Ti porto sul sito della banca per autorizzare l\'accesso in sola lettura…', 6000);
+    location.href = r.url;
+  } else if (act === 'bk-sync') {
+    btn.disabled = true;
+    try {
+      const r = await api('/api/banking/sync', { method: 'POST', body: { id: btn.dataset.id } });
+      toast(`Letti ${r.found} movimenti dalla banca: ${r.added} nuovi.`);
+      renderBanking(r);
+      await Promise.all([loadGrid(), loadBank()]);
+    } finally { btn.disabled = false; }
+  } else if (act === 'bk-remove') {
+    if (!confirm('Scollegare questa banca? I movimenti già letti restano.')) return;
+    renderBanking(await api(`/api/banking/connections/${encodeURIComponent(btn.dataset.id)}`, { method: 'DELETE' }));
+  }
 }
 
 // ------------------------------------------------------------------- refresh
@@ -771,6 +944,7 @@ function refreshSummary(r) {
   if (r.updated) parts.push(`${r.updated} aggiornati`);
   if (r.removed) parts.push(`${r.removed} rimossi`);
   if (r.transactions) parts.push(`${r.transactions} movimenti bancari`);
+  if (r.bankTransactions) parts.push(`${r.bankTransactions} movimenti dalle banche collegate`);
   if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
   if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
   let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';
@@ -890,26 +1064,33 @@ async function doRefresh(force = false) {
 
 // ------------------------------------------------------------------ eventi
 
+// Dalla Panoramica ai Movimenti: stesso anno e mese della cella; Entrate e Uscite mostrano solo quel verso.
+function openMovesOf(kind, month) {
+  Object.assign(state.bank, { year: state.year, month, cat: '', q: '', flow: kind === 'entrate' ? 'in' : kind === 'uscite' ? 'out' : '' });
+  $('#moveSearch').value = '';
+  showTab('moves');
+}
+
+function showTab(name) {
+  document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
+  for (const id of ['overview', 'docs', 'moves', 'analysis']) $(`#${id}`).hidden = id !== name;
+  $('#years').hidden = name !== 'overview';
+  if (name === 'moves' || name === 'analysis') loadBank().catch((err) => toast(err.message));
+}
+
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.sort) { setSort(t.dataset.sort); return; }
   if (t.classList.contains('f-reset')) { resetBank(); return; }
-  if (t.dataset.view) { state.bank.view = t.dataset.view; renderMoves(); return; }
-  if (t.classList.contains('catcard')) { state.bank.cat = state.bank.cat === t.dataset.cat ? '' : t.dataset.cat; renderBank(); return; }
+  if (t.classList.contains('catcard')) { state.bank.cat = t.dataset.cat; showTab('moves'); return; }
+  if (t.dataset.clearcat) { state.bank.cat = ''; renderBank(); return; }
+  if (t.dataset.clearflow) { state.bank.flow = ''; renderBank(); return; }
   if (t.dataset.expand) { toggleExpand(t.dataset.expand); return; }
   if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
   else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
-  else if (t.dataset.tab) {
-    document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b === t));
-    $('#overview').hidden = t.dataset.tab !== 'overview';
-    $('#docs').hidden = t.dataset.tab !== 'docs';
-    $('#moves').hidden = t.dataset.tab !== 'moves';
-    $('#analysis').hidden = t.dataset.tab !== 'analysis';
-    $('#years').hidden = t.dataset.tab !== 'overview';
-    if (t.dataset.tab === 'moves' || t.dataset.tab === 'analysis') loadBank().catch((err) => toast(err.message));
-  }
+  else if (t.dataset.tab) showTab(t.dataset.tab);
 });
 // Clic (o Spazio/Invio) su una cella: pagato / da pagare. A sinistra, il link apre invece il documento.
 const onPaidCell = (e) => {
@@ -919,8 +1100,13 @@ const onPaidCell = (e) => {
   return true;
 };
 document.addEventListener('click', onPaidCell);
+document.addEventListener('click', (e) => {
+  const cell = e.target.closest('[data-go]');
+  if (cell && !e.target.closest('button, a, input, select')) openMovesOf(cell.dataset.go, Number(cell.dataset.month));
+});
 document.addEventListener('keydown', (e) => {
   if ((e.key === ' ' || e.key === 'Enter') && e.target.classList?.contains('pcell') && onPaidCell(e)) e.preventDefault();
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.dataset?.go) { e.preventDefault(); openMovesOf(e.target.dataset.go, Number(e.target.dataset.month)); }
   if (e.key === 'Enter' && e.target.classList?.contains('expense-input')) e.target.blur();
 });
 document.addEventListener('change', (e) => {
@@ -931,15 +1117,18 @@ document.addEventListener('change', (e) => {
     loadBank().catch((err) => toast(err.message));
     return;
   }
+  if (e.target.id === 'moveSort') {
+    const [key, dir] = e.target.value.split(':');
+    Object.assign(sorting.moves, { key, dir });
+    renderMoves();
+    return;
+  }
+  if (e.target.id === 'catSelect') { state.bank.cat = e.target.value; renderBank(); return; }
   if (e.target.id === 'yearSelect') { state.year = Number(e.target.value); loadGrid().catch((err) => toast(err.message)); return; }
-  if (e.target.dataset.move || e.target.dataset.amove) setCategory(e.target).catch((err) => toast(err.message));
+  if (e.target.dataset.move || e.target.dataset.amove || e.target.dataset.moves) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
-$('#statementFile').addEventListener('change', (e) => {
-  const files = [...e.target.files];
-  e.target.value = '';
-  if (files.length) uploadStatements(files).catch((err) => toast(err.message, 8000));
-});
+$('#uploadBtn').addEventListener('click', openUpload);
 let searchTimer;
 $('#moveSearch').addEventListener('input', (e) => {
   clearTimeout(searchTimer);

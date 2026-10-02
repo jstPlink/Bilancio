@@ -25,6 +25,22 @@ async function readText(buffer, ocr) {
   return { text: await ocr.recognize(pdf), ocr: true, retry: () => ocr.recognize(pdf, RETRY_SCALE) };
 }
 
+// I documenti caricati a mano dall'app non appartengono a nessuna cartella: l'aggiornamento non li toglie.
+export const isUploadKey = (key) => String(key).startsWith('upload:');
+
+// Legge un PDF (con OCR se è una scansione) e ne ricava tipo, periodo e importo. `tag` è 'busta' o 'bolletta'.
+export async function readPdfDocument(buffer, { name, tag, modified, ocr }) {
+  const read = await readText(buffer, ocr);
+  let { text } = read;
+  let parsed = parseDocument({ text, filename: name, hint: tag, modified });
+  if (read.ocr && parsed.status !== 'ok') {
+    const retryText = await read.retry();
+    const retried = parseDocument({ text: retryText, filename: name, hint: tag, modified });
+    if (retried.status === 'ok') { parsed = retried; text = retryText; }
+  }
+  return { parsed, text, ocr: read.ocr };
+}
+
 async function inParallel(items, limit, fn) {
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -113,15 +129,7 @@ export async function refresh(db, { force = false, cacheDir } = {}) {
 
     await inParallel(queue, CONCURRENCY, async ({ tag, file, previous }) => {
       try {
-        const read = await readText(await file.read(), ocr);
-        const { ocr: usedOcr } = read;
-        let { text } = read;
-        let parsed = parseDocument({ text, filename: file.name, hint: tag, modified: file.modified });
-        if (usedOcr && parsed.status !== 'ok') {
-          const retryText = await read.retry();
-          const retried = parseDocument({ text: retryText, filename: file.name, hint: tag, modified: file.modified });
-          if (retried.status === 'ok') { parsed = retried; text = retryText; }
-        }
+        const { parsed, text, ocr: usedOcr } = await readPdfDocument(await file.read(), { name: file.name, tag, modified: file.modified, ocr });
         db.docs[file.key] = {
           name: file.name,
           version: file.version,
@@ -152,7 +160,7 @@ export async function refresh(db, { force = false, cacheDir } = {}) {
     for (const { tag, files } of listings) {
       const seen = new Set(files.map((f) => f.key));
       for (const [key, doc] of Object.entries(db.docs)) {
-        if (doc.source === tag && !seen.has(key)) {
+        if (doc.source === tag && !seen.has(key) && !isUploadKey(key)) {
           delete db.docs[key];
           report.removed++;
         }

@@ -7,7 +7,13 @@ import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_
 import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity, addOrEnrich } from './statements.js';
 import { matchBillPayments } from './billmatch.js';
 import { createAuth } from './auth.js';
-import { refresh, progress } from './scanner.js';
+import { refresh, progress, readPdfDocument, isUploadKey } from './scanner.js';
+import { createOcr } from './ocr.js';
+import { parsePdfStatement } from './pdfstatements.js';
+import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
+import { randomUUID } from 'node:crypto';
+import { learnIdentity } from './identity.js';
+import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, startLink, syncAll, syncConnection } from './banking.js';
 import { classifySource, openTarget } from './sources.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -18,6 +24,9 @@ store.load();
 setIdentity(store.data.settings);
 // Abbina gli addebiti delle utenze alle bollette già lette (una tantum all'avvio, poi a ogni aggiornamento).
 if (matchBillPayments(store.data)) store.save();
+// Nome del titolare e datore di lavoro si ricavano dai dati (buste paga e movimenti): non vanno scritti a mano.
+const learn = () => { try { return learnIdentity(store.data); } catch { return null; } };
+if (learn()?.changed) store.save();
 
 const app = express();
 const auth = createAuth({
@@ -28,10 +37,12 @@ const auth = createAuth({
 app.use(express.json());
 auth.mount(app); // l'app è sempre protetta: tutto, tranne la pagina /login, richiede la password
 app.use('/api/statements', express.text({ type: '*/*', limit: '20mb' }));
+app.use('/api/upload', express.raw({ type: '*/*', limit: '40mb' }));
 app.use(express.static(path.join(root, 'public')));
 
 const { version } = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 
+const uploadsDir = path.join(path.dirname(dbFile), 'uploads');
 const db = () => store.data;
 const bad = (res, message) => res.status(400).json({ error: message });
 const validCell = ({ kind, year, month }) => KINDS.includes(kind) && Number.isInteger(year) && month >= 1 && month <= 12;
@@ -74,6 +85,15 @@ app.post('/api/refresh', async (req, res) => {
   try {
     const report = await refresh(db(), { force: Boolean(req.body?.force), cacheDir: path.join(path.dirname(dbFile), 'tessdata') });
     report.matched = matchBillPayments(db());
+    learn();
+    // Banche collegate: l'aggiornamento automatico non ripete la lettura se è recente (le banche concedono 4 accessi al giorno).
+    const bank = bankingState(db());
+    if (bank.app && bank.connections.length) {
+      const r = await syncAll({ client: bankClient(bank.app), db: db(), minAgeMs: 3 * 3600 * 1000 });
+      report.bankTransactions = r.added;
+      report.errors.push(...r.errors);
+      learn();
+    }
     await store.save();
     res.json(report);
   } catch (e) {
@@ -170,6 +190,11 @@ app.put('/api/docs', async (req, res) => {
 app.get('/api/file', (req, res) => {
   const key = String(req.query.key ?? '');
   if (!db().docs[key]) return res.status(404).send('Documento non trovato.');
+  if (isUploadKey(key)) {
+    const file = key.slice('upload:'.length);
+    if (!/^[\w-]+\.pdf$/.test(file)) return res.status(404).send('File non trovato.');
+    return res.sendFile(path.join(uploadsDir, file), (err) => err && !res.headersSent && res.status(404).send('File non trovato.'));
+  }
   const target = openTarget(key);
   if (target?.type === 'url') return res.redirect(target.url);
   if (target?.type === 'local') return res.sendFile(target.path, (err) => err && !res.headersSent && res.status(404).send('File non trovato.'));
@@ -187,6 +212,144 @@ app.post('/api/statements', async (req, res) => {
   await store.save();
   res.json({ found: items.length, added, duplicates: items.length - added });
 });
+
+// Carica un documento dall'app: il file arriva nel corpo, il resto (tipo, nome, utenza, casa) nella query.
+// Estratto conto (CSV o PDF): aggiunge i movimenti. Bolletta o busta paga (PDF): si conserva il file e se ne legge importo e periodo.
+app.post('/api/upload', async (req, res) => {
+  let info;
+  try { info = parseUploadRequest(req.query); } catch (e) { return bad(res, e.message); }
+  const buffer = req.body;
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return bad(res, 'Nessun file ricevuto.');
+  try {
+    if (info.type === 'estratto') {
+      let items;
+      let check;
+      if (isPdf(buffer)) ({ items, check } = await parsePdfStatement(buffer, db().rules));
+      else items = parseStatement(buffer.toString('utf8'), db().rules);
+      const all = (db().transactions ??= {});
+      let added = 0;
+      for (const t of items) if (addOrEnrich(all, t, info.name) === 'added') added++;
+      learn();
+      await store.save();
+      const warning = check && (Math.abs(check.parsedOut - check.statedOut) > 0.005 || Math.abs(check.parsedIn - check.statedIn) > 0.005)
+        ? `le uscite lette (${check.parsedOut}) non tornano col riepilogo della banca (${check.statedOut})` : undefined;
+      return res.json({ type: 'estratto', found: items.length, added, duplicates: items.length - added, warning });
+    }
+    if (!isPdf(buffer)) return bad(res, 'Le bollette e le buste paga devono essere file PDF.');
+    const tag = info.type === 'busta' ? 'busta' : 'bolletta';
+    const name = uploadedDocName(info);
+    const ocr = createOcr({ cacheDir: path.join(path.dirname(dbFile), 'tessdata'), size: 1 });
+    let read;
+    try { read = await readPdfDocument(buffer, { name, tag, modified: new Date(), ocr }); } finally { await ocr.close(); }
+    const id = `${randomUUID()}.pdf`;
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.writeFile(path.join(uploadsDir, id), buffer);
+    const { parsed } = read;
+    // Il tipo di bolletta lo ha scelto chi carica: vale più di quello che il lettore deduce dal testo.
+    const kind = info.type === 'bolletta' ? info.kind : parsed.kind;
+    const missing = parsed.missing.filter((m) => m !== 'tipo' || !kind);
+    const key = `upload:${id}`;
+    db().docs[key] = {
+      name, version: `upload-${Date.now()}`, source: tag, kind: kind ?? null, year: parsed.year ?? null, month: parsed.month ?? null,
+      amount: parsed.amount ?? null, status: missing.length ? 'incompleto' : 'ok', missing, ocr: read.ocr, named: parsed.named ?? false,
+      text: read.text.slice(0, 12000), readAt: new Date().toISOString(), uploaded: true,
+    };
+    learn();
+    await store.save();
+    const d = effectiveDoc(db().docs[key]);
+    res.json({ type: info.type, doc: { key, name, kind: d.kind, year: d.year, month: d.month, amount: d.amount, status: d.status, missing } });
+  } catch (e) {
+    bad(res, e.message);
+  }
+});
+
+// ------------------------------------------------------------------ banche collegate (Enable Banking)
+
+const originOf = (req) => `${req.headers['x-forwarded-proto'] ?? req.protocol}://${req.headers['x-forwarded-host'] ?? req.headers.host}`;
+const bankUi = (req) => ({ ...bankingPublic(db()), redirectUrl: `${originOf(req)}/api/banking/callback` });
+const bankApp = () => {
+  const a = bankingState(db()).app;
+  if (!a?.appId || !a?.privateKey) throw new Error('Inserisci prima ID e chiave privata dell\'applicazione Enable Banking.');
+  return a;
+};
+
+app.get('/api/banking', (req, res) => res.json(bankUi(req)));
+
+// Credenziali dell'applicazione Enable Banking: la chiave resta sul server e non viene mai rimandata all'interfaccia.
+app.put('/api/banking/app', async (req, res) => {
+  const { appId, privateKey, clear } = req.body ?? {};
+  const b = bankingState(db());
+  if (clear) { b.app = null; await store.save(); return res.json(bankUi(req)); }
+  const id = String(appId ?? '').trim();
+  if (!id) return bad(res, 'Scrivi l\'ID dell\'applicazione.');
+  const key = privateKey ? normalizeKey(privateKey) : b.app?.privateKey;
+  if (!key) return bad(res, 'Incolla la chiave privata (file .pem).');
+  try { checkKey(key); } catch (e) { return bad(res, e.message); }
+  b.app = { appId: id, privateKey: key };
+  await store.save();
+  res.json(bankUi(req));
+});
+
+// 1) l'utente sceglie la banca: si restituisce l'indirizzo dove autorizzare l'accesso in sola lettura.
+app.post('/api/banking/connect', async (req, res) => {
+  try {
+    if (!BANKS[req.body?.bank]) return bad(res, 'Banca non prevista.');
+    const url = await startLink({ client: bankClient(bankApp()), db: db(), bank: req.body.bank, redirectUrl: `${originOf(req)}/api/banking/callback` });
+    await store.save();
+    res.json({ url });
+  } catch (e) { bad(res, e.message); }
+});
+
+// 2) la banca rimanda qui (senza sessione dell'app: la richiesta è riconosciuta dal codice «state» creato al punto 1).
+const page = (title, text) => `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bilancio</title><style>body{font:16px system-ui,sans-serif;max-width:30rem;margin:15vh auto;padding:0 1.2rem;color:#14201d}h1{font-size:1.3rem}</style></head><body><h1>${title}</h1><p>${text}</p></body></html>`;
+const html = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+app.get('/api/banking/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  res.set('Content-Type', 'text/html; charset=utf-8');
+  if (error || !code || !state) return res.status(400).send(page('Collegamento non riuscito', `La banca ha risposto: ${html(req.query.error_description ?? error ?? 'richiesta incompleta')}. Torna a Bilancio e riprova dalle Impostazioni.`));
+  try {
+    const client = bankClient(bankApp());
+    const conn = await finishLink({ client, db: db(), code: String(code), state: String(state) });
+    let note = '';
+    try {
+      const r = await syncConnection({ client, db: db(), conn });
+      note = ` Ho letto ${r.found} movimenti (${r.added} nuovi).`;
+      learn();
+    } catch (e) { note = ` I movimenti si leggeranno al prossimo aggiornamento (${html(e.message)}).`; }
+    await store.save();
+    res.send(page('Banca collegata ✓', `${html(BANKS[conn.bank].label)} è collegata in sola lettura.${note} Puoi chiudere questa pagina e tornare a Bilancio.`));
+  } catch (e) {
+    res.status(400).send(page('Collegamento non riuscito', `${html(e.message)} Torna a Bilancio e riprova dalle Impostazioni.`));
+  }
+});
+
+// Lettura manuale dei movimenti di una banca (o di tutte).
+app.post('/api/banking/sync', async (req, res) => {
+  try {
+    const client = bankClient(bankApp());
+    const total = { found: 0, added: 0, duplicates: 0 };
+    const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
+    if (!targets.length) return bad(res, 'Nessuna banca collegata.');
+    for (const conn of targets) {
+      const r = await syncConnection({ client, db: db(), conn });
+      total.found += r.found; total.added += r.added; total.duplicates += r.duplicates;
+    }
+    learn();
+    await store.save();
+    res.json({ ...total, ...bankUi(req) });
+  } catch (e) { await store.save(); bad(res, e.message); }
+});
+
+app.delete('/api/banking/connections/:id', async (req, res) => {
+  const b = bankingState(db());
+  const conn = b.connections.find((c) => c.id === req.params.id);
+  if (!conn) return res.status(404).json({ error: 'Collegamento non trovato.' });
+  try { if (b.app) await bankClient(b.app).deleteSession(conn.id); } catch { /* il consenso scade comunque da solo */ }
+  b.connections = b.connections.filter((c) => c !== conn);
+  await store.save();
+  res.json(bankUi(req));
+});
+
 
 app.get('/api/transactions', (req, res) => {
   const year = Number(req.query.year);

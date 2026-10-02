@@ -48,19 +48,16 @@
 
     <section id="moves" hidden>
       <div class="bankbar">
-        <label class="primary upload">Carica estratto conto (CSV)<input id="statementFile" type="file" accept=".csv,text/csv" multiple hidden></label>
         <label>Anno <select class="f-year"></select></label>
         <label>Mese <select class="f-month"></select></label>
         <button class="f-reset link" hidden>Azzera filtri</button>
         <label class="grow">Cerca <input id="moveSearch" type="search" placeholder="Descrizione, dettaglio, importo…" autocomplete="off"></label>
-        <div class="seg" role="group" aria-label="Vista">
-          <button data-view="moves" aria-pressed="true">Movimenti</button>
-          <button data-view="groups" aria-pressed="false">Per descrizione</button>
-        </div>
+        <label>Categoria <select id="catSelect"></select></label>
+        <label>Ordina per <select id="moveSort"></select></label>
       </div>
       <div id="movesEmpty" class="empty" hidden>
         <h2>Nessun movimento nel periodo</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica l'esportazione CSV dell'estratto conto (in Revolut: Conti → Estratti → Excel/CSV).</p>
+        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica l'estratto conto dalla scheda Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
       </div>
       <div id="movesBody"></div>
     </section>
@@ -73,12 +70,13 @@
       </div>
       <div id="analysisEmpty" class="empty" hidden>
         <h2>Nessun dato bancario</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un CSV dalla scheda Movimenti.</p>
+        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un estratto conto dalla scheda Documenti.</p>
       </div>
       <div id="analysisBody"></div>
     </section>
 
     <section id="docs" hidden>
+      <div class="bankbar"><button id="uploadBtn" class="primary">Carica documento</button></div>
       <div id="docsEmpty" class="empty" hidden>
         <h2>Nessun documento ancora</h2>
         <p>Apri le impostazioni, indica dove si trovano le buste paga e le bollette e premi <b>Aggiorna</b>.</p>
@@ -88,6 +86,7 @@
   </main>
 
   <dialog id="docDlg"></dialog>
+  <dialog id="uploadDlg"></dialog>
   <dialog id="settingsDlg"></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="app.js" type="module"></script>
