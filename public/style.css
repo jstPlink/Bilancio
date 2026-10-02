@@ -379,6 +379,7 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   .bankbar > label { flex: 1 1 140px; }
   .bankbar select, .bankbar input[type=search] { width: 100%; min-height: 42px; }
     .bankbar .grow { flex-basis: 100%; }
+  #docs .bankbar > button.primary { flex: 1 1 140px; min-height: 44px; }
   .catcards { grid-template-columns: 1fr 1fr; }
   #movesBody .tablewrap:has(#moveTable) { background: none; border: 0; box-shadow: none; overflow: visible; }
   #moveTable { min-width: 0; }
@@ -428,3 +429,10 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
 .dlg details.fs[open] > summary::after { content: '▾'; }
 .dlg details.fs > .fsbody { display: grid; gap: 12px; padding: 0 14px 14px; }
 .dlg details.fs .foot { justify-content: flex-start; }
+
+/* Pannelli a pagina intera: freccia «indietro» in alto, «Salva» fisso in basso solo se serve. */
+.dlghead { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 2; background: var(--surface); margin: -20px -20px 0; padding: 14px 20px 10px; }
+.dlghead h2 { flex: 1; }
+.dlghead .back { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); font-size: 22px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.dlg .foot.sticky { position: sticky; bottom: 0; z-index: 2; background: var(--surface); margin: 0 -20px -20px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); justify-content: stretch; }
+.dlg .foot.sticky .primary { flex: 1; min-height: 46px; display: flex; align-items: center; justify-content: center; }

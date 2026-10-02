@@ -110,8 +110,15 @@ public class MainActivity extends Activity {
         }
     }
 
+    // Indietro: prima chiude un pannello aperto nella pagina (Impostazioni…), poi torna alla pagina precedente, infine esce.
     @Override public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack(); else super.onBackPressed();
+        if (web == null) { super.onBackPressed(); return; }
+        web.evaluateJavascript("(function(){return typeof window.__back==='function' && window.__back()===true;})()", new ValueCallback<String>() {
+            @Override public void onReceiveValue(String handled) {
+                if ("true".equals(handled)) return;
+                if (web.canGoBack()) web.goBack(); else finish();
+            }
+        });
     }
 
     // ------------------------------------------------------------------ pagine incluse nell'app

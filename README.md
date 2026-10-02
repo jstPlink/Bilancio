@@ -74,7 +74,7 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
    - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
      stipendio né i giri tra i tuoi conti.
-2. Premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
+2. Nella scheda **Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
 3. Controlla la scheda **Documenti** per i file *Da controllare*.

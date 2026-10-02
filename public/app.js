@@ -828,7 +828,7 @@ async function openSettings() {
   const s = state.settings;
   const dlg = $('#settingsDlg');
   dlg.innerHTML = `<form class="dlg" method="dialog">
-    <h2>Impostazioni</h2>
+    <div class="dlghead"><button type="button" class="back" data-act="close" aria-label="Indietro" title="Indietro">←</button><h2>Impostazioni</h2></div>
     <details class="fs"><summary>Dove si trovano i documenti</summary><div class="fsbody">
       <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
       <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
@@ -850,11 +850,21 @@ async function openSettings() {
     <details class="fs" id="bkBox"><summary>Collega le banche</summary><div class="fsbody" id="bkBody"><p class="muted">Caricamento…</p></div></details>
     ${state.protected ? '<details class="fs"><summary>Account</summary><div class="fsbody"><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></div></details>' : ''}
     <p class="error" id="setErr" role="alert"></p>
-    <div class="foot"><button type="button" class="ghost" data-act="close">Annulla</button><button class="primary">Salva</button></div>
+    <div class="foot sticky" id="setFoot" hidden><button class="primary">Salva le modifiche</button></div>
   </form>`;
   const form = dlg.querySelector('form');
+  // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
+  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom'];
+  const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
+  const initial = snapshot();
+  const dirty = () => snapshot() !== initial;
+  const refreshFoot = () => { $('#setFoot').hidden = !dirty(); };
+  form.addEventListener('input', refreshFoot);
+  form.addEventListener('change', refreshFoot);
+  const leave = () => { if (!dirty() || confirm('Hai modifiche non salvate. Uscire senza salvare?')) dlg.close(); };
+  dlg.oncancel = (e) => { if (dirty() && !confirm('Hai modifiche non salvate. Uscire senza salvare?')) e.preventDefault(); };
   form.addEventListener('click', (e) => {
-    if (e.target.dataset.act === 'close') dlg.close();
+    if (e.target.closest('[data-act=close]')) leave();
     if (e.target.dataset.act === 'logout') logout();
     if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
   });
@@ -1063,6 +1073,14 @@ async function doRefresh(force = false) {
 }
 
 // ------------------------------------------------------------------ eventi
+
+// Tasto «indietro» del telefono (app Android): se c'è un pannello aperto lo chiude, altrimenti lascia fare all'app.
+window.__back = () => {
+  const d = document.querySelector('dialog[open]');
+  if (!d) return false;
+  d.dispatchEvent(new Event('cancel', { cancelable: true })) && d.close();
+  return true;
+};
 
 // Dalla Panoramica ai Movimenti: stesso anno e mese della cella; Entrate e Uscite mostrano solo quel verso.
 function openMovesOf(kind, month) {

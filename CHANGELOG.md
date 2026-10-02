@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.29.1
+- **Impostazioni a pagina**: freccia «indietro» in alto al posto di «Annulla» (chiede conferma se ci sono modifiche non salvate); **«Salva le modifiche» compare solo se qualcosa è cambiato**. Il tasto indietro di Android chiude il pannello aperto invece di uscire dall'app.
+- **Aggiorna** si sposta nella scheda **Documenti**, accanto a «Carica documento».
+- L'identificativo dell'app Android diventa `app.bilancio.mobile` (neutro): chi ha già installato la versione precedente trova due app, può rimuovere la vecchia.
+
 ## 0.29.0
 - **App Android** (cartella `android/`, `npm run apk`): una vera app che contiene le pagine di `public/` e inoltra dati e login al server; installabile con `npm run apk:installa`. Include il **widget «Da pagare»** (2×1 di base, totale e prime voci), la **notifica del primo del mese** per i conti in sospeso, il **feedback aptico** sui tocchi e l'apertura dei PDF.
 - **Carica documento** (scheda Documenti): scegli file, nome e tipo (estratto conto CSV/PDF, bolletta con utenza e casa, busta paga). I PDF si leggono con importo e mese e restano sul server (`data/uploads`).
