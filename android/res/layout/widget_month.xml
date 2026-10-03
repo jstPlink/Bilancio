@@ -83,7 +83,8 @@
             android:id="@+id/widget_month_spese_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/widget_fill_ok"
+            android:background="@drawable/widget_cell"
+            android:clipToOutline="true"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
@@ -122,7 +123,8 @@
             android:id="@+id/widget_month_carburante_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/widget_fill_ok"
+            android:background="@drawable/widget_cell"
+            android:clipToOutline="true"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
@@ -161,7 +163,8 @@
             android:id="@+id/widget_month_svago_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/widget_fill_ok"
+            android:background="@drawable/widget_cell"
+            android:clipToOutline="true"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"

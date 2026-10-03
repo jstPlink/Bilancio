@@ -4,7 +4,7 @@ import { buildCells, EXPENSE_KINDS, INCOME_KINDS, SPENDING_KINDS } from './grid.
 // Il budget sta nelle impostazioni (`settings.budgets`, `settings.savingsGoal`); la stima si ricalcola a ogni richiesta.
 
 export const BUDGET_KINDS = ['spese', 'svago', 'carburante'];
-export const ESTIMATE_MONTHS = 6; // quanti mesi chiusi, al massimo, entrano nella media delle spese
+export const ESTIMATE_MONTHS = 3; // quanti mesi chiusi, al massimo, entrano nella media delle spese (come le entrate)
 export const INCOME_MONTHS = 3;   // le entrate medie si calcolano sugli ultimi 3 mesi chiusi con entrate
 
 const k_in = (k) => BUDGET_KINDS.includes(k);

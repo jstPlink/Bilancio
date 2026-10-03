@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.widget.RemoteViews;
 
 /**
@@ -49,14 +50,21 @@ public class MonthWidget extends AppWidgetProvider {
     }
 
     /**
-     * Il riquadro come un contenitore: il liquido sale dal basso fino alla quota della spesa rispetto al budget (livello 0-10000 del
-     * disegno, con gli stessi angoli da 14dp di «Da pagare»). Bianco sotto l'80%, arancione da 80%, rosso a budget superato.
-     * Senza budget resta il solo sfondo.
+     * Il riquadro come un contenitore: lo sfondo tondo (14dp, come «Da pagare») è il fondo della vista e ne ritaglia i bordi
+     * (clipToOutline); sopra, un'immagine con il «liquido» alto quanto la spesa rispetto al budget, che sale dal basso.
+     * Ogni riquadro ha la sua altezza, calcolata sulla sua spesa. Bianco sotto l'80%, arancione da 80%, rosso a budget superato.
+     * Senza budget (o senza spesa) l'immagine è vuota e resta il solo sfondo.
      */
     private static void fill(RemoteViews v, int id, boolean show, double spent, double budget) {
+        final int h = 100;
+        Bitmap b = Bitmap.createBitmap(4, h, Bitmap.Config.ARGB_8888);
         double ratio = show && budget > 0 ? spent / budget : 0;
-        v.setImageViewResource(id, ratio >= 1 ? R.drawable.widget_fill_over : ratio >= 0.8 ? R.drawable.widget_fill_warn : R.drawable.widget_fill_ok);
-        v.setInt(id, "setImageLevel", ratio <= 0 ? 0 : (int) Math.max(500, Math.min(1, ratio) * 10000)); // una spesa minima si vede comunque
+        if (ratio > 0) {
+            int color = ratio >= 1 ? 0xCCE5484D : ratio >= 0.8 ? 0xCCF59E0B : 0x66FFFFFF;
+            int rows = (int) Math.max(4, Math.round(Math.min(1, ratio) * h)); // una spesa minima si vede comunque
+            for (int y = h - rows; y < h; y++) for (int x = 0; x < 4; x++) b.setPixel(x, y, color);
+        }
+        v.setImageViewBitmap(id, b);
     }
 
     private static PendingIntent tap(Context c, int code, String open, String cat) {

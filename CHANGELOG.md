@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.34.2
+- **Budget**: la colonna «Di solito» diventa «Media» e si calcola sugli **ultimi 3 mesi chiusi** (prima 6). In alto due riquadri soli: entrate e spese fisse medie in una riga, budget e risparmio nell'altra. La tabella dei budget torna in colonne anche sul telefono (niente blocchetti), sempre nella larghezza dello schermo e senza scorrimento. Sul telefono le cinque schede ora entrano senza tagliare il testo.
+- **Widget**: corretta la logica di riempimento. Le tre celle risultavano piene allo stesso modo; ora ogni cella ha la propria altezza, calcolata sulla sua spesa rispetto al suo budget (immagine con il liquido sopra uno sfondo tondo che ne ritaglia i bordi, senza più livelli del disegno).
+
 ## 0.34.1
 - **Budget, barre a liquido**: la barra di ogni voce (speso nel mese su budget) ha onde che scorrono dentro il liquido e un bordo che ondeggia appena (si ferma con «riduci animazioni»). Solo nell'app: il widget Android non può animarsi.
 - **Budget, tabella compatta**: più bassa e senza «al mese» nel titolo; sta sempre nella larghezza dello schermo, senza scorrimento. Sul telefono ogni voce diventa un blocchetto (nome e budget, «Di solito», barra).

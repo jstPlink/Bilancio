@@ -929,14 +929,14 @@ function renderBudgetTab() {
   const b = state.budget;
   const rows = BUDGET_KINDS.map(([id, label]) => `<tr><th scope="row"><i class="key" style="--c:${BUDGET_COLORS[id]}"></i> ${label}</th>
     <td><input name="bg_${id}" inputmode="decimal" value="${inputValue(b.budgets[id] ?? null)}" placeholder="–" aria-label="Budget mensile ${label}"></td>
-    <td class="num" data-avg="${id}" data-label="Di solito"></td>
+    <td class="num" data-avg="${id}" data-label="Media"></td>
     <td class="bgprog" data-prog="${id}"></td></tr>`).join('');
   budgetBox.innerHTML = `
     <div id="bgSummary" class="cards"></div>
     <section class="chartcard"><h3>Come si divide l'entrata media</h3>
       <div id="bgSplit"></div></section>
     <div id="bgVerdict"></div>
-    <div class="bgwrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget (€)</th><th class="num">Di solito</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="bgwrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget (€)</th><th class="num">Media</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="bgEst" class="bgest"></div>
     <small class="muted">Il budget si salva da solo. Il widget Android mostra ogni voce come un contenitore che si riempie man mano che spendi. Lascia vuoto per non avere un budget.</small>`;
   renderBudgetParts();
@@ -952,11 +952,13 @@ function renderBudgetParts() {
   const saving = hasIncome ? round2(e.income - (e.fixed ?? 0) - total) : null; // il risparmio: ciò che avanza
   const ok = saving != null && saving >= 0;
   const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
+  // Due riquadri: entrate e spese fisse in una riga, budget e risparmio in un'altra.
+  const duo = (title, a, b, sub, cls = '') => `<div class="card duo ${cls}"><div class="k">${title}</div><div class="pairs"><div><small>${a[0]}</small><div class="v">${a[1]}</div></div><div><small>${b[0]}</small><div class="v">${b[1]}</div></div></div><div class="sub">${sub}</div></div>`;
   $('#bgSummary').innerHTML = [
-    card('Entrate medie al mese', hasIncome ? money(e.income) : '—', hasIncome ? `ultimi ${e.incomeMonths} mesi chiusi` : 'Nessuna entrata nei mesi chiusi'),
-    card('Spese fisse medie', e.fixed == null ? '—' : money(e.fixed), 'bollette, affitto, prestito, tasse…'),
-    card('Totale budget', money(total), amounts.map((x) => `${x.label} ${money(x.value)}`).join(' · ')),
-    card(ok ? 'Risparmio al mese' : 'Sfori al mese', saving == null ? '—' : money(Math.abs(saving)), saving == null ? '' : ok ? 'entrate − spese fisse − budget' : 'sopra le entrate medie', saving == null ? '' : ok ? 'bgok' : 'bgbad'),
+    duo('Medie al mese', ['Entrate', hasIncome ? money(e.income) : '—'], ['Spese fisse', e.fixed == null ? '—' : money(e.fixed)],
+      hasIncome ? `entrate degli ultimi ${e.incomeMonths} mesi chiusi · spese fisse: bollette, affitto, prestito, tasse…` : 'Nessuna entrata nei mesi chiusi'),
+    duo('Il tuo budget', ['Budget', money(total)], [ok ? 'Risparmio' : 'Sfori di', saving == null ? '—' : money(Math.abs(saving))],
+      saving == null ? amounts.map((x) => `${x.label} ${money(x.value)}`).join(' · ') : ok ? 'entrate − spese fisse − budget' : 'sopra le entrate medie', saving == null ? '' : ok ? 'bgok' : 'bgbad'),
   ].join('');
 
   // Barra unica: l'entrata media divisa tra spese fisse, le tre categorie e ciò che avanza (il risparmio); oltre l'entrata, il rosso.
@@ -985,7 +987,7 @@ function renderBudgetParts() {
   }
   const box = $('#bgEst');
   if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per le medie: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
-  const notes = [`Di solito = media degli ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).`];
+  const notes = [`Media = ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).`];
   if (hasIncome) notes.push(`Se spendi come al solito (${money(Object.values(e.average).reduce((a, b) => a + b, 0))} per queste tre voci) risparmi ${money(e.savingsNoCuts)} al mese.`);
   box.innerHTML = `${notes.map((n) => `<small>${n}</small>`).join('')}<div class="foot"><button type="button" class="ghost" data-act="bg-use">Parti dalle medie</button></div>`;
 }

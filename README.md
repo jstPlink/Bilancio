@@ -52,8 +52,9 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   calcolato come entrate medie − spese fisse medie − totale dei budget. In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie
   (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori): **a ogni cifra che scrivi tutto si aggiorna**.
   Una **barra a colori** divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e ciò che avanza (verde: il risparmio); se il totale supera le entrate, un segno nero mostra dove finiscono le entrate.
-  Per ogni voce una seconda barra si **riempie con quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rossa oltre). Accanto a ogni voce c'è «Di solito», la media delle spese degli ultimi mesi
-  chiusi (fino a 6; il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget.
+  Per ogni voce una seconda barra si **riempie con quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rossa oltre). Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
+  (il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget. In alto due riquadri: entrate e spese fisse medie in una riga, budget e risparmio nell'altra.
+  La tabella dei budget sta sempre nella larghezza dello schermo, senza scorrimento, anche sul telefono.
 - **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
