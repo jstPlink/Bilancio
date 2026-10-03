@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.35.3
+- **Widget**: l'ampiezza dell'onda è dimezzata (superficie più piatta, ondina appena accennata).
+
 ## 0.35.2
 - **Widget**: l'onda scorre ancora a metà velocità (un giro in 4,6 s). I fotogrammi salgono a 16 e diventano più piccoli (56×40 px) per tenere leggero l'aggiornamento del widget.
 
