@@ -60,7 +60,7 @@ db.banking = {
   pending: {},
   connections: [
     { id: 'DEMO-UC', bank: 'unicredit', accounts: [{ uid: 'unicredit-1', iban: 'IT60X0542811101000000123456', name: 'Conto Corrente', currency: 'EUR', type: 'CACC' }], validUntil, lastSync: null, calls: [] },
-    { id: 'DEMO-RV', bank: 'revolut', accounts: [{ uid: 'revolut-1', iban: 'LT123456789012345678', name: 'Principale', currency: 'EUR', type: 'CACC' }], validUntil, lastSync: null, calls: [] },
+    { id: 'DEMO-RV', bank: 'revolut', accounts: [{ uid: 'revolut-1', iban: 'LT123456789012345678', name: 'Principale', currency: 'EUR', type: 'CACC' }, { uid: 'revolut-2', iban: '', name: 'Mario Rossi', currency: 'EUR', type: 'SVGS' }, { uid: 'revolut-3', iban: '', name: 'Mario Rossi', currency: 'EUR', type: 'SVGS' }], validUntil, lastSync: null, calls: [] },
   ],
 };
 await readBankData({ client: createClient(db.banking.app), db, conn: db.banking.connections[0] });

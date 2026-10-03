@@ -5,7 +5,9 @@
 //   ENABLE_BANKING_API=http://127.0.0.1:4890 npm start    (l'app parla con la banca finta)
 //
 // I conti sono due, con campi diversi come nelle banche vere: "unicredit-1" (causale, IBAN della controparte, nessun saldo
-// nei movimenti) e "revolut-1" (saldo dopo ogni movimento, categoria merceologica, riferimento). Niente è reale.
+// nei movimenti) e "revolut-1" (saldo dopo ogni movimento, categoria merceologica, riferimento). Poi due pocket Revolut
+// ("revolut-2", "revolut-3"): senza IBAN, di tipo risparmio, con il nome dell'intestatario e il nome vero del pocket solo nel testo
+// dei movimenti ("Accredita EUR 01 Spesa da EUR"). Niente è reale.
 import http from 'node:http';
 
 const port = Number(process.argv[2] ?? process.env.PORT ?? 4890);
@@ -25,7 +27,14 @@ function build(uid) {
     const credit = amount > 0;
     rows.push({ daysAgo, amount, name, credit, extra });
   };
-  for (let m = 0; m < 12; m++) {
+  const pocket = ACCOUNTS[uid]?.pocket;
+  for (let m = 0; m < (pocket ? 4 : 12); m++) {
+    if (pocket) {
+      const base = m * 30 + 2;
+      add(base, 150, 'Mario Rossi', { remittance: [`Accredita EUR ${pocket} da EUR`] });
+      for (let k = 0; k < 4; k++) add(base + 3 + k * 5, -(6 + Math.round(rnd() * 3000) / 100), pick(['Esselunga Milano', 'Conad City', 'Lidl', 'Bar Roma']), { mcc: '5411' });
+      continue;
+    }
     const base = m * 30 + 3;
     if (!revolut) {
       add(base + 4, 1450, 'Azienda Esempio Srl', { remittance: ['STIPENDIO MESE'] });
@@ -42,9 +51,9 @@ function build(uid) {
       add(base + 13 + k * 2, -(8 + Math.round(rnd() * 5000) / 100), name, revolut ? { mcc: '5411' } : { remittance: ['PAGAMENTO POS ' + name.toUpperCase()] });
     }
   }
-  add(40, 120, 'Giulia Bianchi', { remittance: ['Rimborso cena'] });
+  if (!pocket) add(40, 120, 'Giulia Bianchi', { remittance: ['Rimborso cena'] });
   rows.sort((a, b) => a.daysAgo - b.daysAgo); // dal più recente
-  let balance = revolut ? 842.37 : 3120.5;
+  let balance = ACCOUNTS[uid]?.balance ?? (revolut ? 842.37 : 3120.5);
   return rows.map((r, i) => {
     const date = iso(today.getTime() - r.daysAgo * DAY);
     const tx = {
@@ -71,6 +80,8 @@ function build(uid) {
 const ACCOUNTS = {
   'unicredit-1': { name: 'Conto Corrente', iban: 'IT60X0542811101000000123456', product: 'Conto Genius', balance: 3120.5, available: 3120.5 },
   'revolut-1': { name: 'Principale', iban: 'LT123456789012345678', product: 'Current', balance: 842.37, available: 842.37 },
+  'revolut-2': { name: 'Mario Rossi', iban: '', product: 'Savings', type: 'SVGS', pocket: '01 Spesa', balance: 87.4, available: 87.4 },
+  'revolut-3': { name: 'Mario Rossi', iban: '', product: 'Savings', type: 'SVGS', pocket: '02 Svago', balance: 42.15, available: 42.15 },
 };
 const pending = (uid) => (uid.startsWith('revolut')
   ? [{ transaction_id: `${uid}-p1`, value_date: iso(today.getTime()), credit_debit_indicator: 'DBIT', status: 'PDNG', transaction_amount: { amount: '4.50', currency: 'EUR' }, creditor: { name: 'Bar Centrale' }, merchant_category_code: '5814' }]
@@ -86,7 +97,7 @@ http.createServer((req, res) => {
   const [, uid, what] = m;
   const acc = ACCOUNTS[uid];
   if (what === 'details') {
-    return send(res, 200, { uid, account_id: { iban: acc.iban }, name: acc.name, currency: 'EUR', cash_account_type: 'CACC', product: acc.product, usage: 'PRIV', details: 'Conto di prova' });
+    return send(res, 200, { uid, ...(acc.iban ? { account_id: { iban: acc.iban } } : {}), name: acc.name, currency: 'EUR', cash_account_type: acc.type ?? 'CACC', product: acc.product, usage: 'PRIV', details: 'Conto di prova' });
   }
   if (what === 'balances') {
     return send(res, 200, { balances: [

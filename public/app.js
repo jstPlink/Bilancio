@@ -1062,7 +1062,6 @@ function refreshSummary(r) {
   if (r.updated) parts.push(`${r.updated} aggiornati`);
   if (r.removed) parts.push(`${r.removed} rimossi`);
   if (r.transactions) parts.push(`${r.transactions} movimenti bancari`);
-  if (r.bankTransactions) parts.push(`${r.bankTransactions} movimenti dalle banche collegate`);
   if (r.ocr) parts.push(`${r.ocr} scansioni lette con OCR`);
   if (r.incomplete) parts.push(`${r.incomplete} da controllare`);
   let msg = parts.length ? `Documenti: ${parts.join(', ')}.` : 'Tutto aggiornato, nessun documento nuovo.';

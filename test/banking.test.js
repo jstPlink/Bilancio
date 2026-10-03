@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { checkKey, createClient, finishLink, makeJwt, mapTransaction, publicState, startLink, syncAll, syncConnection, bankingState } from '../src/banking.js';
+import { checkKey, createClient, finishLink, makeJwt, mapTransaction, publicState, startLink, syncConnection, bankingState } from '../src/banking.js';
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
 const NOW = Date.parse('2026-10-02T10:00:00Z');
@@ -159,16 +159,3 @@ test('limite di 4 letture al giorno e consenso scaduto', async () => {
   await syncConnection({ client, db: freshDb(), conn: old, now: NOW });
 });
 
-test('syncAll: salta le letture recenti e raccoglie gli errori senza fermarsi', async () => {
-  const db = freshDb();
-  db.banking.connections.push(makeConn({ id: 'recente', lastSync: new Date(NOW - 3600000).toISOString() }));
-  db.banking.connections.push(makeConn({ id: 'scaduta', bank: 'revolut', validUntil: '2020-01-01T00:00:00Z' }));
-  db.banking.connections.push(makeConn({ id: 'buona', bank: 'revolut', lastSync: new Date(NOW - 10 * 3600000).toISOString() }));
-  const client = { transactions: async () => ({ transactions: [bookedTx('A', 4)] }) };
-  const r = await syncAll({ client, db, now: NOW, minAgeMs: 3 * 3600000 });
-  assert.equal(r.skipped, 1);
-  assert.equal(r.added, 1);
-  assert.equal(r.errors.length, 1);
-  assert.match(r.errors[0].message, /scaduto/);
-  assert.equal(bankingState(db).connections.length, 3);
-});

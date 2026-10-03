@@ -2,6 +2,18 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.31.0
+- **Scheda Banche, un blocco per conto e per pocket**: saldo attuale in grande, nome, IBAN, valuta, tipo, prodotto, numero di movimenti, grafico dell'andamento e, a scomparsa, tutti i saldi e i dati del conto. Niente più schede separate per i grafici. I blocchi sono divisi in «Conti» e «Pocket e risparmi».
+- **Nomi dei pocket**: la banca dà a ogni pocket solo il nome dell'intestatario. L'app ricava il nome vero dal testo dei movimenti («Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu (`PUT /api/banking/account-name`, resta sul server). Il nome compare nel blocco, nel filtro per conto e in ogni riga di movimento.
+- **Storico che si accumula**: ogni lettura tiene i movimenti già letti e aggiunge i nuovi (prima la copia veniva sostituita e i giorni più vecchi sparivano). Se la banca non concede 12 mesi, sotto il conto compare il motivo del rifiuto e che si ripiega sugli ultimi 90 giorni.
+- **Scheda Banche anche sul telefono e nell'app Android**: ogni movimento è un riquadro (data, stato, conto, interlocutore, causale, importo), le tabelle tecniche partono chiuse e si mostrano 50 movimenti alla volta.
+- **Le banche si leggono solo col pulsante**: **Aggiorna** e l'apertura dell'app non chiamano più UniCredit né Revolut. Restano **Aggiorna ora** (Impostazioni → Collega le banche), **Leggi dalla banca** (scheda Banche) e la lettura subito dopo aver collegato una banca. Rimossa `syncAll`; un test con una banca finta verifica che l'aggiornamento non la tocchi.
+- **Android: widget «Questo mese»** (5×1): quattro riquadri affiancati con le cifre dal primo del mese — Da pagare (rosso finché resta qualcosa, verde quando è tutto pagato, con il numero di voci), Spese, Carburante e Svago. Si aggiorna ogni mezz'ora, all'apertura dell'app e quando cambiano categorie, importi, spunte o letture.
+- Demo e banca finta: due pocket Revolut senza IBAN, con il nome dell'intestatario e il nome vero solo nei movimenti. Nuovi test (73 in tutto).
+- Test più stabili: i test che avviano un server vero scelgono una porta libera dal sistema invece di una a caso (due test potevano scegliere la stessa porta e fallire ogni tanto).
+- Un esempio nel codice e in un test usava il nome di un'azienda vera: sostituito con un nome inventato.
+- Documentazione: aggiornate le sezioni Banche e App Android e i «Prossimi passi» (fasi 1 e 3 fatte).
+
 ## 0.30.1
 - **Documentazione**: la scheda Banche richiede che anche il server sia aggiornato (dalla 0.30.0); la demo va tenuta in un terminale aperto; dopo un push bisogna attendere la costruzione dell'immagine Docker prima di aggiornare il NAS; come provare la scheda con i dati veri.
 

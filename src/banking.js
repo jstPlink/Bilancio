@@ -77,6 +77,7 @@ export function bankingState(db) {
   db.banking.app ??= null;
   db.banking.connections ??= [];
   db.banking.pending ??= {};
+  db.banking.names ??= {};     // nomi dati a mano ai conti/pocket (uid → nome): la banca spesso dà solo il nome dell'intestatario
   db.banking.snapshots ??= {}; // copia separata dei dati originali delle banche, per la scheda «Banche»: nient'altro la legge
   return db.banking;
 }
@@ -232,25 +233,24 @@ export async function syncConnection({ client, db, conn, now = Date.now() }) {
   return report;
 }
 
-// Tutti i collegamenti attivi. Gli errori non fermano gli altri: si raccolgono per mostrarli.
-// `minAgeMs`: salta i collegamenti letti da meno di così (l'aggiornamento automatico all'apertura dell'app non deve esaurire i 4 accessi al giorno).
-export async function syncAll({ client, db, now = Date.now(), minAgeMs = 0 }) {
-  const total = { found: 0, added: 0, duplicates: 0, skipped: 0, errors: [] };
-  for (const conn of bankingState(db).connections) {
-    if (minAgeMs && conn.lastSync && now - Date.parse(conn.lastSync) < minAgeMs) { total.skipped++; continue; }
-    try {
-      const r = await syncConnection({ client, db, conn, now });
-      total.found += r.found; total.added += r.added; total.duplicates += r.duplicates;
-    } catch (e) {
-      total.errors.push({ source: BANKS[conn.bank]?.label ?? conn.bank, message: e.message });
-    }
-  }
-  return total;
-}
-
 // ------------------------------------------------------------------ copia dei dati originali (scheda «Banche»)
 
 const RAW_CAP = 5000; // movimenti originali conservati per conto
+
+// Un movimento si riconosce dall'identificativo della banca o, se manca, da data, importo e controparte.
+export const txKey = (tx) => tx.transaction_id ?? tx.entry_reference ?? tx.reference_number
+  ?? [tx.booking_date ?? tx.value_date ?? tx.transaction_date, tx.credit_debit_indicator, tx.transaction_amount?.amount, tx.creditor?.name ?? tx.debtor?.name ?? '',
+    String(Array.isArray(tx.remittance_information) ? tx.remittance_information.join(' ') : tx.remittance_information ?? '').slice(0, 40)].join('|');
+
+// Le banche concedono pochi mesi di storico (di solito 90 giorni) e ad ogni lettura la finestra scorre in avanti:
+// i movimenti già letti si tengono, così lo storico cresce invece di perdersi.
+export function mergeBooked(previous, fetched) {
+  const seen = new Set(fetched.map(txKey));
+  const all = [...fetched, ...previous.filter((tx) => !seen.has(txKey(tx)))];
+  const day = (tx) => String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '');
+  return all.map((tx, i) => [tx, i]).sort((a, b) => day(b[0]).localeCompare(day(a[0])) || a[1] - b[1]).map(([tx]) => tx);
+}
+const short = (text, n = 140) => (String(text).length > n ? `${String(text).slice(0, n - 1)}…` : String(text));
 
 // Legge dalla banca tutto ciò che mette a disposizione (dettagli del conto, saldi, movimenti registrati e in sospeso, con tutti
 // i campi originali) e ne tiene una copia a parte in `db.banking.snapshots`. È volutamente separata dal resto dell'app:
@@ -266,11 +266,15 @@ export async function readBankData({ client, db, conn, now = Date.now() }) {
   const snap = { fetchedAt: new Date(now).toISOString(), accounts: {} };
   const summary = { accounts: 0, booked: 0, pending: 0 };
   for (const account of conn.accounts) {
-    const a = { booked: [], pending: [], balances: [], details: null, unavailable: [] };
-    // Movimenti registrati: un anno di storico, o 90 giorni se la banca non lo concede.
+    const a = { booked: [], pending: [], balances: [], details: null, unavailable: [], historyNote: '' };
+    const before = bankingState(db).snapshots[conn.id]?.accounts?.[account.uid]?.booked ?? [];
+    // Movimenti registrati: un anno di storico, o 90 giorni se la banca non lo concede (e si dice perché).
     let booked = await soft(() => fetchAccount(client, account.uid, isoDay(now - FIRST_SYNC_DAYS * DAY)));
-    if (booked.error) booked = await soft(() => fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)));
-    if (booked.error) a.unavailable.push({ what: 'movimenti registrati', why: booked.error }); else a.booked = booked.value.slice(0, RAW_CAP);
+    if (booked.error) {
+      a.historyNote = `La banca non ha concesso 12 mesi di storico (${short(booked.error)}): ho chiesto gli ultimi ${FALLBACK_SYNC_DAYS} giorni.`;
+      booked = await soft(() => fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)));
+    }
+    if (booked.error) { a.unavailable.push({ what: 'movimenti registrati', why: booked.error }); a.booked = before; } else a.booked = mergeBooked(before, booked.value).slice(0, RAW_CAP);
     const pending = await soft(() => fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'));
     if (pending.error) a.unavailable.push({ what: 'movimenti in sospeso', why: pending.error }); else a.pending = pending.value;
     const balances = await soft(() => client.balances(account.uid));

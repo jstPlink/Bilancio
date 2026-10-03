@@ -471,3 +471,48 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
 code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
 @media (max-width: 899px) { .wide-only { display: none !important; } }
 @media (max-width: 1100px) { .bk-two { grid-template-columns: 1fr; } }
+
+/* --- scheda Banche: un blocco per conto/pocket (saldo, dati e grafico insieme) --- */
+.bk-accts { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+.bk-section { font-size: 15px; margin: 18px 0 8px; }
+.bk-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.bk-titlebox { min-width: 0; flex: 1 1 180px; }
+.bk-titleline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bk-titleline h3 { overflow-wrap: anywhere; }
+.bk-edit { padding: 2px 6px; font-size: 12px; font-weight: 500; }
+.bk-src { font-size: 12px; margin: 2px 0 0; }
+.bk-big { text-align: right; display: grid; }
+.bk-big b { font-size: 24px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.bk-big small { font-size: 12px; }
+.bk-rename { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; width: 100%; }
+.bk-rename input { flex: 1 1 140px; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); font: inherit; }
+.bk-hist { font-size: 12px; margin: 4px 0 0; }
+.bk-chart { margin-top: 10px; }
+.bk-more { margin-top: 6px; }
+@media (max-width: 640px) { .bk-accts { grid-template-columns: minmax(0, 1fr); } }
+
+/* --- scheda Banche sul telefono: ogni movimento è un riquadro, come in Movimenti --- */
+@media (max-width: 720px) {
+  .bk-head { gap: 8px; }
+  .bk-head h2 { font-size: 20px; }
+  .bk-head .muted { flex: 1 1 100%; order: 2; font-size: 12px; }
+  .bk-head .primary { flex: 1 1 100%; min-height: 44px; order: 3; }
+  .bk-big b { font-size: 22px; }
+  .bk-acct { padding: 12px 14px; }
+  .bk-note { font-size: 13px; }
+  .tablewrap:has(.bk-tx) { background: none; border: 0; box-shadow: none; overflow: visible; }
+  .bk-tx { min-width: 0; }
+  .bk-tx thead { display: none; }
+  .bk-tx, .bk-tx tbody { display: block; }
+  .bk-tx tr.mv { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .bk-tx tr.mv td { display: block; border: 0; padding: 0; background: none; max-width: none; white-space: normal; overflow-wrap: anywhere; }
+  .bk-tx td.dcol { grid-column: 1; grid-row: 1; }
+  .bk-tx td.st { grid-column: 2; grid-row: 1; justify-self: start; }
+  .bk-tx td.num { grid-column: 3; grid-row: 1 / span 2; align-self: start; font-size: 16px; font-weight: 700; }
+  .bk-tx td.party { grid-column: 1 / span 2; grid-row: 2; font-weight: 600; }
+  .bk-tx td.ac { grid-column: 1 / -1; grid-row: 3; font-size: 12px; }
+  .bk-tx td.rem { grid-column: 1 / -1; grid-row: 4; color: var(--muted); font-size: 13px; }
+  .bk-tx tr.mvdetail { display: block; margin: -8px 0 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+  .bk-tx tr.mvdetail td { display: block; padding: 0; }
+  .bk-raw { padding: 10px 14px 12px; }
+}

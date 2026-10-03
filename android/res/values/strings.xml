@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="widget_month_description">Da pagare, spese, carburante e svago, dal primo del mese, in una riga.</string>
     <string name="widget_description">Quanto resta da pagare, con le prime voci in scadenza.</string>
 </resources>

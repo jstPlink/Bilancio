@@ -5,13 +5,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { freePort } from './free-port.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PASSWORD = 'password-del-server-1';
-const serverPort = 4960 + Math.floor(Math.random() * 15) * 2;
-const localPort = serverPort + 1;
-const server = `http://127.0.0.1:${serverPort}`;
-const local = `http://127.0.0.1:${localPort}`;
+let server;
+let local;
 const procs = [];
 const dirs = [];
 
@@ -33,6 +32,10 @@ const launch = async (script, env, readyUrl) => {
 let upstream;
 let front;
 before(async () => {
+  const serverPort = await freePort();
+  const localPort = await freePort();
+  server = `http://127.0.0.1:${serverPort}`;
+  local = `http://127.0.0.1:${localPort}`;
   upstream = await launch('server.js', { PORT: String(serverPort), BILANCIO_PASSWORD: PASSWORD }, `${server}/api/version`);
   front = await launch('start.js', { PORT: String(localPort), BILANCIO_SERVER: server }, `${local}/api/version`);
 });

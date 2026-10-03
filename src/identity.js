@@ -25,7 +25,7 @@ function cleanName(raw) {
   return w.join(' ').trim();
 }
 
-// «… BONIFICO ISTANTANEO DA ITALIAN GAMES FACTORY S R L» → «ITALIAN GAMES FACTORY»; «Pagamento da Mario Rossi» → «Mario Rossi».
+// «… BONIFICO ISTANTANEO DA AZIENDA ESEMPIO S R L» → «AZIENDA ESEMPIO»; «Pagamento da Mario Rossi» → «Mario Rossi».
 export function senderName(description) {
   const m = /\b(?:da|from)\s+(?!.*\b(?:da|from)\b)(.+)$/i.exec(String(description ?? ''));
   return m ? cleanName(m[1]) : '';

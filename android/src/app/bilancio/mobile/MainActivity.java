@@ -100,7 +100,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        DueWidget.refreshAll(this); // il widget si aggiorna ogni volta che apri l'app
+        DueWidget.refreshAll(this); // i widget si aggiornano ogni volta che apri l'app
+        MonthWidget.refreshAll(this);
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
@@ -259,8 +260,11 @@ public class MainActivity extends Activity {
                     final JSONObject rh = new JSONObject();
                     try { rh.put("Content-Type", r.mime); } catch (Exception e) { /* ignora */ }
                     // Segnare pagato, leggere i documenti o caricarne uno cambia le cose da pagare: il widget si aggiorna.
-                    if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/paid") || path.startsWith("/api/pay-all") || path.startsWith("/api/refresh") || path.startsWith("/api/upload"))) {
+                    // Anche categorie, importi manuali, estratti e letture della banca cambiano le cifre del mese.
+                    if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/paid") || path.startsWith("/api/pay-all") || path.startsWith("/api/refresh") || path.startsWith("/api/upload")
+                        || path.startsWith("/api/transactions") || path.startsWith("/api/manual") || path.startsWith("/api/statements") || path.startsWith("/api/banking/sync"))) {
                         DueWidget.refreshAll(MainActivity.this);
+                        MonthWidget.refreshAll(MainActivity.this);
                     }
                     runOnUiThread(new Runnable() {
                         @Override public void run() {

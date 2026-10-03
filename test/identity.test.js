@@ -4,7 +4,7 @@ import { inferOwnNames, inferPayers, learnIdentity, mergeNames, nameKey, recipie
 import { categorize, setIdentity } from '../src/statements.js';
 
 test('nome del mittente dalle descrizioni delle banche', () => {
-  assert.equal(senderName('BONIFICO A VOSTRO FAVORE BONIFICO ISTANTANEO DA ITALIAN GAMES FACTORY S R L'), 'ITALIAN GAMES FACTORY');
+  assert.equal(senderName('BONIFICO A VOSTRO FAVORE BONIFICO ISTANTANEO DA AZIENDA ESEMPIO S R L'), 'AZIENDA ESEMPIO');
   assert.equal(senderName('Pagamento da Mario Rossi'), 'Mario Rossi');
   assert.equal(senderName('Bonifico DA ACME SPA PER: stipendio 09/2026'), 'ACME');
   assert.equal(senderName('Acquisto Conad'), '');

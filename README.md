@@ -34,12 +34,17 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   l'app la ricorda per tutte le descrizioni uguali.
 - **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
-- **Banche** (solo su schermo largo). I dati originali che UniCredit e Revolut mettono a disposizione, in una **copia separata**: non entra in
-  Panoramica, Movimenti né Statistiche, serve a capire cosa si può ottenere. Per ogni banca collegata: consenso e letture di oggi, i conti
-  (nome, IBAN, valuta, tipo, prodotto, saldi, tutti i dati del conto), l'andamento del saldo (quello scritto dalla banca nei movimenti, oppure
-  ricostruito dal saldo attuale), **quali campi la banca fornisce davvero e in quanti movimenti**, i principali interlocutori, i pagamenti
+- **Banche** (anche sul telefono e nell'app Android: i movimenti diventano riquadri, le tabelle tecniche partono chiuse). I dati originali che UniCredit e Revolut mettono a disposizione, in una **copia separata**: non entra in
+  Panoramica, Movimenti né Statistiche, serve a capire cosa si può ottenere. Per ogni banca collegata: consenso e letture di oggi, poi **un solo blocco per ogni conto e per ogni pocket**
+  con il saldo attuale in grande, nome, IBAN, valuta, tipo, prodotto, numero di movimenti, l'andamento del saldo (quello scritto dalla banca nei movimenti,
+  oppure ricostruito dal saldo attuale) e, a scomparsa, tutti i saldi e i dati del conto. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario;
+  l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
+  Il nome compare anche nel filtro per conto e nelle righe dei movimenti. Poi **quali campi la banca fornisce davvero e in quanti movimenti**, i principali interlocutori, i pagamenti
   ricorrenti riconosciuti e tutti i movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga). **Leggi dalla banca**
-  aggiorna la copia; conta come una delle 4 letture giornaliere concesse dalle banche (oltre a quella della lettura automatica all'apertura).
+  aggiorna la copia; conta come una delle 4 letture giornaliere concesse dalle banche.
+  **Storico:** le banche concedono pochi mesi (Revolut, di norma, solo 90 giorni; l'app ne chiede 12 e, se la banca rifiuta, lo scrive sotto al conto con il motivo).
+  Ad ogni lettura i movimenti già letti restano nella copia e si aggiungono i nuovi, quindi lo storico cresce nel tempo; quello precedente alla prima lettura
+  non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
   I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
   altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
 - **Documenti.** **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
@@ -67,6 +72,10 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 L'app Android ha in più:
 - **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
   mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
+- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): quattro riquadri affiancati in una riga, con le cifre dal primo del mese in corso (a sinistra «dal 1° OTT»):
+  **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: rosso finché resta qualcosa, verde quando è
+  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Stesse cifre delle colonne della Panoramica; si aggiorna ogni mezz'ora, quando apri l'app e quando cambi
+  categorie, importi o spunte. Un tocco apre l'app.
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
@@ -134,7 +143,11 @@ estratti. Usa [Enable Banking](https://enablebanking.com), gratuito per uso pers
 se la banca lo dà, il saldo dopo il movimento). Non le carte di credito UniCredit, né investimenti o pagamenti ricorrenti. Lo storico dipende dalla
 banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90 giorni.
 
-**Limiti:** le banche concedono 4 letture al giorno per collegamento; **Aggiorna** legge le banche solo se l'ultima lettura ha più di 3 ore. Il consenso
+**Quando si legge dalle banche:** solo quando premi un pulsante apposta: **Aggiorna ora** in Impostazioni → Collega le banche (porta i movimenti in Panoramica e
+Movimenti) o **Leggi dalla banca** nella scheda Banche (aggiorna la copia). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
+subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
+
+**Limiti:** le banche concedono 4 letture al giorno per collegamento. Il consenso
 dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
 non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
 
@@ -149,16 +162,16 @@ e collega nel database di prova conti con `uid` `unicredit-1` e `revolut-1`. Il 
 
 ## Prossimi passi
 
-**Interfaccia sui dati delle banche collegate** (in corso). Serve a capire il potenziale di ciò che UniCredit e Revolut rendono disponibile
+**Interfaccia sui dati delle banche collegate** (in corso: resta da decidere la fase 2). Serve a capire il potenziale di ciò che UniCredit e Revolut rendono disponibile
 tramite Enable Banking, in quattro fasi, ognuna da confermare prima della successiva:
-1. **Browser** — *fatto, da provare con i dati veri*: la scheda **Banche** (vedi «Le schede»). I dati originali si tengono in una copia separata
+1. **Browser** — *fatto (0.30.0, rifinito nella 0.31.0 con un blocco per ogni conto e pocket)*: la scheda **Banche** (vedi «Le schede»). I dati originali si tengono in una copia separata
    sul server (`db.banking.snapshots`), che nessun'altra parte dell'app legge, e si aggiornano solo premendo **Leggi dalla banca**.
    Per provarla con i dati veri: aggiorna il server, poi **Banche → Leggi dalla banca** per ogni banca. Per provarla senza toccare le banche vere
    c'è `npm run demo:banche` (vedi sopra).
 2. **Decidere** insieme come gestire le informazioni (quali tenere, come abbinarle ai movimenti e alla Panoramica). Finché non si decide, i dati
    letti dalle banche per questa scheda **non si mescolano** a quelli dell'app.
-3. **Telefono**: portare la stessa interfaccia nell'app Android.
-4. **Rilascio**: versione, changelog, commit e push, solo alla fine.
+3. **Telefono** — *fatto (0.31.0)*: la scheda Banche c'è anche nel browser del telefono e nell'app Android, con i movimenti in riquadri.
+4. **Rilascio** — *fatto con la 0.31.0*; ogni fase successiva avrà il suo.
 
 ## Più case
 

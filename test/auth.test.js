@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuth } from '../src/auth.js';
+import { freePort } from './free-port.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -59,12 +60,11 @@ test('con BILANCIO_PASSWORD la password è quella dell\'ambiente', () => {
 // ------------------------------------------------------------------ prova vera: si avvia il server
 const children = [];
 const dirs = [];
-let nextPort = 4900 + Math.floor(Math.random() * 40) * 2;
 
 async function startServer(env, dataDir) {
   dataDir ??= await fs.mkdtemp(path.join(os.tmpdir(), 'bilancio-auth-'));
   dirs.push(dataDir);
-  const port = nextPort++;
+  const port = await freePort();
   const proc = spawn(process.execPath, ['--no-warnings', path.join(root, 'src', 'server.js')], {
     env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', BILANCIO_DATA: dataDir, BILANCIO_PASSWORD: '', ...env },
     stdio: ['ignore', 'pipe', 'ignore'],

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { balanceTrend, balanceView, buildExplore, counterparties, fieldCoverage, flatten, recurring } from '../src/bankexplorer.js';
+import { balanceTrend, balanceView, buildExplore, counterparties, fieldCoverage, flatten, inferPocketName, recurring } from '../src/bankexplorer.js';
 import { bankingState, readBankData } from '../src/banking.js';
 
 const NOW = Date.parse('2026-10-02T10:00:00Z');
@@ -145,4 +145,90 @@ test('senza lettura la scheda mostra il collegamento vuoto, e la copia sparisce 
   const client = { transactions: async () => ({ transactions: [] }), balances: async () => ({}), details: async () => ({}) };
   await readBankData({ client, db, conn: db.banking.connections[0], now: NOW });
   assert.ok(bankingState(db).snapshots.S1);
+});
+
+// ------------------------------------------------------------------ nomi dei pocket, storico, motivo dei 90 giorni
+
+const bankDb = (accounts) => {
+  const db = makeDb();
+  db.banking.connections.push(makeConn({ id: 'R1', bank: 'revolut', accounts }));
+  return db;
+};
+const reader = (perAccount) => ({
+  transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [] : (perAccount[uid] ?? []) }),
+  balances: async () => ({ balances: [{ balance_type: 'ITAV', balance_amount: { amount: '47.18', currency: 'EUR' }, last_change_date_time: '2026-10-01T10:00:00Z' }] }),
+  details: async (uid) => ({ name: 'Mario Rossi', cash_account_type: uid === 'pocket' ? 'SVGS' : 'CACC' }),
+});
+
+test('inferPocketName: il nome vero del pocket si ricava dal testo dei movimenti', () => {
+  const txs = [
+    tx('1', '2026-09-01', 150, 'Mario Rossi', { remittance_information: ['Accredita EUR 01 Spesa da EUR'] }),
+    tx('2', '2026-09-08', -12, 'Lidl'),
+    tx('3', '2026-09-15', 150, 'Mario Rossi', { remittance_information: ['Accredita EUR 01 Spesa da EUR'] }),
+    tx('4', '2026-09-20', -5, 'Spotify', { note: 'Da EUR 02 Svago' }),
+  ];
+  const r = inferPocketName(txs);
+  assert.equal(r.name, '01 Spesa'); // il più frequente
+  assert.equal(r.count, 2);
+  assert.equal(inferPocketName([tx('x', '2026-09-01', -3, 'Bar')]), null);
+  assert.equal(inferPocketName([]), null);
+});
+
+test('un pocket prende il nome dai movimenti, a meno che tu non gliene dia uno; il conto principale resta com\'è', async () => {
+  const db = bankDb([
+    { uid: 'main', iban: 'LT123456789012345678', name: 'Mario Rossi', currency: 'EUR', type: 'CACC' },
+    { uid: 'pocket', iban: '', name: 'Mario Rossi', currency: 'EUR', type: 'SVGS' },
+    { uid: 'muto', iban: '', name: 'Mario Rossi', currency: 'EUR', type: 'SVGS' },
+  ]);
+  const client = reader({
+    main: [tx('m1', '2026-09-01', -50, 'A EUR 01 Spesa', { remittance_information: ['A EUR 01 Spesa'] })],
+    pocket: [tx('p1', '2026-09-01', 50, 'Mario Rossi', { remittance_information: ['Accredita EUR 01 Spesa da EUR'] })],
+    muto: [tx('q1', '2026-09-02', -4, 'Bar Roma')],
+  });
+  await readBankData({ client, db, conn: db.banking.connections[0], now: NOW });
+  const names = () => Object.fromEntries(buildExplore(db, NOW).connections[0].accounts.map((a) => [a.uid, [a.name, a.nameSource, a.main]]));
+  assert.deepEqual(names(), {
+    main: ['Mario Rossi', 'intestatario', true], // niente nome ricavato: ha l'IBAN, il «A EUR 01 Spesa» è un altro pocket
+    pocket: ['01 Spesa', 'movimenti', false],
+    muto: ['Mario Rossi', 'intestatario', false],
+  });
+  bankingState(db).names.pocket = 'Spesa settimanale';
+  bankingState(db).names.muto = 'Imprevisti';
+  assert.deepEqual(names().pocket, ['Spesa settimanale', 'manuale', false]);
+  assert.deepEqual(names().muto, ['Imprevisti', 'manuale', false]);
+  const rows = buildExplore(db, NOW).connections[0];
+  assert.equal(rows.accounts.find((a) => a.uid === 'pocket').holder, 'Mario Rossi'); // l'intestatario resta visibile
+});
+
+test('lo storico non si perde: ad ogni lettura i movimenti vecchi restano e quelli nuovi si aggiungono, senza doppioni', async () => {
+  const db = bankDb([{ uid: 'a', iban: 'LT1', name: 'Conto', currency: 'EUR', type: 'CACC' }]);
+  const conn = db.banking.connections[0];
+  const first = [tx('t3', '2026-10-01', -3, 'C'), tx('t2', '2026-09-01', -2, 'B'), tx('t1', '2026-07-05', -1, 'A')];
+  await readBankData({ client: reader({ a: first }), db, conn, now: NOW });
+  // la lettura successiva vede solo gli ultimi 90 giorni: t1 non c'è più, ma c'è un movimento nuovo
+  const second = [tx('t4', '2026-10-02', -4, 'D'), tx('t3', '2026-10-01', -3, 'C'), tx('t2', '2026-09-01', -2, 'B')];
+  await readBankData({ client: reader({ a: second }), db, conn, now: NOW + 3600000 });
+  const a = buildExplore(db, NOW).connections[0].accounts[0];
+  assert.equal(a.booked, 4);
+  assert.equal(a.from, '2026-07-05');
+  assert.equal(a.to, '2026-10-02');
+});
+
+test('se la banca non concede un anno di storico, il motivo si vede', async () => {
+  const db = bankDb([{ uid: 'a', iban: 'LT1', name: 'Conto', currency: 'EUR', type: 'CACC' }]);
+  const dates = [];
+  const client = {
+    transactions: async (uid, q) => {
+      dates.push(q.date_from);
+      if (q.date_from < '2026-06-01') throw new Error('Enable Banking: date_from is older than 90 days');
+      return { transactions: [tx('t1', '2026-09-01', -2, 'B')] };
+    },
+    balances: async () => ({}), details: async () => ({}),
+  };
+  await readBankData({ client, db, conn: db.banking.connections[0], now: NOW });
+  const a = buildExplore(db, NOW).connections[0].accounts[0];
+  assert.match(a.historyNote, /non ha concesso 12 mesi di storico/);
+  assert.match(a.historyNote, /older than 90 days/);
+  assert.match(a.historyNote, /90 giorni/);
+  assert.equal(a.booked, 1);
 });

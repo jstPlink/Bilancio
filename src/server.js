@@ -13,7 +13,7 @@ import { parsePdfStatement } from './pdfstatements.js';
 import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
-import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncAll, syncConnection } from './banking.js';
+import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildExplore } from './bankexplorer.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -87,14 +87,7 @@ app.post('/api/refresh', async (req, res) => {
     const report = await refresh(db(), { force: Boolean(req.body?.force), cacheDir: path.join(path.dirname(dbFile), 'tessdata') });
     report.matched = matchBillPayments(db());
     learn();
-    // Banche collegate: l'aggiornamento automatico non ripete la lettura se è recente (le banche concedono 4 accessi al giorno).
-    const bank = bankingState(db());
-    if (bank.app && bank.connections.length) {
-      const r = await syncAll({ client: bankClient(bank.app), db: db(), minAgeMs: 3 * 3600 * 1000 });
-      report.bankTransactions = r.added;
-      report.errors.push(...r.errors);
-      learn();
-    }
+    // Le banche collegate NON si leggono qui: si leggono solo con i pulsanti apposta (Impostazioni → «Aggiorna ora», scheda Banche → «Leggi dalla banca»).
     await store.save();
     res.json(report);
   } catch (e) {
@@ -316,7 +309,7 @@ app.get('/api/banking/callback', async (req, res) => {
       const r = await syncConnection({ client, db: db(), conn });
       note = ` Ho letto ${r.found} movimenti (${r.added} nuovi).`;
       learn();
-    } catch (e) { note = ` I movimenti si leggeranno al prossimo aggiornamento (${html(e.message)}).`; }
+    } catch (e) { note = ` I movimenti si leggono con «Aggiorna ora» nelle Impostazioni o con «Leggi dalla banca» (${html(e.message)}).`; }
     await store.save();
     res.send(page('Banca collegata ✓', `${html(BANKS[conn.bank].label)} è collegata in sola lettura.${note} Puoi chiudere questa pagina e tornare a Bilancio.`));
   } catch (e) {
@@ -357,6 +350,17 @@ app.post('/api/banking/explore/read', async (req, res) => {
     await store.save();
     res.json({ ...buildExplore(db()), errors });
   } catch (e) { bad(res, e.message); }
+});
+
+// Dà un nome a un conto o a un pocket (la banca di solito dà solo il nome dell'intestatario). Nome vuoto = toglie il nome dato a mano.
+app.put('/api/banking/account-name', async (req, res) => {
+  const b = bankingState(db());
+  const uid = String(req.body?.uid ?? '');
+  if (!b.connections.some((c) => c.accounts.some((a) => a.uid === uid))) return bad(res, 'Conto non trovato.');
+  const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (name) b.names[uid] = name; else delete b.names[uid];
+  await store.save();
+  res.json(buildExplore(db()));
 });
 
 app.delete('/api/banking/connections/:id', async (req, res) => {

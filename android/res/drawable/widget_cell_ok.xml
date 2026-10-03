@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Da pagare» quando è tutto pagato: il verde chiaro della Panoramica -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#DCF3E6" />
+    <corners android:radius="14dp" />
+</shape>

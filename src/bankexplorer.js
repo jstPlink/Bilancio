@@ -117,6 +117,32 @@ export function recurring(txs) {
   return found.sort((a, b) => b.amount - a.amount);
 }
 
+// ------------------------------------------------------------------ nome dei pocket
+
+// Revolut dà a ogni pocket il nome dell'intestatario, ma il nome vero (es. «01 Spesa») compare nel testo dei suoi movimenti:
+// «Accredita EUR 01 Spesa da EUR» quando entra denaro, «Da EUR Spotify» / «A EUR Spotify» quando ne esce. Si cerca il nome
+// più frequente fra i testi dei movimenti del conto. Vale solo per i conti che non sono quello principale (senza IBAN o di risparmio).
+const POCKET_TEXTS = [/^Accredita\s+EUR\s+(.+?)\s+da\s+EUR$/i, /^(?:Da|A|From|To)\s+EUR\s+(.+)$/i];
+
+export function inferPocketName(txs) {
+  const found = new Map();
+  for (const tx of txs) {
+    for (const value of flatten(tx).values()) {
+      for (const re of POCKET_TEXTS) {
+        const m = re.exec(String(value).trim());
+        if (!m) continue;
+        const name = m[1].replace(/\s+/g, ' ').trim();
+        if (name.length < 2 || name.length > 40) continue;
+        const f = found.get(name.toLowerCase()) ?? { name, count: 0, example: value };
+        f.count++;
+        found.set(name.toLowerCase(), f);
+      }
+    }
+  }
+  const best = [...found.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))[0];
+  return best ? { name: best.name, count: best.count, example: String(best.example) } : null;
+}
+
 // ------------------------------------------------------------------ saldi
 
 export const BALANCE_LABELS = {
@@ -194,9 +220,17 @@ export function buildExplore(db, now = Date.now()) {
           rows.push({ key: `${acc.uid}|${status}|${rawKey(tx)}`, account: acc.uid, status, date: dateOf(tx), amount: Number.isFinite(amountOf(tx)) ? round(signedOf(tx)) : null, currency: tx.transaction_amount?.currency ?? '', party: partyOf(tx), remittance: remittanceOf(tx), raw: tx });
         }
       }
+      const holder = acc.name || a.details?.name || 'Conto';
+      const iban = acc.iban || a.details?.account_id?.iban || '';
+      const type = a.details?.cash_account_type ?? acc.type ?? '';
+      const isMain = Boolean(iban) && type !== 'SVGS';
+      const custom = String(b.names?.[acc.uid] ?? '').trim();
+      const guess = !isMain && !custom ? inferPocketName([...a.booked, ...a.pending]) : null;
       return {
-        uid: acc.uid, name: acc.name || a.details?.name || 'Conto', iban: acc.iban || a.details?.account_id?.iban || '', currency: acc.currency || a.details?.currency || '',
-        type: a.details?.cash_account_type ?? acc.type ?? '', product: a.details?.product ?? '',
+        uid: acc.uid, holder, name: custom || guess?.name || holder, nameSource: custom ? 'manuale' : guess ? 'movimenti' : 'intestatario',
+        nameHint: guess ? `Dai movimenti: «${guess.example}» (${guess.count} volte)` : '', main: isMain,
+        iban, currency: acc.currency || a.details?.currency || '',
+        type, product: a.details?.product ?? '', historyNote: a.historyNote ?? '',
         details: Object.fromEntries(flatten(a.details ?? {})),
         balances: balanceView(a.balances),
         booked: a.booked.length, pending: a.pending.length, from: dates[0] ?? null, to: dates.at(-1) ?? null,
