@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.35.1
+- **Widget**: l'onda del liquido scorre a metà velocità (un giro in 2,3 s invece di 1,1 s); i fotogrammi salgono da 8 a 12 per non farla andare a scatti.
+
 ## 0.35.0
 - **Widget «Questo mese»**: la superficie del liquido è ora un'**onda sinusoidale che scorre verso destra** (8 fotogrammi alternati da un ViewFlipper). Le onde sono solo nel widget: tolte dalla scheda Budget.
 - **Nuovo widget «Questo mese (stime al giorno)»** (5×2), copia del precedente: in spesa, carburante e svago aggiunge la spesa stimata al giorno (budget ÷ giorni del mese) e quella reale (speso ÷ giorni passati), verde se migliore della stima e rossa se peggiore. Il layout dei due widget si genera con `scripts/genera-widget.mjs`.
