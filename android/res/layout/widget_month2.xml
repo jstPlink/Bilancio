@@ -87,7 +87,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:autoStart="true"
-            android:flipInterval="190">
+            android:flipInterval="285">
             <ImageView android:id="@+id/fl_spese_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_spese_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_spese_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
@@ -100,6 +100,10 @@
             <ImageView android:id="@+id/fl_spese_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_spese_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_spese_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
         </ViewFlipper>
         <LinearLayout
             android:layout_width="match_parent"
@@ -161,7 +165,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:autoStart="true"
-            android:flipInterval="190">
+            android:flipInterval="285">
             <ImageView android:id="@+id/fl_carburante_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_carburante_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_carburante_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
@@ -174,6 +178,10 @@
             <ImageView android:id="@+id/fl_carburante_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_carburante_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_carburante_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
         </ViewFlipper>
         <LinearLayout
             android:layout_width="match_parent"
@@ -235,7 +243,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:autoStart="true"
-            android:flipInterval="190">
+            android:flipInterval="285">
             <ImageView android:id="@+id/fl_svago_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_svago_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_svago_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
@@ -248,6 +256,10 @@
             <ImageView android:id="@+id/fl_svago_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_svago_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
             <ImageView android:id="@+id/fl_svago_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
         </ViewFlipper>
         <LinearLayout
             android:layout_width="match_parent"

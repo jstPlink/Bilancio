@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-const FRAMES = 12;
+const FRAMES = 16;
 const cell = (key, title, detailed) => `
     <!-- ${title}: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
@@ -17,7 +17,7 @@ const cell = (key, title, detailed) => `
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:autoStart="true"
-            android:flipInterval="190">
+            android:flipInterval="285">
 ${Array.from({ length: FRAMES }, (_, i) => `            <ImageView android:id="@+id/fl_${key}_${i}" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />`).join('\n')}
         </ViewFlipper>
         <LinearLayout

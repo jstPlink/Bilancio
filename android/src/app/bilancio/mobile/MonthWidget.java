@@ -67,10 +67,10 @@ public class MonthWidget extends AppWidgetProvider {
 
     // ------------------------------------------------------------------ il contenitore con l'onda
 
-    private static final int FRAMES = 12;    // fotogrammi dell'onda: lo scorrimento di un giro intero (12 × 190 ms = 2,3 s, metà della velocità precedente)
-    private static final int WAVE_W = 72;
-    private static final int WAVE_H = 48;
-    private static final double AMPLITUDE = 2.2;
+    private static final int FRAMES = 16;    // fotogrammi dell'onda: lo scorrimento di un giro intero (16 × 285 ms = 4,6 s)
+    private static final int WAVE_W = 56;
+    private static final int WAVE_H = 40;
+    private static final double AMPLITUDE = 1.8;
     private static final double CRESTS = 2;   // quante onde in tutta la larghezza del riquadro
 
     private static int colorFor(double ratio) {
