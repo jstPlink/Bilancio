@@ -542,18 +542,11 @@ details.transfers { margin-top: 18px; }
 .bgtable td.num, .bgtable th.num { text-align: right; }
 .bgtable input { width: 100%; max-width: 6.5rem; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; }
 .bgprog small { display: block; margin-top: 2px; font-size: 11.5px; }
-/* «Speso questo mese»: un contenitore che si riempie dal basso come i riquadri del widget; la superficie ondeggia appena */
-.tank { position: relative; height: 40px; border-radius: 12px; background: var(--line); overflow: hidden; }
-.tank i { position: absolute; left: 0; right: 0; bottom: 0; background: currentColor; transition: height .3s ease; }
-.tank i::before { content: ''; position: absolute; left: -40px; right: 0; top: -5px; height: 10px;
-  background: radial-gradient(ellipse 20px 5px at 20px 5px, currentColor 95%, transparent) 0 0 / 40px 100% repeat-x;
-  animation: tank-wave 2.6s linear infinite; }
-.tank.warn { color: #f59e0b !important; }
-.tank.over { color: var(--viz-tasse) !important; }
-.tank span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; font-size: .92em; color: var(--ink); text-shadow: 0 0 3px var(--surface), 0 0 6px var(--surface); pointer-events: none; }
-.tank span em { font-style: normal; font-size: .85em; opacity: .8; }
-@keyframes tank-wave { to { transform: translateX(40px); } }
-@media (prefers-reduced-motion: reduce) { .tank i::before { animation: none; } }
+/* «Speso questo mese»: barra che si riempie da destra verso sinistra (nessuna animazione: le onde sono solo nel widget) */
+.rbar { display: flex; justify-content: flex-end; height: 14px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.rbar i { display: block; height: 100%; background: currentColor; border-radius: 999px; transition: width .3s ease; }
+.rbar.warn { color: #f59e0b !important; }
+.rbar.over { color: var(--viz-tasse) !important; }
 @media (max-width: 720px) {
   .bgtable { font-size: 13.2px; }
   .bgtable td.num { padding-right: 10px !important; }
@@ -564,8 +557,6 @@ details.transfers { margin-top: 18px; }
   .bgtable th:nth-child(2) { width: 22%; }
   .bgtable th:nth-child(3) { width: 19%; }
   .bgtable input { max-width: none; padding: 4px 6px; }
-  .tank { height: 44px; }
-  .tank span { font-size: 11px; }
 }
 .bgtable th, .bgtable td { border: 0 !important; background: none !important; }
 .card.duo .pairs { display: flex; gap: 18px; flex-wrap: wrap; margin: 2px 0; }

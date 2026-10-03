@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.35.0
+- **Widget «Questo mese»**: la superficie del liquido è ora un'**onda sinusoidale che scorre verso destra** (8 fotogrammi alternati da un ViewFlipper). Le onde sono solo nel widget: tolte dalla scheda Budget.
+- **Nuovo widget «Questo mese (stime al giorno)»** (5×2), copia del precedente: in spesa, carburante e svago aggiunge la spesa stimata al giorno (budget ÷ giorni del mese) e quella reale (speso ÷ giorni passati), verde se migliore della stima e rossa se peggiore. Il layout dei due widget si genera con `scripts/genera-widget.mjs`.
+- **Budget**: «Speso questo mese» torna a una barra che si riempie **da destra verso sinistra**. Medie, spese fisse, entrate e spese del mese si calcolano ora **nell'app dai dati della Panoramica** (`/api/grid`), non più dalla stima del server: coincidono con le cifre che vedi altrove e funzionano con qualunque versione del server (con un server non aggiornato le barre restavano vuote e la nota usava ancora 6 mesi).
+
 ## 0.34.3
 - **Budget**: tolta la frase «Rientri nelle entrate medie…»; numeri della tabella più grandi del 15%; più spazio tra «Media» e «Speso questo mese»; tolto il bordo evidenziato dal riquadro del budget. «Speso questo mese» è ora un contenitore che si riempie dal basso, come i riquadri del widget (con la superficie che ondeggia appena).
 - **Budget, nota sotto la tabella**: corretta quando le spese abituali superano le entrate. Mostrava «risparmi 1.360 €» senza il segno meno; ora dice «sfori di 1.360 € al mese» e riporta entrate, spese fisse e spese abituali da cui parte il calcolo. Le medie sono sugli ultimi 3 mesi chiusi: se la nota parla ancora di 6 mesi, il server non è stato aggiornato (la media si calcola sul server).

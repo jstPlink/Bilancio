@@ -917,8 +917,46 @@ const budgetBox = $('#budgetBody');
 state.budget = null;
 const BUDGET_COLORS = { spese: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)' };
 
+// Medie e spese del mese si calcolano qui, dagli stessi dati della Panoramica (/api/grid): così coincidono con le sue cifre e con quelle del widget,
+// qualunque sia la versione del server. Il server dà solo i budget impostati.
+function budgetFromGrids(grids, now) {
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const index = (y, m) => y * 12 + m - 1;
+  const current = index(now.getFullYear(), now.getMonth() + 1);
+  const months = [];
+  for (const g of grids) {
+    for (const r of g.rows) {
+      const spend = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, r.cells[id]?.amount ?? 0]));
+      const variable = Object.values(spend).reduce((a, b) => a + b, 0);
+      // spese fisse = tutte le uscite del mese (bollette, affitto, prestito, tasse…) tranne le tre voci col budget
+      months.push({ i: index(g.year, r.month), income: r.income ?? 0, spend, variable, fixed: Math.max(0, (r.spent ?? 0) - variable) });
+    }
+  }
+  const closed = months.filter((m) => m.i < current).sort((a, b) => a.i - b.i);
+  const used = closed.filter((m) => m.variable > 0).slice(-3);
+  const incomeUsed = closed.filter((m) => m.income > 0).slice(-3);
+  const ym = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+  const mean = (list, get) => (list.length ? round2(list.reduce((a, m) => a + get(m), 0) / list.length) : null);
+  const income = mean(incomeUsed, (m) => m.income);
+  const fixed = mean(used, (m) => m.fixed);
+  const average = used.length ? Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, mean(used, (m) => m.spend[id])])) : null;
+  const estimate = {
+    months: used.length, from: used.length ? ym(used[0].i) : null, to: used.length ? ym(used.at(-1).i) : null,
+    incomeMonths: incomeUsed.length, income, fixed, average,
+    savingsNoCuts: income != null && average ? round2(income - fixed - Object.values(average).reduce((a, b) => a + b, 0)) : null,
+  };
+  const now_ = months.find((m) => m.i === current);
+  return { estimate, spent: Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, now_?.spend[id] ?? 0])) };
+}
+
 async function loadBudget() {
-  state.budget = await api('/api/budget');
+  const now = new Date();
+  const [saved, before, thisYear] = await Promise.all([
+    api('/api/budget'),
+    api(`/api/grid?year=${now.getFullYear() - 1}`).catch(() => null),
+    api(`/api/grid?year=${now.getFullYear()}`),
+  ]);
+  state.budget = { budgets: saved.budgets, ...budgetFromGrids([before, thisYear].filter(Boolean), now) };
   renderBudgetTab();
 }
 
@@ -976,9 +1014,9 @@ function renderBudgetParts() {
     const used = spent?.[x.id] ?? 0;
     const ratio = x.value > 0 ? used / x.value : 0;
     const tone = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
-    const level = ratio <= 0 ? 0 : Math.max(6, Math.min(100, ratio * 100));
+    // barra che si riempie da destra verso sinistra
     budgetBox.querySelector(`[data-prog=${x.id}]`).innerHTML = x.value > 0
-      ? `<div class="tank ${tone}" style="color:${BUDGET_COLORS[x.id]}" role="img" aria-label="${x.label}: speso ${money(used)} su ${money(x.value)}"><i style="height:${level.toFixed(1)}%"></i><span><b>${money(used)}</b> su ${money(x.value)}<em>${Math.round(ratio * 100)}%</em></span></div>`
+      ? `<div class="rbar ${tone}" style="color:${BUDGET_COLORS[x.id]}" role="img" aria-label="${x.label}: speso ${money(used)} su ${money(x.value)}"><i style="width:${Math.min(100, ratio * 100).toFixed(1)}%"></i></div><small><b>${money(used)}</b> su ${money(x.value)} · ${Math.round(ratio * 100)}%</small>`
       : `<small class="muted">${money(used)} spesi · nessun budget</small>`;
   }
   const box = $('#bgEst');
@@ -994,8 +1032,9 @@ function renderBudgetParts() {
 async function saveBudget() {
   const budgets = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, parseInput(budgetField(`bg_${id}`).value)]));
   if (Object.values(budgets).some(Number.isNaN)) return toast('Importo non valido.');
-  const { spent } = state.budget;
-  state.budget = { ...(await api('/api/budget', { method: 'PUT', body: { budgets } })), spent };
+  const { spent, estimate } = state.budget;
+  const saved = await api('/api/budget', { method: 'PUT', body: { budgets } });
+  state.budget = { budgets: saved.budgets, spent, estimate };
   renderBudgetParts();
   toast('Budget salvato.', 1800);
 }

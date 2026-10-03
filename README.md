@@ -52,7 +52,8 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   calcolato come entrate medie − spese fisse medie − totale dei budget. In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie
   (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori; lo stesso vale per «se spendi come al solito» nella nota sotto la tabella): **a ogni cifra che scrivi tutto si aggiorna**.
   Una **barra a colori** divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e ciò che avanza (verde: il risparmio); se il totale supera le entrate, un segno nero mostra dove finiscono le entrate.
-  Per ogni voce un **contenitore che si riempie dal basso** (come i riquadri del widget, con la superficie che ondeggia appena) mostra **quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rosso oltre). Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
+  Per ogni voce una **barra che si riempie da destra verso sinistra** mostra **quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rosso oltre), con le stesse cifre del widget.
+  Medie e spese del mese si calcolano nell'app dagli stessi dati della Panoramica, quindi coincidono con le sue cifre qualunque sia la versione del server. Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
   (il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget. In alto due riquadri: entrate e spese fisse medie in una riga, budget e risparmio nell'altra.
   La tabella dei budget sta sempre nella larghezza dello schermo, senza scorrimento, anche sul telefono.
 - **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
@@ -83,9 +84,12 @@ L'app Android ha in più:
 - **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): a sinistra «dal 1° OTT» (mese a tre lettere, su un leggero sfondo che dice che si tocca: apre la scheda **Budget**), poi quattro riquadri affiancati con le cifre dal primo del mese in corso:
   **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso pieno** finché resta qualcosa, verde quando è
   tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (scheda Budget), i riquadri di Spese, Carburante e Svago sono
-  **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
+  **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; la superficie del liquido è un'**onda sinusoidale che scorre verso destra** (fotogrammi alternati da un ViewFlipper: consuma un po' di batteria finché la Home è visibile); senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
   si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago aprono Movimenti sul mese in corso
   già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
+- **Widget «Questo mese (stime al giorno)»** (Widget → Bilancio, 5×2): copia del widget precedente, che resta com'è, con in più in ogni riquadro di spesa, carburante e svago due righe: la **spesa stimata al giorno**
+  («stima», il budget diviso i giorni del mese) e la **spesa reale al giorno** («reale», quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore della stima, rossa se è peggiore**;
+  senza budget non c'è confronto. Il codice dei due layout si rigenera con `node scripts/genera-widget.mjs`.
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
