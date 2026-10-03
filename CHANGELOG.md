@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.34.3
+- **Budget**: tolta la frase «Rientri nelle entrate medie…»; numeri della tabella più grandi del 15%; più spazio tra «Media» e «Speso questo mese»; tolto il bordo evidenziato dal riquadro del budget. «Speso questo mese» è ora un contenitore che si riempie dal basso, come i riquadri del widget (con la superficie che ondeggia appena).
+- **Budget, nota sotto la tabella**: corretta quando le spese abituali superano le entrate. Mostrava «risparmi 1.360 €» senza il segno meno; ora dice «sfori di 1.360 € al mese» e riporta entrate, spese fisse e spese abituali da cui parte il calcolo. Le medie sono sugli ultimi 3 mesi chiusi: se la nota parla ancora di 6 mesi, il server non è stato aggiornato (la media si calcola sul server).
+
 ## 0.34.2
 - **Budget**: la colonna «Di solito» diventa «Media» e si calcola sugli **ultimi 3 mesi chiusi** (prima 6). In alto due riquadri soli: entrate e spese fisse medie in una riga, budget e risparmio nell'altra. La tabella dei budget torna in colonne anche sul telefono (niente blocchetti), sempre nella larghezza dello schermo e senza scorrimento. Sul telefono le cinque schede ora entrano senza tagliare il testo.
 - **Widget**: corretta la logica di riempimento. Le tre celle risultavano piene allo stesso modo; ora ogni cella ha la propria altezza, calcolata sulla sua spesa rispetto al suo budget (immagine con il liquido sopra uno sfondo tondo che ne ritaglia i bordi, senza più livelli del disegno).

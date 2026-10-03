@@ -50,9 +50,9 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
 - **Budget** (quinta scheda). Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget); si salva da solo. **Il risparmio non si imposta: è un risultato**,
   calcolato come entrate medie − spese fisse medie − totale dei budget. In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie
-  (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori): **a ogni cifra che scrivi tutto si aggiorna**.
+  (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori; lo stesso vale per «se spendi come al solito» nella nota sotto la tabella): **a ogni cifra che scrivi tutto si aggiorna**.
   Una **barra a colori** divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e ciò che avanza (verde: il risparmio); se il totale supera le entrate, un segno nero mostra dove finiscono le entrate.
-  Per ogni voce una seconda barra si **riempie con quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rossa oltre). Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
+  Per ogni voce un **contenitore che si riempie dal basso** (come i riquadri del widget, con la superficie che ondeggia appena) mostra **quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rosso oltre). Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
   (il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget. In alto due riquadri: entrate e spese fisse medie in una riga, budget e risparmio nell'altra.
   La tabella dei budget sta sempre nella larghezza dello schermo, senza scorrimento, anche sul telefono.
 - **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),

@@ -935,7 +935,6 @@ function renderBudgetTab() {
     <div id="bgSummary" class="cards"></div>
     <section class="chartcard"><h3>Come si divide l'entrata media</h3>
       <div id="bgSplit"></div></section>
-    <div id="bgVerdict"></div>
     <div class="bgwrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget (€)</th><th class="num">Media</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="bgEst" class="bgest"></div>
     <small class="muted">Il budget si salva da solo. Il widget Android mostra ogni voce come un contenitore che si riempie man mano che spendi. Lascia vuoto per non avere un budget.</small>`;
@@ -971,24 +970,24 @@ function renderBudgetParts() {
   const marker = hasIncome && planned > e.income ? `<span class="mark" style="left:${pct(e.income)}" title="Entrate medie ${money(e.income)}"></span>` : '';
   $('#bgSplit').innerHTML = `<div class="splitbar" role="img" aria-label="Divisione dell'entrata media">${segs}${marker}</div>
     <ul class="legend">${parts.map((p) => `<li><i class="key" style="--c:${p.color}"></i>${p.label} ${money(p.value)}</li>`).join('')}${hasIncome ? `<li><i class="key" style="--c:var(--viz-entrate)"></i>Risparmio ${money(Math.max(0, saving))}</li>` : ''}</ul>`;
-  $('#bgVerdict').innerHTML = saving == null ? '' : ok
-    ? `<p class="bgverdict bgok">Rientri nelle entrate medie: ${money(e.income)} − ${money(e.fixed)} di spese fisse − ${money(total)} di budget = <b>${money(saving)} di risparmio al mese</b>.</p>`
-    : `<p class="bgverdict bgbad">Non rientri nelle entrate medie: il budget di ${money(total)} più ${money(e.fixed)} di spese fisse supera di ${money(-saving)} i ${money(e.income)} al mese.</p>`;
-
   // Per ogni voce: la media di sempre e quanto è già stato speso questo mese rispetto al budget, in una barra che si riempie.
   for (const x of amounts) {
     budgetBox.querySelector(`[data-avg=${x.id}]`).textContent = e.average ? money(e.average[x.id]) : '–';
     const used = spent?.[x.id] ?? 0;
     const ratio = x.value > 0 ? used / x.value : 0;
     const tone = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
+    const level = ratio <= 0 ? 0 : Math.max(6, Math.min(100, ratio * 100));
     budgetBox.querySelector(`[data-prog=${x.id}]`).innerHTML = x.value > 0
-      ? `<div class="pbar ${tone}" role="img" aria-label="${x.label}: speso ${money(used)} su ${money(x.value)}"><i style="width:${Math.min(100, ratio * 100).toFixed(1)}%;background:${BUDGET_COLORS[x.id]}"></i></div><small>${money(used)} su ${money(x.value)} (${Math.round(ratio * 100)}%)</small>`
+      ? `<div class="tank ${tone}" style="color:${BUDGET_COLORS[x.id]}" role="img" aria-label="${x.label}: speso ${money(used)} su ${money(x.value)}"><i style="height:${level.toFixed(1)}%"></i><span><b>${money(used)}</b> su ${money(x.value)}<em>${Math.round(ratio * 100)}%</em></span></div>`
       : `<small class="muted">${money(used)} spesi · nessun budget</small>`;
   }
   const box = $('#bgEst');
   if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per le medie: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
   const notes = [`Media = ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).`];
-  if (hasIncome) notes.push(`Se spendi come al solito (${money(Object.values(e.average).reduce((a, b) => a + b, 0))} per queste tre voci) risparmi ${money(e.savingsNoCuts)} al mese.`);
+  if (hasIncome) {
+    const usual = Object.values(e.average).reduce((a, b) => a + b, 0);
+    notes.push(`Se spendi come al solito (${money(usual)} per queste tre voci, con ${money(e.fixed)} di spese fisse su ${money(e.income)} di entrate) ${e.savingsNoCuts >= 0 ? `risparmi ${money(e.savingsNoCuts)}` : `sfori di ${money(-e.savingsNoCuts)}`} al mese.`);
+  }
   box.innerHTML = `${notes.map((n) => `<small>${n}</small>`).join('')}<div class="foot"><button type="button" class="ghost" data-act="bg-use">Parti dalle medie</button></div>`;
 }
 

@@ -529,30 +529,11 @@ details.transfers { margin-top: 18px; }
 
 /* Scheda Budget */
 #budget .cards { margin-bottom: 10px; }
-.card.bgok { border-color: var(--accent); }
 .card.bgbad { background: var(--warn-bg); color: var(--warn-ink); border-color: transparent; }
 .card.bgbad .k, .card.bgbad .sub { color: inherit; opacity: .85; }
-.bgverdict { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; font-weight: 600; }
-.bgverdict.bgok { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.bgverdict.bgbad { background: var(--warn-bg); color: var(--warn-ink); }
-.bgsave { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 10px; }
-#budget .bgest { margin-bottom: 10px; }
-
-/* Budget: barre che si riempiono */
-.splitbar { position: relative; display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0 10px; }
-.splitbar .seg { display: block; height: 100%; min-width: 2px; transition: width .25s ease; }
-.splitbar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
-ul.legend { list-style: none; padding: 0; margin: 0; }
-ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
-.pbar i { display: block; height: 100%; border-radius: 999px; transition: width .25s ease; }
-.pbar.warn i { background: #f59e0b !important; }
-.pbar.over i { background: var(--viz-tasse) !important; }
-.bgprog small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
-.bgtable th[scope=row] { white-space: nowrap; }
-
-/* Budget: tabella compatta, sempre nella larghezza dello schermo (niente scorrimento) e barre «a liquido» */
-.bgwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 4px 8px; margin-top: 14px; }
-.bgtable { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.bgtable { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 15px; }
+.bgtable td.num { padding-right: 16px !important; }
+.bgtable td.bgprog { padding-left: 10px !important; }
 .bgtable th, .bgtable td { padding: 4px 6px; text-align: left; vertical-align: middle; }
 .bgtable thead th { font-size: 12px; color: var(--muted); font-weight: 600; }
 .bgtable th:nth-child(1) { width: 26%; }
@@ -561,28 +542,30 @@ ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
 .bgtable td.num, .bgtable th.num { text-align: right; }
 .bgtable input { width: 100%; max-width: 6.5rem; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; }
 .bgprog small { display: block; margin-top: 2px; font-size: 11.5px; }
-.pbar { position: relative; height: 16px; border-radius: 999px; background: var(--line); overflow: hidden; }
-.pbar i { position: relative; overflow: hidden; animation: pbar-edge 3.4s ease-in-out infinite; }
-/* onde che scorrono dentro il liquido, e il bordo che ondeggia appena */
-.pbar i::before { content: ''; position: absolute; top: 0; bottom: 0; left: -40px; right: 0;
-  background: radial-gradient(ellipse 22px 8px at 20px 0, rgba(255,255,255,.30) 92%, transparent) 0 0 / 40px 100% repeat-x,
-              radial-gradient(ellipse 22px 7px at 40px 100%, rgba(255,255,255,.18) 92%, transparent) 0 0 / 40px 100% repeat-x;
-  animation: pbar-flow 2.4s linear infinite; }
-@keyframes pbar-flow { to { transform: translateX(40px); } }
-@keyframes pbar-edge {
-  0%, 100% { border-radius: 999px 55% 55% 999px / 999px 35% 65% 999px; }
-  50% { border-radius: 999px 70% 40% 999px / 999px 60% 40% 999px; }
-}
-@media (prefers-reduced-motion: reduce) { .pbar i, .pbar i::before { animation: none; } }
+/* «Speso questo mese»: un contenitore che si riempie dal basso come i riquadri del widget; la superficie ondeggia appena */
+.tank { position: relative; height: 40px; border-radius: 12px; background: var(--line); overflow: hidden; }
+.tank i { position: absolute; left: 0; right: 0; bottom: 0; background: currentColor; transition: height .3s ease; }
+.tank i::before { content: ''; position: absolute; left: -40px; right: 0; top: -5px; height: 10px;
+  background: radial-gradient(ellipse 20px 5px at 20px 5px, currentColor 95%, transparent) 0 0 / 40px 100% repeat-x;
+  animation: tank-wave 2.6s linear infinite; }
+.tank.warn { color: #f59e0b !important; }
+.tank.over { color: var(--viz-tasse) !important; }
+.tank span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; font-size: .92em; color: var(--ink); text-shadow: 0 0 3px var(--surface), 0 0 6px var(--surface); pointer-events: none; }
+.tank span em { font-style: normal; font-size: .85em; opacity: .8; }
+@keyframes tank-wave { to { transform: translateX(40px); } }
+@media (prefers-reduced-motion: reduce) { .tank i::before { animation: none; } }
 @media (max-width: 720px) {
-  .bgtable { font-size: 11.5px; }
+  .bgtable { font-size: 13.2px; }
+  .bgtable td.num { padding-right: 10px !important; }
+  .bgtable td.bgprog { padding-left: 4px !important; }
   .bgtable th, .bgtable td { padding: 4px 3px; }
   .bgtable thead th { font-size: 11px; }
   .bgtable th:nth-child(1) { width: 25%; }
   .bgtable th:nth-child(2) { width: 22%; }
   .bgtable th:nth-child(3) { width: 19%; }
   .bgtable input { max-width: none; padding: 4px 6px; }
-  .bgprog small { font-size: 10.5px; }
+  .tank { height: 44px; }
+  .tank span { font-size: 11px; }
 }
 .bgtable th, .bgtable td { border: 0 !important; background: none !important; }
 .card.duo .pairs { display: flex; gap: 18px; flex-wrap: wrap; margin: 2px 0; }
@@ -591,3 +574,13 @@ ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
 .card.duo .v { font-size: 22px; }
 #budget .cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 @media (max-width: 720px) { .tabs { gap: 4px; } .tabs > button[role=tab] { padding: 10px 1px !important; font-size: 11.5px !important; overflow: hidden; } }
+
+/* Budget: la barra che divide l'entrata media */
+.splitbar { position: relative; display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0 10px; }
+.splitbar .seg { display: block; height: 100%; min-width: 2px; transition: width .25s ease; }
+.splitbar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
+ul.legend { list-style: none; padding: 0; margin: 0; }
+ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.bgtable th[scope=row] { white-space: nowrap; }
+.bgwrap { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 4px 8px; margin-top: 14px; }
+.bgtable th, .bgtable td { border: 0 !important; background: none !important; }
