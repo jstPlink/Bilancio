@@ -16,7 +16,7 @@
         android:id="@+id/widget_month_since_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.2"
+        android:layout_weight="0.6"
         android:orientation="vertical"
         android:gravity="center"
         android:paddingLeft="2dp"

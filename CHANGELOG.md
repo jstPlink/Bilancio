@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.33.1
+- **Widget «Questo mese»**: il riquadro «dal 1° ottobre» è largo la metà, il rosso di «Da pagare» è un po' meno intenso (#E3574D) e i riquadri Spese, Carburante e Svago hanno gli stessi angoli tondi di «Da pagare» (il disegno ora segue le proporzioni reali del riquadro, prima veniva stirato).
+
 ## 0.33.0
 - **Scheda Budget** (quinta scheda, non più nelle Impostazioni): budget di Spesa, Svago e Carburante e risparmio voluto, con le **entrate medie mensili** sempre in vista e il **totale dei budget** che si aggiorna a ogni cifra scritta, con l'esito «rientri / non rientri nelle entrate medie». Il budget si salva da solo.
 - **Entrate medie sugli ultimi 3 mesi** chiusi con entrate (prima seguivano i mesi usati per le spese). Le spese correnti restano sulla media degli ultimi 6 mesi chiusi.
