@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.32.0
+- **Budget di spesa** (Impostazioni → Budget di spesa): budget mensile per Spesa, Svago e Carburante e risparmio mensile voluto. L'app stima le tre voci dalla media degli ultimi mesi chiusi e consiglia i budget per arrivare al risparmio (entrate medie − spese fisse − risparmio, tagli in proporzione). `GET`/`PUT /api/budget`; i budget viaggiano anche in `/api/grid`.
+- **Widget «Questo mese»**: titolo in alto, testo più grande del 10%, barra del budget in Spese, Carburante e Svago (bianca, gialla da 80%, rossa oltre), «Da pagare» rosso pieno quando resta qualcosa. Ogni riquadro apre l'app: Spese, Carburante e Svago i Movimenti del mese già filtrati per categoria, «Da pagare» la Panoramica.
+- **Giroconti fuori dai conti**: non compaiono più nell'elenco Movimenti né in Statistiche; stanno in una sezione apposta in fondo a Movimenti e non entrano in nessun totale. Le coppie uscita/entrata che sono lo stesso giro tra conti o pocket (stesso importo, entro 3 giorni, conti diversi, una sola abbinabile, almeno un lato che sembra un trasferimento) diventano giroconti tutte e due; le scelte a mano non si toccano. I movimenti dalle banche ora ricordano il conto (`account`).
+- **Movimenti più semplici**: ogni riga mostra nome, data (senza giorno della settimana), importo e categoria; i pagamenti ripetuti hanno «×n»; il resto dei dati si vede aprendo la riga.
+- **Documenti nelle Impostazioni**: la scheda Documenti non c'è più, la sezione sta in Impostazioni → Documenti (un numero sull'ingranaggio segnala i file da controllare). Le quattro schede rimaste hanno tutte la stessa larghezza.
+- Android: `launchMode` singleTask e apertura sulla pagina giusta dai tocchi sul widget. Nuovi test (84 in tutto).
+
 ## 0.31.0
 - **Scheda Banche, un blocco per conto e per pocket**: saldo attuale in grande, nome, IBAN, valuta, tipo, prodotto, numero di movimenti, grafico dell'andamento e, a scomparsa, tutti i saldi e i dati del conto. Niente più schede separate per i grafici. I blocchi sono divisi in «Conti» e «Pocket e risparmi».
 - **Nomi dei pocket**: la banca dà a ogni pocket solo il nome dell'intestatario. L'app ricava il nome vero dal testo dei movimenti («Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu (`PUT /api/banking/account-name`, resta sul server). Il nome compare nel blocco, nel filtro per conto e in ogni riga di movimento.

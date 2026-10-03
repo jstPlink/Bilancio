@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        web.loadUrl("https://" + HOST + "/");
+        web.loadUrl("https://" + HOST + "/" + hashOf(getIntent()));
 
         // Notifica del primo del mese: serve il permesso (Android 13+) e un promemoria programmato.
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -96,6 +96,26 @@ public class MainActivity extends Activity {
         }
         Monthly.schedule(this);
         Reminders.scheduleAll(this);
+    }
+
+    /** Dove aprire l'app quando arriva da un widget: «#moves/spesa» (Movimenti con quella categoria) o «#overview»; vuoto se è un avvio normale. */
+    private static String hashOf(Intent i) {
+        String open = i == null ? null : i.getStringExtra("open");
+        if (open == null) return "";
+        if ("overview".equals(open)) return "#overview";
+        String cat = i.getStringExtra("cat");
+        if ("moves".equals(open) && cat != null && cat.matches("[a-z]{1,20}")) return "#moves/" + cat;
+        return "";
+    }
+
+    // L'app è già aperta (launchMode singleTask): un tocco sul widget arriva qui e porta la pagina dove serve.
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String hash = hashOf(intent);
+        if (web == null || hash.isEmpty()) return;
+        // Il numero in coda fa cambiare l'indirizzo anche se tocchi due volte lo stesso riquadro.
+        web.evaluateJavascript("location.hash=" + JSONObject.quote(hash + "/" + System.currentTimeMillis()), null);
     }
 
     @Override protected void onResume() {
@@ -262,7 +282,7 @@ public class MainActivity extends Activity {
                     // Segnare pagato, leggere i documenti o caricarne uno cambia le cose da pagare: il widget si aggiorna.
                     // Anche categorie, importi manuali, estratti e letture della banca cambiano le cifre del mese.
                     if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/paid") || path.startsWith("/api/pay-all") || path.startsWith("/api/refresh") || path.startsWith("/api/upload")
-                        || path.startsWith("/api/transactions") || path.startsWith("/api/manual") || path.startsWith("/api/statements") || path.startsWith("/api/banking/sync"))) {
+                        || path.startsWith("/api/transactions") || path.startsWith("/api/manual") || path.startsWith("/api/statements") || path.startsWith("/api/banking/sync") || path.startsWith("/api/budget"))) {
                         DueWidget.refreshAll(MainActivity.this);
                         MonthWidget.refreshAll(MainActivity.this);
                     }

@@ -82,3 +82,21 @@ test('i nuovi movimenti vengono categorizzati col nome ricavato', () => {
   assert.equal(categorize('BONIFICO ISTANTANEO DA ACME SPA', {}, '', 1500), 'giroconti');
   setIdentity({});
 });
+
+test('giri tra conti visti dai due lati: coppia uscita/entrata su conti diversi diventa giroconto', async () => {
+  const { findMirrorTransfers, learnIdentity } = await import('../src/identity.js');
+  const tx = (id, date, amount, description, product, extra = {}) => ({ id, date, amount, description, product, category: amount > 0 ? 'entrate' : 'altro', ...extra });
+  const db = { settings: {}, docs: {}, transactions: {} };
+  for (const t of [
+    tx('a', '2026-09-10', -300, 'Bonifico a Revolut', 'UniCredit'), tx('b', '2026-09-11', 300, 'Top-up da UniCredit', 'Current'),
+    tx('c', '2026-09-12', -50, 'Pizzeria', 'Current'), tx('d', '2026-09-12', 50, 'Rimborso amico', 'UniCredit'),   // nessun lato sembra un trasferimento
+    tx('e', '2026-09-15', -80, 'Bonifico a Mario', 'UniCredit'), tx('f', '2026-09-15', 80, 'Bonifico da Anna', 'Current'), tx('g', '2026-09-16', 80, 'Bonifico da Luca', 'Current'), // ambiguo
+    tx('h', '2026-09-20', -20, 'Transfer to pocket', 'Mario', { account: 'p1' }), tx('i', '2026-09-20', 20, 'Transfer from Current', 'Mario', { account: 'p2' }),
+    tx('m', '2026-09-22', -40, 'Bonifico', 'UniCredit', { manual: true }), tx('n', '2026-09-22', 40, 'Bonifico', 'Current'),
+  ]) db.transactions[t.id] = t;
+  assert.deepEqual(findMirrorTransfers(db).map(([o, i]) => `${o.id}${i.id}`).sort(), ['ab', 'hi']);
+  learnIdentity(db);
+  const cat = (id) => db.transactions[id].category;
+  assert.deepEqual(['a', 'b', 'h', 'i'].map(cat), ['giroconti', 'giroconti', 'giroconti', 'giroconti']);
+  assert.deepEqual(['c', 'd', 'e', 'f', 'g', 'm', 'n'].map(cat), ['altro', 'entrate', 'altro', 'entrate', 'entrate', 'altro', 'entrate']);
+});

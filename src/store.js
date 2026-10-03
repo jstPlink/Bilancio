@@ -17,6 +17,8 @@ const defaults = () => ({
     incomePayers: '',
     rentAmount: 0,
     rentFrom: '',
+    budgets: {},
+    savingsGoal: 0,
   },
   docs: {},
   paid: {},

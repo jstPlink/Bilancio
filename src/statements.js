@@ -184,7 +184,7 @@ export function makeTransaction({ id, date, description, detail = '', amount, ex
 }
 
 // Informazioni che si possono aggiungere a un movimento già salvato (categoria e scelte a mano non si toccano).
-export const ENRICH_FIELDS = ['type', 'product', 'time', 'started', 'fee', 'currency', 'balance', 'detail'];
+export const ENRICH_FIELDS = ['type', 'account', 'product', 'time', 'started', 'fee', 'currency', 'balance', 'detail'];
 
 // Aggiunge il movimento se è nuovo; se c'è già, completa solo i dati che mancavano.
 // Restituisce 'added', 'enriched' oppure 'same'.

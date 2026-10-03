@@ -171,7 +171,7 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map()) {
   const after = tx.balance_after_transaction?.amount;
   const t = makeTransaction({
     id, date, description, detail, amount: signed,
-    extra: { currency: tx.transaction_amount?.currency, balance: after != null ? Number(after) : undefined, product: account.name || BANKS[conn.bank]?.label },
+    extra: { account: account.uid, currency: tx.transaction_amount?.currency, balance: after != null ? Number(after) : undefined, product: account.name || BANKS[conn.bank]?.label },
   }, rules, seen);
   t.source = 'banca';
   return t;

@@ -27,12 +27,13 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
     passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
   - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
     *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
-- **Movimenti.** I movimenti dell'estratto conto in un solo elenco, con filtri per anno e mese e ricerca. I pagamenti allo stesso ente (stessa
-  descrizione) sono accorpati in una riga con quantità, totale e media: un tocco la apre sui singoli pagamenti. Di ogni pagamento si vedono giorno
-  e ora, metodo (carta, bonifico, prelievo…), commissione e valuta; toccandolo si apre il dettaglio con il saldo dopo il pagamento, il testo
-  completo della banca, gli altri pagamenti con la stessa descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria:
-  l'app la ricorda per tutte le descrizioni uguali.
-- **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
+- **Movimenti.** I movimenti dell'estratto conto in un solo elenco, con filtri per anno e mese e ricerca. Ogni riga mostra solo **nome, data, importo e categoria**; i pagamenti
+  allo stesso ente (stessa descrizione) sono accorpati in una riga con «×n» e la somma: un tocco la apre sui singoli pagamenti. Toccando un pagamento si apre il **dettaglio completo**:
+  giorno della settimana e ora, metodo (carta, bonifico, prelievo…), commissione e valuta, saldo dopo il pagamento, testo completo della banca, gli altri pagamenti con la stessa
+  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali.
+  **Giroconti:** i giri di denaro tra i tuoi conti e pocket non sono nell'elenco: stanno nella sezione «Giroconti tra i tuoi conti» in fondo alla scheda, e non entrano in nessun
+  totale né in Panoramica e Statistiche (vedi «Riconoscimento automatico»).
+- **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…; i giroconti non ci sono): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
 - **Banche** (anche sul telefono e nell'app Android: i movimenti diventano riquadri, le tabelle tecniche partono chiuse). I dati originali che UniCredit e Revolut mettono a disposizione, in una **copia separata**: non entra in
   Panoramica, Movimenti né Statistiche, serve a capire cosa si può ottenere. Per ogni banca collegata: consenso e letture di oggi, poi **un solo blocco per ogni conto e per ogni pocket**
@@ -47,7 +48,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
   I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
   altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
-- **Documenti.** **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
+- **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
   (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora** per i file che non c'entrano.
@@ -72,10 +73,12 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 L'app Android ha in più:
 - **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
   mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
-- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): quattro riquadri affiancati in una riga, con le cifre dal primo del mese in corso (a sinistra «dal 1° OTT»):
-  **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: rosso finché resta qualcosa, verde quando è
-  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Stesse cifre delle colonne della Panoramica; si aggiorna ogni mezz'ora, quando apri l'app e quando cambi
-  categorie, importi o spunte. Un tocco apre l'app.
+- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): in alto il titolo («Questo mese · dal 1° OTT»), sotto quattro riquadri affiancati con le cifre dal primo del mese in corso:
+  **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso pieno** finché resta qualcosa, verde quando è
+  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (Impostazioni → Budget di spesa), Spese, Carburante e Svago hanno
+  sotto una **barra che si riempie** con la spesa: bianca, gialla da 80% del budget, rossa quando lo superi; senza budget la barra non c'è. Stesse cifre delle colonne della Panoramica;
+  si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago aprono Movimenti sul mese in corso
+  già filtrati per quella categoria, «Da pagare» apre la Panoramica; il titolo e i bordi aprono l'app. (I budget arrivano dal server: serve la versione che li include.)
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
@@ -83,9 +86,9 @@ L'app Android ha in più:
   Si possono disattivare, modificare o eliminare. Restano sul telefono e usano la sveglia di sistema (può ritardare di qualche minuto).
 - L'icona nella barra delle notifiche è il logo dell'app in una tinta sola (quadrato arrotondato con il segno ±), con il colore turchese dell'app.
 
-Servono l'SDK Android (build-tools e una piattaforma, di norma in `~/Android/Sdk`, oppure `ANDROID_HOME`) e Java 17; non serve Gradle.
+Servono l'SDK Android (build-tools e una piattaforma, di norma in `~/Android/Sdk`, su Windows in `%LOCALAPPDATA%AndroidSdk`, oppure `ANDROID_HOME`) e Java 17; non serve Gradle.
 L'indirizzo del server viene da `BILANCIO_SERVER` nel file `.env` e finisce solo nell'APK (`android/build/` è escluso da Git). L'APK è firmato
-con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la stessa chiave.
+con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la stessa chiave: con un'altra l'installazione si rifiuta e bisogna disinstallare prima l'app (si perdono promemoria e accesso).
 
 ## Uso
 
@@ -95,10 +98,14 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
    - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
      stipendio né i giri tra i tuoi conti.
-2. Nella scheda **Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
+   - **Budget di spesa**: quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget) e **quanto vorresti risparmiare ogni mese**. Sotto, l'app mostra la
+     **stima**: la media di queste tre voci sugli ultimi mesi chiusi (fino a 6, il mese in corso non conta) e un **budget consigliato** per arrivare al risparmio voluto. Il calcolo:
+     entrate medie − spese fisse medie (bollette, affitto, prestito, donazioni, tasse) − risparmio voluto = quanto resta per le tre voci; se è meno del solito, le tre voci si tagliano tutte nella stessa
+     proporzione; se nemmeno spendendo zero si arriva al risparmio voluto, te lo dice. «Usa i consigli» copia i valori nei budget; poi si salva come le altre impostazioni.
+2. In **Impostazioni → Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
-3. Controlla la scheda **Documenti** per i file *Da controllare*.
+3. Controlla **Impostazioni → Documenti** per i file *Da controllare*.
 
 ## Riconoscimento automatico di nome e datore di lavoro
 
@@ -106,12 +113,15 @@ Non va scritto nulla: a ogni aggiornamento (e dopo un caricamento o la lettura d
 - **Chi ti paga lo stipendio**: il bonifico in entrata con lo stesso importo del netto di una busta paga, per almeno due mesi, entro il 20 del mese dopo.
 - **Il tuo nome**: un'uscita che ricompare identica come entrata su un altro conto (entro 3 giorni), con lo stesso nome come destinatario e come mittente, almeno due volte.
 Con questi nomi i bonifici dello stipendio e i giri tra i tuoi conti diventano *Giroconti* (non contati) e lo stipendio compare come una sola voce in Movimenti.
+- **Giri visti dai due lati**: le banche registrano un trasferimento tra conti o pocket due volte, in uscita su un conto e in entrata sull'altro. Se un'uscita e un'entrata hanno lo
+  stesso importo, cadono entro 3 giorni, stanno su conti diversi (o hanno parole da pocket nella descrizione), almeno una delle due sembra un trasferimento (bonifico, top-up, transfer…)
+  e c'è una sola abbinabile, **entrambe diventano Giroconti**. Le coppie dubbie restano com'erano; se ne sbaglia una, cambia la categoria in Movimenti (la scelta a mano non si tocca più).
 I nomi si aggiungono a quelli già salvati e le categorie scelte a mano non si toccano. Se qualcosa è classificato male, cambia la categoria in Movimenti.
 
 ## Estratti conto (spese)
 
 Indica il link (Seafile pubblico o cartella locale) degli estratti conto nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
-oppure caricalo a mano da **Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
+oppure caricalo a mano da **Impostazioni → Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
 leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo della banca. Per un'altra banca serve un nuovo
 lettore in `src/pdfstatements.js`. Ricaricare lo stesso file non duplica nulla.
 
@@ -147,7 +157,8 @@ banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90
 Movimenti) o **Leggi dalla banca** nella scheda Banche (aggiorna la copia). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
-**Limiti:** le banche concedono 4 letture al giorno per collegamento. Il consenso
+**Limiti:** le banche concedono 4 letture al giorno per collegamento, e le letture a mano contano tutte: **Aggiorna ora**, **Leggi dalla banca** e la lettura dopo il collegamento usano lo stesso contatore (finestra mobile
+di 24 ore, per ogni banca). Alla quinta l'app rifiuta con «massimo 4 letture al giorno» senza chiamare la banca; la lettura torna disponibile quando la più vecchia ha compiuto 24 ore. Il consenso
 dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
 non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
 
@@ -286,10 +297,11 @@ conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.
 ```
 public/        pagine (index.html, app.js, charts.js, style.css, login.html)
 src/           server Express: server.js, banking.js (banche collegate), uploads.js (documenti caricati), grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
-               statements.js e pdfstatements.js (banca), billmatch.js, ocr.js, sources.js (cartelle e Seafile), auth.js, store.js
-scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs
+               statements.js e pdfstatements.js (banca), bankexplorer.js (scheda Banche: saldi, andamento, nomi dei pocket), billmatch.js, identity.js (nome e datore di lavoro),
+               ocr.js, sources.js (cartelle e Seafile), auth.js, store.js, proxy-server.js (localhost collegato al server)
+scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs, banca-finta.mjs e demo-banche.mjs (banca e demo con dati finti)
 android/       app Android (manifest, codice Java, script che inietta le chiamate al server)
-test/          node --test
+test/          node --test; free-port.js sceglie porte libere per i test che avviano un server vero
 ```
 
 - `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.

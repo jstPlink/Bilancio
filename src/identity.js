@@ -91,6 +91,34 @@ export function mergeNames(current, extra) {
   return list.join(', ');
 }
 
+// Giri tra i propri conti visti dai due lati: un'uscita su un conto e un'entrata dello stesso importo su un altro, entro 3 giorni
+// (le banche li registrano due volte, in negativo e in positivo). Sono la stessa somma che cambia tasca: non sono né spese né entrate.
+// Si abbinano solo coppie senza ambiguità (un'uscita e una sola entrata possibile) e tra conti diversi; i conti si distinguono
+// dall'identificativo o, in mancanza, dal nome del prodotto. Dentro lo stesso conto servono parole da pocket nella descrizione.
+const POCKET_HINT = /pocket|salvadanai|vault|accredita w{3} .+ da w{3}|trasferimento (?:da|a) |transfer (?:to|from) |round.?up/i;
+const TRANSFER_HINT = /bonifico|giroconto|transfer|trasferi|accredit|ricaric|top.?up|instant|revolut|unicredit/i;
+const accountOf = (t) => t.account || t.product || '';
+const transferLike = (t) => ['TRANSFER', 'TOPUP'].includes(t.type) || TRANSFER_HINT.test(`${t.description} ${t.detail ?? ''}`) || POCKET_HINT.test(`${t.description} ${t.detail ?? ''}`);
+
+export function findMirrorTransfers(db) {
+  const all = Object.values(db.transactions ?? {}).filter((t) => !t.manual && !['giroconti', 'bollette'].includes(t.category) && t.amount);
+  const outs = all.filter((t) => t.amount < 0);
+  const ins = all.filter((t) => t.amount > 0);
+  const near = (o, i) => {
+    if (Math.abs(i.amount + o.amount) > CENT || Math.abs(dayNumber(i.date) - dayNumber(o.date)) > 3) return false;
+    if (!transferLike(o) && !transferLike(i)) return false; // un importo uguale per caso non basta: almeno un lato deve sembrare un trasferimento
+    return accountOf(i) !== accountOf(o) || POCKET_HINT.test(`${o.description} ${o.detail ?? ''}`) || POCKET_HINT.test(`${i.description} ${i.detail ?? ''}`);
+  };
+  const outOf = new Map(outs.map((o) => [o.id, ins.filter((i) => near(o, i))]));
+  const inOf = new Map(ins.map((i) => [i.id, outs.filter((o) => near(o, i))]));
+  const pairs = [];
+  for (const o of outs) {
+    const c = outOf.get(o.id);
+    if (c.length === 1 && inOf.get(c[0].id).length === 1) pairs.push([o, c[0]]);
+  }
+  return pairs;
+}
+
 // Aggiorna le impostazioni con ciò che si è ricavato e ricategorizza i movimenti che ora risultano giri interni.
 // Le scelte fatte a mano e le bollette abbinate non si toccano. Restituisce quanto è cambiato.
 export function learnIdentity(db) {
@@ -109,5 +137,6 @@ export function learnIdentity(db) {
     if (!['entrate', 'altro'].includes(t.category)) continue;
     if (categorize(t.description, {}, t.detail ?? '', t.amount) === 'giroconti') { t.category = 'giroconti'; recategorized++; }
   }
+  for (const [o, i] of findMirrorTransfers(db)) { o.category = 'giroconti'; i.category = 'giroconti'; o.mirror = i.mirror = true; recategorized += 2; }
   return { ...added, recategorized, changed: added.payers > 0 || added.own > 0 || recategorized > 0 };
 }

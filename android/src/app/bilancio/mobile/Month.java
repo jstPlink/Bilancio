@@ -24,6 +24,9 @@ final class Month {
     double spese;
     double carburante;
     double svago;
+    double budgetSpese;       // budget mensile (Impostazioni → Budget di spesa); 0 = nessun budget
+    double budgetCarburante;
+    double budgetSvago;
     long at;
 
     static int currentYear() { return Calendar.getInstance().get(Calendar.YEAR); }
@@ -42,7 +45,14 @@ final class Month {
             Server.Reply r = Server.get(c, "/api/grid?year=" + m.year);
             if (r.status == 401) { m.needLogin = true; return m; }
             if (r.status != 200) return m;
-            JSONArray rows = new JSONObject(new String(r.body, StandardCharsets.UTF_8)).getJSONArray("rows");
+            JSONObject grid = new JSONObject(new String(r.body, StandardCharsets.UTF_8));
+            JSONArray rows = grid.getJSONArray("rows");
+            JSONObject budgets = grid.optJSONObject("budgets"); // assente se il server non ha ancora i budget
+            if (budgets != null) {
+                m.budgetSpese = budgets.optDouble("spese", 0);
+                m.budgetCarburante = budgets.optDouble("carburante", 0);
+                m.budgetSvago = budgets.optDouble("svago", 0);
+            }
 
             // Da pagare: le voci non pagate dal primo del mese in poi (paid è null per ciò che non si paga: spesa, svago…).
             for (int i = m.month - 1; i < rows.length(); i++) {
@@ -85,6 +95,9 @@ final class Month {
             o.put("spese", spese);
             o.put("carburante", carburante);
             o.put("svago", svago);
+            o.put("budgetSpese", budgetSpese);
+            o.put("budgetCarburante", budgetCarburante);
+            o.put("budgetSvago", budgetSvago);
             o.put("at", at);
             prefs(c).edit().putString("ultima", o.toString()).apply();
         } catch (Exception e) { /* senza cache */ }
@@ -103,6 +116,9 @@ final class Month {
             m.spese = o.getDouble("spese");
             m.carburante = o.getDouble("carburante");
             m.svago = o.getDouble("svago");
+            m.budgetSpese = o.optDouble("budgetSpese", 0);
+            m.budgetCarburante = o.optDouble("budgetCarburante", 0);
+            m.budgetSvago = o.optDouble("budgetSvago", 0);
             m.at = o.getLong("at");
             m.ok = true;
         } catch (Exception e) { /* nessuna lettura precedente */ }

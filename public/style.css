@@ -42,7 +42,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 
 main { max-width: 1760px; margin: 0 auto; padding: 16px; }
 .tabs { display: flex; gap: 4px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-.tabs > button[role=tab] { background: var(--surface); border: 1px solid var(--line-strong); padding: 8px 14px; border-radius: 10px; color: var(--ink); font-weight: 600; }
+.tabs > button[role=tab] { flex: 0 0 132px; text-align: center; background: var(--surface); border: 1px solid var(--line-strong); padding: 8px 14px; border-radius: 10px; color: var(--ink); font-weight: 600; }
 .tabs > button[aria-selected=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow); }
 .years { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 .badge { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; text-align: center; }
@@ -346,7 +346,7 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   button.primary, button.ghost { min-height: 40px; }
   main { padding: 12px 12px calc(24px + env(safe-area-inset-bottom)); }
   .tabs { gap: 6px; margin-bottom: 12px; }
-  .tabs > button[role=tab] { flex: 1 1 auto; padding: 10px 6px; font-size: 13.5px; min-height: 40px; text-align: center; }
+  .tabs > button[role=tab] { flex: 1 1 0; min-width: 0; padding: 10px 6px; font-size: 13.5px; min-height: 40px; text-align: center; }
   .years { margin-left: 0; width: 100%; }
   .years label { width: 100%; justify-content: space-between; }
   .years select { flex: 1; max-width: 180px; min-height: 40px; }
@@ -385,19 +385,19 @@ th.subcol.d3, td.subcol.d3 { background: color-mix(in srgb, var(--accent) 8%, tr
   #moveTable { min-width: 0; }
   #moveTable thead { display: none; }
   #moveTable, #moveTable tbody { display: block; }
-  #moveTable tr.mv { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-  #moveTable tr.mv td { display: block; border: 0; padding: 0; background: none; }
-  #moveTable td.dcol { grid-column: 1; grid-row: 1; }
+  #moveTable tr.mv, #transferTable tr.mv { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  #moveTable tr.mv td, #transferTable tr.mv td { display: block; border: 0; padding: 0; background: none; }
+  #moveTable td.dcol, #transferTable td.dcol { grid-column: 1; grid-row: 1; }
   #moveTable td.num { grid-column: 2; grid-row: 1 / span 2; align-self: start; font-size: 16px; font-weight: 700; }
-  #moveTable td.desc { grid-column: 1; grid-row: 2; }
+  #moveTable td.desc, #transferTable td.desc { grid-column: 1; grid-row: 2; }
   #moveTable td:last-child { grid-column: 1 / -1; padding-top: 8px; }
   #moveTable select { width: 100%; min-height: 42px; }
-  #moveTable tr.mv.sub { margin: -4px 0 8px 16px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius: 10px; }
-  #moveTable tr.mv.sub td, #moveTable tr.mv.sub td.dcol { padding-left: 0; }
+  #moveTable tr.mv.sub, #transferTable tr.mv.sub { margin: -4px 0 8px 16px; padding: 8px 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); border-radius: 10px; }
+  #moveTable tr.mv.sub td, #moveTable tr.mv.sub td.dcol, #transferTable tr.mv.sub td, #transferTable tr.mv.sub td.dcol { padding-left: 0; }
   #moveTable td.nocat { display: none; }
-  #moveTable tr.mv.group { border-left: 3px solid var(--accent); }
-  #moveTable tr.mvdetail { display: block; margin: -8px 0 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 0 14px 14px; }
-  #moveTable tr.mvdetail td { display: block; }
+  #moveTable tr.mv.group, #transferTable tr.mv.group { border-left: 3px solid var(--accent); }
+  #moveTable tr.mvdetail, #transferTable tr.mvdetail { display: block; margin: -8px 0 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+  #moveTable tr.mvdetail td, #transferTable tr.mvdetail td { display: block; }
   .detailgrid { padding: 12px 14px; }
   .atable { min-width: 560px; }
   #docTable { min-width: 640px; }
@@ -516,3 +516,13 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
   .bk-tx tr.mvdetail td { display: block; padding: 0; }
   .bk-raw { padding: 10px 14px 12px; }
 }
+
+/* Budget di spesa (Impostazioni): stima e consigli */
+.bgest { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.bgest small { display: block; }
+.bgest .foot { justify-content: flex-start; }
+.bglist { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: .9rem; }
+
+.cnt { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 12px; font-weight: 600; }
+details.transfers { margin-top: 18px; }
+#settingsBtn .badge { margin-right: 4px; vertical-align: middle; }

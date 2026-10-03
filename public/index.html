@@ -25,7 +25,7 @@
       <span id="lastRefresh" class="muted"></span>
       <button id="logoutBtn" class="ghost" title="Esci" hidden>Esci</button>
       <button id="settingsBtn" class="ghost" aria-label="Impostazioni" title="Impostazioni">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        <span class="badge warn docbadge" title="Documenti da controllare" hidden></span><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
     </div>
   </header>
@@ -36,7 +36,6 @@
       <button role="tab" data-tab="moves" aria-selected="false">Movimenti</button>
       <button role="tab" data-tab="analysis" aria-selected="false">Statistiche</button>
       <button role="tab" data-tab="banks" aria-selected="false">Banche</button>
-      <button role="tab" data-tab="docs" aria-selected="false">Documenti <span id="docBadge" class="badge warn" hidden></span></button>
       <div class="years" id="years"><label>Anno <select id="yearSelect"></select></label></div>
     </nav>
 
@@ -57,7 +56,7 @@
       </div>
       <div id="movesEmpty" class="empty" hidden>
         <h2>Nessun movimento nel periodo</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica l'estratto conto dalla scheda Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
+        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica l'estratto conto da Impostazioni → Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
       </div>
       <div id="movesBody"></div>
     </section>
@@ -70,7 +69,7 @@
       </div>
       <div id="analysisEmpty" class="empty" hidden>
         <h2>Nessun dato bancario</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un estratto conto dalla scheda Documenti.</p>
+        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un estratto conto da Impostazioni → Documenti.</p>
       </div>
       <div id="analysisBody"></div>
     </section>
@@ -81,12 +80,12 @@
 
     <section id="docs" hidden>
       <div class="bankbar">
-        <button id="uploadBtn" class="primary">Carica documento</button>
-        <button id="refreshBtn" class="primary"><span class="spin" hidden></span><span class="label">Aggiorna</span></button>
+        <button type="button" id="uploadBtn" class="primary">Carica documento</button>
+        <button type="button" id="refreshBtn" class="primary"><span class="spin" hidden></span><span class="label">Aggiorna</span></button>
       </div>
       <div id="docsEmpty" class="empty" hidden>
         <h2>Nessun documento ancora</h2>
-        <p>Apri le impostazioni, indica dove si trovano le buste paga e le bollette e premi <b>Aggiorna</b>.</p>
+        <p>Indica qui sopra dove si trovano le buste paga e le bollette (Impostazioni → Dove si trovano i documenti) e premi <b>Aggiorna</b>.</p>
       </div>
       <div class="tablewrap"><table id="docTable"></table></div>
     </section>

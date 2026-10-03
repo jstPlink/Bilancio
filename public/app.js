@@ -23,6 +23,8 @@ const EXPENSES = KINDS.filter((k) => !INCOME.has(k.id));
 // Voci senza stato "pagato": lo stipendio (entrata) e le spese correnti, che arrivano dall'estratto conto.
 const SPENDING = new Set(['spese', 'svago', 'carburante']);
 const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'donazioni', 'tasse', 'prestito']);
+// Voci con un budget mensile (id della colonna e nome).
+const BUDGET_KINDS = [['spese', 'Spesa'], ['svago', 'Svago'], ['carburante', 'Carburante']];
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
 const $ = (s) => document.querySelector(s);
@@ -389,7 +391,7 @@ function renderFilters() {
   const catSelect = $('#catSelect');
   if (catSelect) {
     const names = data ? [...data.categories, ...data.inflows.filter((c) => c.count), ...data.excluded.filter((c) => c.count)].map((c) => c.category) : [];
-    const list = [...new Set([...names, ...(cat ? [cat] : [])])];
+    const list = [...new Set([...names, ...(cat ? [cat] : [])])].filter((c) => c !== 'giroconti');
     catSelect.innerHTML = `<option value="">Tutte</option>${list.map((c) => `<option value="${c}" ${c === cat ? 'selected' : ''}>${esc(catName(c))}</option>`).join('')}`;
   }
   document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q && !state.bank.flow; });
@@ -434,7 +436,6 @@ function methodOf(t) {
 }
 
 const dayOf = (date) => new Date(`${date}T12:00:00`);
-const weekday = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long' });
 const longDate = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const normText = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 const sameKey = (t) => (t.amount > 0 ? 'in:' : '') + (normText(t.description) || t.description);
@@ -488,6 +489,7 @@ function filteredMoves() {
   const { month, cat, q, flow } = state.bank;
   const needle = q.trim().toLowerCase();
   return state.moves.filter((t) => {
+    if (t.category === 'giroconti') return false; // i giri tra i propri conti hanno la loro sezione e non contano
     if (month && Number(t.date.slice(5, 7)) !== month) return false;
     if (flow === 'in' && !(t.amount > 0)) return false;
     if (flow === 'out' && !(t.amount < 0)) return false;
@@ -511,7 +513,7 @@ function categoryCards(a) {
     return `<button class="card catcard${on ? ' on' : ''}${muted ? ' muted-card' : ''}" data-cat="${c.category}" aria-pressed="${on}" title="${on ? 'Clic per togliere il filtro' : 'Clic per vedere solo questi movimenti'}"><div class="k"><i class="key" style="--c:${color}"></i> ${esc(name)}${note}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti${share}</div></button>`;
   };
   const inflow = a.inflows.find((c) => c.category === 'entrate');
-  const hidden = a.excluded.filter((c) => c.count);
+  const hidden = a.excluded.filter((c) => c.count && c.category !== 'giroconti'); // i giroconti non compaiono tra le statistiche
   return [
     ...a.categories.filter((c) => c.count || state.bank.cat === c.category).map((c) => card(c, { note: c.column ? '' : ' <small>· fuori dalla tabella</small>' })),
     inflow?.count ? card(inflow, { name: 'Altre entrate', color: 'var(--viz-entrate)' }) : '',
@@ -528,11 +530,16 @@ function renderMoves() {
   const list = filteredMoves();
   const out = list.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const inn = list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Compresi i giroconti e le bollette già contate nei documenti, che non entrano nei totali dell'app">(${periodLabel()})</span>. I pagamenti allo stesso ente sono in una riga sola: toccala per vederli. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
+  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Comprese le bollette già contate nei documenti, che non entrano nei totali dell'app. I giroconti stanno nella sezione in fondo">(${periodLabel()})</span>. Tocca un movimento per vederne i dati completi. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
   const flowName = { in: 'solo entrate', out: 'solo uscite' }[state.bank.flow];
   const filter = (state.bank.cat ? `<p class="catfilter">Categoria: <b>${esc(catName(state.bank.cat))}</b> <button class="link" data-clearcat="1">Togli il filtro</button></p>` : '')
     + (flowName ? `<p class="catfilter">Mostro <b>${flowName}</b> <button class="link" data-clearflow="1">Mostra tutto</button></p>` : '');
-  $('#movesBody').innerHTML = filter + summary + movesTable(list);
+  // Giroconti: soldi che si spostano tra i tuoi conti e pocket (spesso registrati due volte, in uscita e in entrata). Non contano in nessun totale.
+  const { month } = state.bank;
+  const transfers = state.moves.filter((t) => t.category === 'giroconti' && (!month || Number(t.date.slice(5, 7)) === month));
+  const moved = transfers.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const transferBox = transfers.length ? `<details class="acat transfers"${state.bank.transfersOpen ? ' open' : ''}><summary>Giroconti tra i tuoi conti <span class="muted">· ${transfers.length} movimenti, ${money(moved)} spostati, non contati in nessun totale</span></summary><p class="muted">Sono gli stessi soldi che passano da un conto o pocket all'altro: per questo non compaiono in Panoramica né in Statistiche. Se uno di questi movimenti è in realtà una spesa o un'entrata, cambiane la categoria dal menu.</p>${movesTable(transfers, 'transferTable')}</details>` : '';
+  $('#movesBody').innerHTML = filter + summary + movesTable(list) + transferBox;
 }
 
 // Un solo elenco: i pagamenti con la stessa descrizione (lo stesso ente) sono accorpati in una riga che si apre sui singoli movimenti.
@@ -557,7 +564,7 @@ function moveEntries(list) {
   });
 }
 
-function movesTable(list) {
+function movesTable(list, tableId = 'moveTable') {
   if (!list.length) return '<div class="empty"><p>Nessun movimento con questi filtri.</p></div>';
   const rows = sortList(moveEntries(list), 'moves', { date: (e) => e.date, description: (e) => e.title, amount: (e) => Math.abs(e.amount), count: (e) => e.items.length, category: (e) => e.category });
   const similar = new Map();
@@ -570,8 +577,8 @@ function movesTable(list) {
   const single = (t, cls = '') => {
     const open = state.bank.open.has(t.id);
     return `<tr class="mv${cls}${open ? ' open' : ''}" data-mv="${t.id}">
-      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${metaLine(t)}${t.matchedDoc ? `<small class="doc">→ ${esc(t.matchedDoc)}</small>` : ''}</td>
+      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}</span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span></td>
       <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
       <td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>${open ? detailRow(t, similar) : ''}`;
   };
@@ -579,7 +586,7 @@ function movesTable(list) {
   const part = (t) => {
     const open = state.bank.open.has(t.id);
     return `<tr class="mv sub${open ? ' open' : ''}" data-mv="${t.id}">
-      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}<small>${weekday(t.date)}${t.time ? ` · ${t.time}` : ''}</small></span></td>
+      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}${t.time ? `<small>${t.time}</small>` : ''}</span></td>
       <td class="desc">${metaLine(t) || '<small class="meta">&nbsp;</small>'}</td>
       <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
       <td class="nocat"></td></tr>${open ? detailRow(t, similar) : ''}`;
@@ -590,12 +597,12 @@ function movesTable(list) {
     const n = e.items.length;
     const t = e.first;
     return `<tr class="mv group${open ? ' open' : ''}" data-mv="${e.id}">
-      <td class="dcol">${expander(e.id, open, t.description)}<span>${fmtDate(t.date)}<small>ultimo · ${weekday(t.date)}</small></span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span><small class="meta">${n} pagamenti dal ${fmtDate(e.last.date)} · media ${money(Math.abs(e.amount) / n)}</small></td>
+      <td class="dcol">${expander(e.id, open, t.description)}<span>${fmtDate(t.date)}</span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span> <span class="cnt" title="${n} pagamenti dal ${fmtDate(e.last.date)}, media ${money(Math.abs(e.amount) / n)}">×${n}</span></td>
       <td class="num ${e.amount > 0 ? 'pos-in' : ''}">${e.amount > 0 ? '+' : ''}${money(e.amount)}</td>
       <td>${categorySelect('data-moves', e.ids.join(','), t.category, e.title, t.amount > 0)}</td></tr>${open ? e.items.map(part).join('') : ''}`;
   }).join('');
-  return `<div class="tablewrap"><table id="moveTable"><thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="tablewrap"><table id="${tableId}" class="movetable"><thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 // ---------------------------------------------------------------- scheda Statistiche
@@ -755,9 +762,7 @@ function openUpload() {
 async function loadDocs() {
   state.docs = await api('/api/docs');
   const bad = state.docs.filter((d) => d.status === 'incompleto').length;
-  const badge = $('#docBadge');
-  badge.hidden = !bad;
-  badge.textContent = bad;
+  document.querySelectorAll('.docbadge').forEach((badge) => { badge.hidden = !bad; badge.textContent = bad; });
   $('#docsEmpty').hidden = state.docs.length > 0;
   $('#docTable').hidden = state.docs.length === 0;
   const kindLabel = (id) => KINDS.find((k) => k.id === id)?.label ?? '—';
@@ -768,7 +773,7 @@ async function loadDocs() {
       <td>${d.year && d.month ? `${MONTHS[d.month - 1]} ${d.year}` : '—'}</td>
       <td class="num">${money(d.amount) || '—'}</td>
       <td>${d.status === 'ok' ? '<span class="pill ok">Letto</span>' : d.status === 'ignorato' ? '<span class="pill edit">Ignorato</span>' : `<span class="pill warn" title="Manca: ${esc(d.missing.join(', '))}">Da controllare</span>`}${d.edited ? ' <span class="pill edit">Corretto</span>' : ''}</td>
-      <td><button class="link" data-doc="${i}">Modifica</button></td></tr>`).join('')}</tbody>` : '';
+      <td><button type="button" class="link" data-doc="${i}">Modifica</button></td></tr>`).join('')}</tbody>` : '';
 }
 
 function openDoc(index) {
@@ -843,6 +848,15 @@ async function openSettings() {
       </div>
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </div></details>
+    <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
+    <details class="fs" id="bgBox"><summary>Budget di spesa</summary><div class="fsbody">
+      <small>Quanto vuoi spendere al mese per ogni voce. Il widget Android mostra una barra che si riempie man mano che spendi; lascia vuoto per non avere un budget.</small>
+      <div class="row">
+        ${BUDGET_KINDS.map(([id, label]) => `<label>${label} (€ al mese)<input name="bg_${id}" inputmode="decimal" value="${inputValue(s.budgets?.[id] ?? null)}" placeholder="–"></label>`).join('')}
+      </div>
+      <label>Quanto vorrei risparmiare ogni mese (€)<input name="bgSavings" inputmode="decimal" value="${inputValue(s.savingsGoal || null)}" placeholder="0"></label>
+      <div id="bgEst" class="bgest"><small class="muted">Calcolo la stima…</small></div>
+    </div></details>
     <details class="fs"><summary>Riconoscimento automatico</summary><div class="fsbody">
       <small>Lo stipendio (già nelle buste paga) e i giri tra i tuoi conti non si contano due volte. Nome e datore di lavoro si ricavano da soli dalle buste paga e dai movimenti: non serve scriverli.</small>
       <small><b>Stipendio da:</b> ${esc(s.incomePayers) || '— (si impara dopo due buste paga abbinate ai bonifici)'}<br><b>I miei conti (nome):</b> ${esc(s.ownNames) || '— (si impara dai giri tra i tuoi conti)'}</small>
@@ -855,16 +869,34 @@ async function openSettings() {
     <div class="foot sticky" id="setFoot" hidden><button class="primary">Salva le modifiche</button></div>
   </form>`;
   const form = dlg.querySelector('form');
+  // La sezione Documenti (carica, aggiorna, elenco) vive qui dentro finché il pannello è aperto, poi torna al suo posto.
+  const docs = $('#docs');
+  $('#docsHost').appendChild(docs);
+  docs.hidden = false;
+  loadDocs().catch(() => {});
+  dlg.addEventListener('close', () => { docs.hidden = true; $('main').appendChild(docs); }, { once: true });
   // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
-  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom'];
+  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom', ...BUDGET_KINDS.map(([id]) => `bg_${id}`), 'bgSavings'];
   const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
   const initial = snapshot();
+  const budgetOld = JSON.stringify([...BUDGET_KINDS.map(([id]) => form[`bg_${id}`].value), form.bgSavings.value]);
   const dirty = () => snapshot() !== initial;
   const refreshFoot = () => { $('#setFoot').hidden = !dirty(); };
   // Promemoria: i loro campi non fanno parte del «Salva» delle impostazioni (hanno un salvataggio loro) e Invio non invia il pannello.
   form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.name?.startsWith('rem')) e.preventDefault(); });
   form.addEventListener('change', (e) => { if (e.target.name === 'remRepeat') syncReminderEditor(); if (e.target.dataset.act === 'rem-toggle') reminderAction(e.target); });
   if ($('#remBody')) renderReminders();
+  // Budget: la stima si ricalcola quando cambia il risparmio voluto; «Usa i consigli» riempie i tre budget.
+  let estimate = null;
+  let estimateTimer;
+  const loadEstimate = () => {
+    const goal = parseInput(form.bgSavings.value);
+    if (Number.isNaN(goal)) return;
+    api(`/api/budget?savings=${goal ?? 0}`).then((o) => { estimate = o.estimate; renderBudgetEstimate(estimate); })
+      .catch((err) => { $('#bgEst').innerHTML = `<small class="error">${esc(err.message)}</small>`; });
+  };
+  loadEstimate();
+  form.bgSavings.addEventListener('input', () => { clearTimeout(estimateTimer); estimateTimer = setTimeout(loadEstimate, 350); });
   form.addEventListener('input', refreshFoot);
   form.addEventListener('change', refreshFoot);
   const leave = () => { if (!dirty() || confirm('Hai modifiche non salvate. Uscire senza salvare?')) dlg.close(); };
@@ -872,6 +904,10 @@ async function openSettings() {
   form.addEventListener('click', (e) => {
     if (e.target.closest('[data-act=close]')) leave();
     if (e.target.dataset.act === 'logout') logout();
+    if (e.target.dataset.act === 'bg-use' && estimate?.suggested) {
+      for (const [id] of BUDGET_KINDS) form[`bg_${id}`].value = inputValue(estimate.suggested[id] || null);
+      form.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
     if (e.target.dataset.act?.startsWith('rem-') && e.target.dataset.act !== 'rem-toggle') reminderAction(e.target);
   });
@@ -888,6 +924,12 @@ async function openSettings() {
           rentFrom: form.rentFrom.value,
         },
       });
+      const budgetNew = JSON.stringify([...BUDGET_KINDS.map(([id]) => form[`bg_${id}`].value), form.bgSavings.value]);
+      if (budgetNew !== budgetOld) {
+        const budgets = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, parseInput(form[`bg_${id}`].value)]));
+        if (Object.values(budgets).some(Number.isNaN) || Number.isNaN(parseInput(form.bgSavings.value))) throw new Error('Budget o risparmio non validi.');
+        await api('/api/budget', { method: 'PUT', body: { budgets, savingsGoal: parseInput(form.bgSavings.value) ?? 0 } });
+      }
       dlg.close();
       toast('Impostazioni salvate. Premi Aggiorna per leggere i documenti.');
       await loadGrid();
@@ -895,6 +937,29 @@ async function openSettings() {
   });
   dlg.showModal();
   loadBanking().catch((err) => { $('#bkBody').innerHTML = `<p class="error">${esc(err.message)}</p>`; });
+}
+
+// Stima del budget: media dei mesi chiusi e consigli per arrivare al risparmio voluto (calcolati dal server).
+function renderBudgetEstimate(e) {
+  const box = $('#bgEst');
+  if (!box) return;
+  if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per una stima: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
+  const lines = BUDGET_KINDS.map(([id, label]) => `<li><b>${label}</b>: di solito ${money(e.average[id])} al mese · consigliato <b>${money(e.suggested[id])}</b></li>`).join('');
+  const usual = Object.values(e.average).reduce((a, b) => a + b, 0);
+  const planned = Object.values(e.suggested).reduce((a, b) => a + b, 0);
+  const notes = [];
+  if (e.income != null) {
+    notes.push(`Entrate medie ${money(e.income)} e spese fisse (bollette, affitto, prestito, tasse…) ${money(e.fixed)}: se spendi come al solito ti restano ${money(e.savingsNoCuts)} al mese.`);
+    if (e.savings > 0) {
+      if (!e.reachable) notes.push(`<b class="warnline">Per risparmiare ${money(e.savings)} al mese non basta:</b> anche senza spesa, svago e carburante mancherebbero ${money(-e.available)}.`);
+      else if (planned < usual) notes.push(`Per mettere da parte ${money(e.savings)} al mese puoi spendere ${money(e.available)} in tutto per queste tre voci: ${money(usual - planned)} in meno del solito, tagliati in parti uguali.`);
+      else notes.push(`Per mettere da parte ${money(e.savings)} al mese non serve tagliare: hai già margine.`);
+    }
+  } else notes.push('Non ho entrate nei mesi usati, quindi il consiglio è la media e non posso calcolare il risparmio.');
+  box.innerHTML = `<small class="muted">Stima sugli ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).</small>
+    <ul class="bglist">${lines}</ul>
+    ${notes.map((n) => `<small>${n}</small>`).join('')}
+    <div class="foot"><button type="button" class="ghost" data-act="bg-use">Usa i consigli</button></div>`;
 }
 
 // ------------------------------------------------------------------- promemoria (solo app Android)
@@ -1201,7 +1266,7 @@ const banks = mountBanks($('#banksBody'), api, toast);
 
 function showTab(name) {
   document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
-  for (const id of ['overview', 'docs', 'moves', 'analysis', 'banks']) $(`#${id}`).hidden = id !== name;
+  for (const id of ['overview', 'moves', 'analysis', 'banks']) $(`#${id}`).hidden = id !== name;
   $('#years').hidden = name !== 'overview';
   if (name === 'moves' || name === 'analysis') loadBank().catch((err) => toast(err.message));
   if (name === 'banks') banks.load().catch((err) => toast(err.message));
@@ -1264,6 +1329,7 @@ $('#moveSearch').addEventListener('input', (e) => {
   searchTimer = setTimeout(() => { state.bank.q = e.target.value; renderBank(); }, 150);
 });
 // Clic su una riga dei movimenti: mostra o nasconde i dettagli (non quando si usa il menu o un link).
+$('#movesBody').addEventListener('toggle', (e) => { if (e.target.classList?.contains('transfers')) state.bank.transfersOpen = e.target.open; }, true);
 $('#movesBody').addEventListener('click', (e) => {
   const row = e.target.closest('tr.mv');
   if (!row || e.target.closest('select, a, button')) return;
@@ -1286,4 +1352,21 @@ async function logout() {
   location.href = '/login';
 }
 $('#logoutBtn').addEventListener('click', logout);
+
+// Dal widget Android: #moves/<categoria> apre i Movimenti del mese in corso filtrati per quella categoria, #overview la Panoramica.
+// Il widget aggiunge in coda un numero, così lo stesso tocco ripetuto cambia comunque l'indirizzo.
+const HASH_CATS = new Set(['spesa', 'svago', 'carburante']);
+function openFromHash() {
+  const [dest, cat] = location.hash.slice(1).split('/');
+  if (!dest) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (dest === 'moves') {
+    const now = new Date();
+    Object.assign(state.bank, { year: now.getFullYear(), month: now.getMonth() + 1, cat: HASH_CATS.has(cat) ? cat : '', q: '', flow: '' });
+    $('#moveSearch').value = '';
+    showTab('moves');
+  } else if (dest === 'overview') showTab('overview');
+}
+window.addEventListener('hashchange', openFromHash);
+openFromHash();
 Promise.all([loadGrid(), loadDocs()]).then(autoScan).catch((err) => toast(err.message));

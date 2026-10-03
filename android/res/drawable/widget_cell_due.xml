@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- «Da pagare» con qualcosa ancora da pagare: il rosso chiaro della Panoramica -->
+<!-- «Da pagare» con qualcosa ancora da pagare: rosso pieno, con le scritte bianche -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#FDE4E1" />
+    <solid android:color="#D93025" />
     <corners android:radius="14dp" />
 </shape>

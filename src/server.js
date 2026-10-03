@@ -15,6 +15,7 @@ import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
 import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildExplore } from './bankexplorer.js';
+import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -99,7 +100,28 @@ app.post('/api/refresh', async (req, res) => {
 
 app.get('/api/grid', (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
-  res.json({ ...buildGrid(db(), year), lastRefresh: db().lastRefresh });
+  // I budget viaggiano con la griglia: il widget Android li legge con la stessa chiamata delle cifre del mese.
+  res.json({ ...buildGrid(db(), year), lastRefresh: db().lastRefresh, budgets: cleanBudgets(db().settings.budgets) });
+});
+
+// Budget mensile di spesa, svago e carburante, e la stima fatta dall'app sui mesi già chiusi.
+// ?savings=300 prova un altro risparmio mensile voluto, senza salvarlo.
+app.get('/api/budget', (req, res) => {
+  const savings = req.query.savings === undefined ? undefined : Number(req.query.savings);
+  if (savings !== undefined && !(savings >= 0)) return bad(res, 'Risparmio non valido.');
+  res.json(budgetOverview(db(), { savings }));
+});
+
+app.put('/api/budget', async (req, res) => {
+  const { budgets, savingsGoal } = req.body ?? {};
+  for (const v of [...Object.values(budgets ?? {}), savingsGoal]) {
+    if (v != null && v !== '' && !(Number(v) >= 0)) return bad(res, 'Importo non valido.');
+  }
+  const s = db().settings;
+  if (budgets !== undefined) s.budgets = cleanBudgets(budgets);
+  if (savingsGoal !== undefined) s.savingsGoal = Number(savingsGoal) > 0 ? Math.round(Number(savingsGoal) * 100) / 100 : 0;
+  await store.save();
+  res.json(budgetOverview(db()));
 });
 
 app.post('/api/paid', async (req, res) => {
@@ -203,6 +225,7 @@ app.post('/api/statements', async (req, res) => {
   const all = (db().transactions ??= {});
   let added = 0;
   for (const t of items) if (addOrEnrich(all, t) === 'added') added++;
+  learn();
   await store.save();
   res.json({ found: items.length, added, duplicates: items.length - added });
 });
