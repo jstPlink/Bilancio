@@ -542,3 +542,17 @@ details.transfers { margin-top: 18px; }
 .bgsave { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 10px; }
 #budget .bgest { margin-bottom: 10px; }
 .bgtable { min-width: 0; }
+
+/* Budget: barre che si riempiono */
+.splitbar { position: relative; display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0 10px; }
+.splitbar .seg { display: block; height: 100%; min-width: 2px; transition: width .25s ease; }
+.splitbar .mark { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--ink); box-shadow: 0 0 0 1px var(--surface); }
+ul.legend { list-style: none; padding: 0; margin: 0; }
+ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.bgprog { min-width: 11rem; }
+.pbar { height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.pbar i { display: block; height: 100%; border-radius: 999px; transition: width .25s ease; }
+.pbar.warn i { background: #f59e0b !important; }
+.pbar.over i { background: var(--viz-tasse) !important; }
+.bgprog small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.bgtable th[scope=row] { white-space: nowrap; }

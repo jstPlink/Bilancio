@@ -106,3 +106,8 @@ test('entrate medie: solo gli ultimi 3 mesi chiusi con entrate', () => {
   db.docs['busta-9'].amount = 3100;
   assert.equal(estimateBudget(db, { now: NOW }).income, 2366.67); // (2000 + 2000 + 3100) / 3
 });
+
+test('budgetOverview: spese del mese in corso, per le barre', () => {
+  const o = budgetOverview(sample(), { now: NOW });
+  assert.deepEqual(o.spent, { spese: 400, svago: 100, carburante: 100 });
+});

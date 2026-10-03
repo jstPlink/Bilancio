@@ -7,6 +7,7 @@ export const BUDGET_KINDS = ['spese', 'svago', 'carburante'];
 export const ESTIMATE_MONTHS = 6; // quanti mesi chiusi, al massimo, entrano nella media delle spese
 export const INCOME_MONTHS = 3;   // le entrate medie si calcolano sugli ultimi 3 mesi chiusi con entrate
 
+const k_in = (k) => BUDGET_KINDS.includes(k);
 const round = (n) => Math.round(n * 100) / 100;
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
@@ -81,10 +82,15 @@ export function estimateBudget(db, { now = new Date(), savings = db.settings?.sa
   return result;
 }
 
-/** Quello che serve alla pagina: budget e risparmio impostati, più la stima (anche con un risparmio diverso, per provare). */
-export function budgetOverview(db, { savings, now } = {}) {
+/** Quello che serve alla pagina: budget impostati, spese del mese in corso e stima (il risparmio è un risultato, non un dato da inserire). */
+export function budgetOverview(db, { savings, now = new Date() } = {}) {
   const s = db.settings ?? {};
+  const spent = Object.fromEntries(BUDGET_KINDS.map((k) => [k, 0]));
+  for (const c of buildCells(db, now).values()) {
+    if (c.year === now.getFullYear() && c.month === now.getMonth() + 1 && c.amount != null && k_in(c.kind)) spent[c.kind] = round(c.amount);
+  }
   return {
+    spent,
     budgets: cleanBudgets(s.budgets),
     savingsGoal: Number(s.savingsGoal) > 0 ? Number(s.savingsGoal) : 0,
     estimate: estimateBudget(db, { now, savings: savings ?? s.savingsGoal ?? 0 }),

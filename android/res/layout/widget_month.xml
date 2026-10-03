@@ -19,8 +19,10 @@
         android:layout_weight="0.6"
         android:orientation="vertical"
         android:gravity="center"
+        android:layout_marginRight="2dp"
         android:paddingLeft="2dp"
-        android:paddingRight="2dp">
+        android:paddingRight="2dp"
+        android:background="@drawable/widget_since_bg">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -81,6 +83,7 @@
             android:id="@+id/widget_month_spese_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:src="@drawable/widget_fill_ok"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
@@ -119,6 +122,7 @@
             android:id="@+id/widget_month_carburante_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:src="@drawable/widget_fill_ok"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
@@ -157,6 +161,7 @@
             android:id="@+id/widget_month_svago_fill"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:src="@drawable/widget_fill_ok"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"

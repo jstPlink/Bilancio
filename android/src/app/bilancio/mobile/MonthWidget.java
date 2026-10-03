@@ -6,12 +6,6 @@ import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
-import android.os.Bundle;
 import android.widget.RemoteViews;
 
 /**
@@ -54,34 +48,15 @@ public class MonthWidget extends AppWidgetProvider {
         return Due.money(v);
     }
 
-    private static final float RADIUS_DP = 14; // gli angoli del riquadro «Da pagare» (widget_cell_due)
-
     /**
-     * Il riquadro come un contenitore: sfondo chiaro e, dal basso verso l'alto, il «liquido» alto quanto la spesa rispetto al budget.
-     * Senza budget (budget 0) resta il solo sfondo. Il liquido è bianco, arancione da 80% e rosso a budget superato.
+     * Il riquadro come un contenitore: il liquido sale dal basso fino alla quota della spesa rispetto al budget (livello 0-10000 del
+     * disegno, con gli stessi angoli da 14dp di «Da pagare»). Bianco sotto l'80%, arancione da 80%, rosso a budget superato.
+     * Senza budget resta il solo sfondo.
      */
-    static Bitmap cell(double spent, double budget, int w, int h, float r) {
-        final int CELL_W = w;
-        final int CELL_H = h;
-        Bitmap b = Bitmap.createBitmap(CELL_W, CELL_H, Bitmap.Config.ARGB_8888);
-        Canvas g = new Canvas(b);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        Path shape = new Path();
-        shape.addRoundRect(new RectF(0, 0, CELL_W, CELL_H), r, r, Path.Direction.CW);
-        g.clipPath(shape);
-        p.setColor(0x2EFFFFFF);
-        g.drawRect(0, 0, CELL_W, CELL_H, p);
-        double ratio = budget > 0 ? spent / budget : 0;
-        if (ratio > 0) {
-            p.setColor(ratio >= 1 ? 0xCCE5484D : ratio >= 0.8 ? 0xCCF59E0B : 0x66FFFFFF);
-            float level = (float) Math.max(6, Math.min(1, ratio) * CELL_H); // anche una spesa minima si vede
-            g.drawRect(0, CELL_H - level, CELL_W, CELL_H, p);
-        }
-        return b;
-    }
-
-    private static void fill(RemoteViews v, int id, boolean show, double spent, double budget, int[] px) {
-        v.setImageViewBitmap(id, cell(show ? spent : 0, show ? budget : 0, px[0], px[1], px[2]));
+    private static void fill(RemoteViews v, int id, boolean show, double spent, double budget) {
+        double ratio = show && budget > 0 ? spent / budget : 0;
+        v.setImageViewResource(id, ratio >= 1 ? R.drawable.widget_fill_over : ratio >= 0.8 ? R.drawable.widget_fill_warn : R.drawable.widget_fill_ok);
+        v.setInt(id, "setImageLevel", ratio <= 0 ? 0 : (int) Math.max(500, Math.min(1, ratio) * 10000)); // una spesa minima si vede comunque
     }
 
     private static PendingIntent tap(Context c, int code, String open, String cat) {
@@ -90,25 +65,10 @@ public class MonthWidget extends AppWidgetProvider {
         return PendingIntent.getActivity(c, code, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    /**
-     * Misure in pixel di un riquadro (larghezza, altezza, raggio degli angoli), dalle dimensioni del widget: il disegno ha così
-     * le stesse proporzioni del riquadro e gli angoli restano tondi come quelli di «Da pagare».
-     */
-    private static int[] cellPx(Context c, AppWidgetManager m, int id) {
-        float density = c.getResources().getDisplayMetrics().density;
-        Bundle o = m.getAppWidgetOptions(id);
-        float widgetW = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 320);
-        float widgetH = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 56);
-        // meno i margini del widget (8+8 dp) e dei riquadri (4 dp ciascuno, 4 riquadri), diviso i pesi (0,6 + 1,15 + 3×1)
-        float w = Math.max(40, (widgetW - 16 - 16) / 4.75f);
-        float h = Math.max(30, widgetH - 12);
-        return new int[] { Math.round(w * density), Math.round(h * density), Math.round(RADIUS_DP * density) };
-    }
-
     private static void paint(Context c, AppWidgetManager m, int[] ids, Month d) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_month);
         Month shown = d.ok || d.needLogin ? d : Month.cached(c); // server non raggiungibile: ultimo dato noto del mese
-        v.setTextViewText(R.id.widget_month_since, Month.NAMES[Month.currentMonth() - 1]);
+        v.setTextViewText(R.id.widget_month_since, Month.NAMES[Month.currentMonth() - 1].substring(0, 3).toUpperCase(java.util.Locale.ITALY));
 
         String label = "Da pagare";
         String toPay = "—";
@@ -131,11 +91,10 @@ public class MonthWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_month_carburante, carburante);
         v.setTextViewText(R.id.widget_month_svago, svago);
 
-        int[] px = cellPx(c, m, ids[0]);
         // Contenitori del budget (si riempiono solo se la lettura c'è e il budget è impostato).
-        fill(v, R.id.widget_month_spese_fill, shown.ok, shown.spese, shown.budgetSpese, px);
-        fill(v, R.id.widget_month_carburante_fill, shown.ok, shown.carburante, shown.budgetCarburante, px);
-        fill(v, R.id.widget_month_svago_fill, shown.ok, shown.svago, shown.budgetSvago, px);
+        fill(v, R.id.widget_month_spese_fill, shown.ok, shown.spese, shown.budgetSpese);
+        fill(v, R.id.widget_month_carburante_fill, shown.ok, shown.carburante, shown.budgetCarburante);
+        fill(v, R.id.widget_month_svago_fill, shown.ok, shown.svago, shown.budgetSvago);
 
         // «Da pagare» si distingue dagli altri: rosso pieno con scritte bianche finché resta qualcosa, verde chiaro quando è tutto pagato.
         // Senza lettura (server irraggiungibile, accesso da rifare) non si sa se è tutto pagato: resta rosso.

@@ -48,11 +48,12 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
   I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
   altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
-- **Budget** (quinta scheda). Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget) e **quanto vorresti risparmiare ogni mese**; si salva da solo.
-  In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e quanto
-  ti resta (o ti manca) al mese: **a ogni cifra che scrivi il totale si aggiorna** e una riga dice se **rientri nelle entrate medie**. Accanto a ogni voce: «Di solito» (media delle spese degli ultimi mesi
-  chiusi, fino a 6; il mese in corso non conta) e **«Consigliato»** per arrivare al risparmio voluto. Il calcolo: entrate medie − spese fisse medie − risparmio voluto = quanto resta per le tre voci; se è meno
-  del solito, le tre voci si tagliano nella stessa proporzione; se nemmeno spendendo zero si arriva al risparmio voluto, te lo dice. «Usa i consigli» copia i valori nei budget.
+- **Budget** (quinta scheda). Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget); si salva da solo. **Il risparmio non si imposta: è un risultato**,
+  calcolato come entrate medie − spese fisse medie − totale dei budget. In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie
+  (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori): **a ogni cifra che scrivi tutto si aggiorna**.
+  Una **barra a colori** divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e ciò che avanza (verde: il risparmio); se il totale supera le entrate, un segno nero mostra dove finiscono le entrate.
+  Per ogni voce una seconda barra si **riempie con quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rossa oltre). Accanto a ogni voce c'è «Di solito», la media delle spese degli ultimi mesi
+  chiusi (fino a 6; il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget.
 - **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
@@ -78,7 +79,7 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 L'app Android ha in più:
 - **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
   mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
-- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): a sinistra «dal 1° ottobre» (un tocco apre la scheda **Budget**), poi quattro riquadri affiancati con le cifre dal primo del mese in corso:
+- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): a sinistra «dal 1° OTT» (mese a tre lettere, su un leggero sfondo che dice che si tocca: apre la scheda **Budget**), poi quattro riquadri affiancati con le cifre dal primo del mese in corso:
   **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso pieno** finché resta qualcosa, verde quando è
   tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (scheda Budget), i riquadri di Spese, Carburante e Svago sono
   **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
@@ -306,6 +307,7 @@ test/          node --test; free-port.js sceglie porte libere per i test che avv
 ```
 
 - `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.
+- **A ogni modifica dell'app si aggiorna anche il telefono**: oltre a versione, `CHANGELOG.md`, commit, tag e push, si installa l'APK nuovo con `npm run apk:installa` (su Windows con `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`).
 - **A ogni push la versione sale**: `npm version <x.y.z> --no-git-tag-version`, una voce in `CHANGELOG.md`, commit e tag `vX.Y.Z` (push anche dei tag).
   La versione compare accanto al nome nell'app.
 - I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.

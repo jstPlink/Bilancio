@@ -911,14 +911,15 @@ async function openSettings() {
 
 // ------------------------------------------------------------------- scheda Budget
 
-// Budget mensile di Spesa, Svago e Carburante, con le entrate medie degli ultimi 3 mesi e il totale che si aggiorna a ogni cifra scritta.
+// Budget mensile di Spesa, Svago e Carburante. Il risparmio non si imposta: è il risultato di entrate medie (ultimi 3 mesi),
+// spese fisse medie e budget. Tutto si aggiorna a ogni cifra scritta, con barre che si riempiono.
 const budgetBox = $('#budgetBody');
 state.budget = null;
-let budgetTimer;
+const BUDGET_COLORS = { spese: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)' };
 
-async function loadBudget(savings) {
-  state.budget = await api(`/api/budget${savings == null ? '' : `?savings=${savings}`}`);
-  if (savings == null) renderBudgetTab(); else renderBudgetParts();
+async function loadBudget() {
+  state.budget = await api('/api/budget');
+  renderBudgetTab();
 }
 
 const budgetField = (name) => budgetBox.querySelector(`[name=${name}]`);
@@ -926,79 +927,83 @@ const budgetNumber = (name) => { const n = parseInput(budgetField(name)?.value);
 
 function renderBudgetTab() {
   const b = state.budget;
-  const rows = BUDGET_KINDS.map(([id, label]) => `<tr><th scope="row">${label}</th>
+  const rows = BUDGET_KINDS.map(([id, label]) => `<tr><th scope="row"><i class="key" style="--c:${BUDGET_COLORS[id]}"></i> ${label}</th>
     <td><input name="bg_${id}" inputmode="decimal" value="${inputValue(b.budgets[id] ?? null)}" placeholder="–" aria-label="Budget mensile ${label}"></td>
-    <td class="num" data-avg="${id}"></td><td class="num" data-sug="${id}"></td></tr>`).join('');
+    <td class="num" data-avg="${id}"></td>
+    <td class="bgprog" data-prog="${id}"></td></tr>`).join('');
   budgetBox.innerHTML = `
     <div id="bgSummary" class="cards"></div>
+    <section class="chartcard"><h3>Come si divide l'entrata media</h3>
+      <div id="bgSplit"></div></section>
     <div id="bgVerdict"></div>
-    <div class="tablewrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget al mese (€)</th><th class="num">Di solito</th><th class="num">Consigliato</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <label class="bgsave">Quanto vorrei risparmiare ogni mese (€)<input name="bgSavings" inputmode="decimal" value="${inputValue(b.savingsGoal || null)}" placeholder="0"></label>
+    <div class="tablewrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget al mese (€)</th><th class="num">Di solito</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="bgEst" class="bgest"></div>
     <small class="muted">Il budget si salva da solo. Il widget Android mostra ogni voce come un contenitore che si riempie man mano che spendi. Lascia vuoto per non avere un budget.</small>`;
   renderBudgetParts();
 }
 
-// Totali e consigli: si ricalcolano a ogni cifra scritta (il server dà la stima, il totale si fa qui).
+// Totali, barre e risparmio: si ricalcolano a ogni cifra scritta (il server dà le medie, i totali si fanno qui).
 function renderBudgetParts() {
-  const e = state.budget.estimate;
-  const total = BUDGET_KINDS.reduce((a, [id]) => a + budgetNumber(`bg_${id}`), 0);
+  const { estimate: e, spent } = state.budget;
+  const amounts = BUDGET_KINDS.map(([id, label]) => ({ id, label, value: budgetNumber(`bg_${id}`) }));
+  const total = amounts.reduce((a, x) => a + x.value, 0);
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const hasIncome = e.income != null;
+  const saving = hasIncome ? round2(e.income - (e.fixed ?? 0) - total) : null; // il risparmio: ciò che avanza
+  const ok = saving != null && saving >= 0;
   const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
-  const left = e.income == null ? null : Math.round((e.income - e.fixed - total) * 100) / 100;
-  const ok = left != null && left >= 0;
   $('#bgSummary').innerHTML = [
-    card('Entrate medie al mese', e.income == null ? '—' : money(e.income), e.income == null ? 'Nessuna entrata nei mesi chiusi' : `ultimi ${e.incomeMonths} mesi chiusi`),
+    card('Entrate medie al mese', hasIncome ? money(e.income) : '—', hasIncome ? `ultimi ${e.incomeMonths} mesi chiusi` : 'Nessuna entrata nei mesi chiusi'),
     card('Spese fisse medie', e.fixed == null ? '—' : money(e.fixed), 'bollette, affitto, prestito, tasse…'),
-    card('Totale budget', money(total), BUDGET_KINDS.map(([id, label]) => `${label} ${money(budgetNumber(`bg_${id}`))}`).join(' · ')),
-    card(ok ? 'Ti resta al mese' : 'Ti manca al mese', left == null ? '—' : money(Math.abs(left)), left == null ? '' : ok ? 'dopo spese fisse e budget' : 'sopra le entrate medie', left == null ? '' : ok ? 'bgok' : 'bgbad'),
+    card('Totale budget', money(total), amounts.map((x) => `${x.label} ${money(x.value)}`).join(' · ')),
+    card(ok ? 'Risparmio al mese' : 'Sfori al mese', saving == null ? '—' : money(Math.abs(saving)), saving == null ? '' : ok ? 'entrate − spese fisse − budget' : 'sopra le entrate medie', saving == null ? '' : ok ? 'bgok' : 'bgbad'),
   ].join('');
-  $('#bgVerdict').innerHTML = left == null ? '' : ok
-    ? `<p class="bgverdict bgok">Rientri nelle entrate medie: ${money(e.income)} − ${money(e.fixed)} di spese fisse − ${money(total)} di budget = ${money(left)} al mese${e.savings > 0 ? (left >= e.savings ? ` (il risparmio voluto di ${money(e.savings)} è raggiunto)` : ` (ma il risparmio voluto è ${money(e.savings)}: mancano ${money(e.savings - left)})`) : ''}.</p>`
-    : `<p class="bgverdict bgbad">Non rientri nelle entrate medie: il budget di ${money(total)} più ${money(e.fixed)} di spese fisse supera di ${money(-left)} i ${money(e.income)} al mese.</p>`;
 
-  for (const [id] of BUDGET_KINDS) {
-    budgetBox.querySelector(`[data-avg=${id}]`).textContent = e.average ? money(e.average[id]) : '–';
-    budgetBox.querySelector(`[data-sug=${id}]`).textContent = e.suggested ? money(e.suggested[id]) : '–';
+  // Barra unica: l'entrata media divisa tra spese fisse, le tre categorie e ciò che avanza (il risparmio); oltre l'entrata, il rosso.
+  const parts = [{ label: 'Spese fisse', value: e.fixed ?? 0, color: 'var(--viz-bollette)' }, ...amounts.map((x) => ({ label: x.label, value: x.value, color: BUDGET_COLORS[x.id] }))];
+  const planned = parts.reduce((a, p) => a + p.value, 0);
+  const scale = Math.max(hasIncome ? e.income : 0, planned) || 1;
+  const pct = (v) => `${(v / scale * 100).toFixed(2)}%`;
+  const segs = parts.filter((p) => p.value > 0).map((p) => `<span class="seg" style="width:${pct(p.value)};background:${p.color}" title="${p.label} ${money(p.value)}"></span>`).join('')
+    + (ok ? `<span class="seg" style="width:${pct(saving)};background:var(--viz-entrate)" title="Risparmio ${money(saving)}"></span>` : '');
+  const marker = hasIncome && planned > e.income ? `<span class="mark" style="left:${pct(e.income)}" title="Entrate medie ${money(e.income)}"></span>` : '';
+  $('#bgSplit').innerHTML = `<div class="splitbar" role="img" aria-label="Divisione dell'entrata media">${segs}${marker}</div>
+    <ul class="legend">${parts.map((p) => `<li><i class="key" style="--c:${p.color}"></i>${p.label} ${money(p.value)}</li>`).join('')}${hasIncome ? `<li><i class="key" style="--c:var(--viz-entrate)"></i>Risparmio ${money(Math.max(0, saving))}</li>` : ''}</ul>`;
+  $('#bgVerdict').innerHTML = saving == null ? '' : ok
+    ? `<p class="bgverdict bgok">Rientri nelle entrate medie: ${money(e.income)} − ${money(e.fixed)} di spese fisse − ${money(total)} di budget = <b>${money(saving)} di risparmio al mese</b>.</p>`
+    : `<p class="bgverdict bgbad">Non rientri nelle entrate medie: il budget di ${money(total)} più ${money(e.fixed)} di spese fisse supera di ${money(-saving)} i ${money(e.income)} al mese.</p>`;
+
+  // Per ogni voce: la media di sempre e quanto è già stato speso questo mese rispetto al budget, in una barra che si riempie.
+  for (const x of amounts) {
+    budgetBox.querySelector(`[data-avg=${x.id}]`).textContent = e.average ? money(e.average[x.id]) : '–';
+    const used = spent?.[x.id] ?? 0;
+    const ratio = x.value > 0 ? used / x.value : 0;
+    const tone = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
+    budgetBox.querySelector(`[data-prog=${x.id}]`).innerHTML = x.value > 0
+      ? `<div class="pbar ${tone}" role="img" aria-label="${x.label}: speso ${money(used)} su ${money(x.value)}"><i style="width:${Math.min(100, ratio * 100).toFixed(1)}%;background:${BUDGET_COLORS[x.id]}"></i></div><small>${money(used)} su ${money(x.value)} (${Math.round(ratio * 100)}%)</small>`
+      : `<small class="muted">${money(used)} spesi · nessun budget</small>`;
   }
   const box = $('#bgEst');
-  if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per una stima: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
-  const usual = Object.values(e.average).reduce((a, b) => a + b, 0);
-  const planned = Object.values(e.suggested).reduce((a, b) => a + b, 0);
+  if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per le medie: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
   const notes = [`Di solito = media degli ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).`];
-  if (e.income != null) {
-    notes.push(`Se spendi come al solito ti restano ${money(e.savingsNoCuts)} al mese.`);
-    if (e.savings > 0) {
-      if (!e.reachable) notes.push(`<b class="warnline">Per risparmiare ${money(e.savings)} al mese non basta:</b> anche senza spesa, svago e carburante mancherebbero ${money(-e.available)}.`);
-      else if (planned < usual) notes.push(`Per mettere da parte ${money(e.savings)} al mese puoi spendere ${money(e.available)} in tutto per queste tre voci: ${money(usual - planned)} in meno del solito, tagliati in parti uguali.`);
-      else notes.push(`Per mettere da parte ${money(e.savings)} al mese non serve tagliare: hai già margine.`);
-    }
-  }
-  box.innerHTML = `${notes.map((n) => `<small>${n}</small>`).join('')}<div class="foot"><button type="button" class="ghost" data-act="bg-use">Usa i consigli</button></div>`;
+  if (hasIncome) notes.push(`Se spendi come al solito (${money(Object.values(e.average).reduce((a, b) => a + b, 0))} per queste tre voci) risparmi ${money(e.savingsNoCuts)} al mese.`);
+  box.innerHTML = `${notes.map((n) => `<small>${n}</small>`).join('')}<div class="foot"><button type="button" class="ghost" data-act="bg-use">Parti dalle medie</button></div>`;
 }
 
 async function saveBudget() {
   const budgets = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, parseInput(budgetField(`bg_${id}`).value)]));
-  const goal = parseInput(budgetField('bgSavings').value);
-  if (Object.values(budgets).some(Number.isNaN) || Number.isNaN(goal)) return toast('Importo non valido.');
-  state.budget = await api('/api/budget', { method: 'PUT', body: { budgets, savingsGoal: goal ?? 0 } });
+  if (Object.values(budgets).some(Number.isNaN)) return toast('Importo non valido.');
+  const { spent } = state.budget;
+  state.budget = { ...(await api('/api/budget', { method: 'PUT', body: { budgets } })), spent };
   renderBudgetParts();
   toast('Budget salvato.', 1800);
 }
 
-budgetBox.addEventListener('input', (e) => {
-  if (!state.budget) return;
-  renderBudgetParts();
-  if (e.target.name === 'bgSavings') {
-    // il risparmio voluto cambia i consigli: li richiede al server
-    clearTimeout(budgetTimer);
-    const goal = parseInput(e.target.value);
-    if (!Number.isNaN(goal)) budgetTimer = setTimeout(() => loadBudget(goal ?? 0).catch(() => {}), 350);
-  }
-});
+budgetBox.addEventListener('input', () => { if (state.budget) renderBudgetParts(); });
 budgetBox.addEventListener('change', () => { saveBudget().catch((err) => toast(err.message)); });
 budgetBox.addEventListener('click', (e) => {
-  if (e.target.dataset.act !== 'bg-use' || !state.budget.estimate.suggested) return;
-  for (const [id] of BUDGET_KINDS) budgetField(`bg_${id}`).value = inputValue(state.budget.estimate.suggested[id] || null);
+  if (e.target.dataset.act !== 'bg-use' || !state.budget.estimate.average) return;
+  for (const [id] of BUDGET_KINDS) budgetField(`bg_${id}`).value = inputValue(Math.round(state.budget.estimate.average[id]) || null);
   renderBudgetParts();
   saveBudget().catch((err) => toast(err.message));
 });
