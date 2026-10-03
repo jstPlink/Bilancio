@@ -929,14 +929,14 @@ function renderBudgetTab() {
   const b = state.budget;
   const rows = BUDGET_KINDS.map(([id, label]) => `<tr><th scope="row"><i class="key" style="--c:${BUDGET_COLORS[id]}"></i> ${label}</th>
     <td><input name="bg_${id}" inputmode="decimal" value="${inputValue(b.budgets[id] ?? null)}" placeholder="–" aria-label="Budget mensile ${label}"></td>
-    <td class="num" data-avg="${id}"></td>
+    <td class="num" data-avg="${id}" data-label="Di solito"></td>
     <td class="bgprog" data-prog="${id}"></td></tr>`).join('');
   budgetBox.innerHTML = `
     <div id="bgSummary" class="cards"></div>
     <section class="chartcard"><h3>Come si divide l'entrata media</h3>
       <div id="bgSplit"></div></section>
     <div id="bgVerdict"></div>
-    <div class="tablewrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget al mese (€)</th><th class="num">Di solito</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="bgwrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget (€)</th><th class="num">Di solito</th><th>Speso questo mese</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="bgEst" class="bgest"></div>
     <small class="muted">Il budget si salva da solo. Il widget Android mostra ogni voce come un contenitore che si riempie man mano che spendi. Lascia vuoto per non avere un budget.</small>`;
   renderBudgetParts();

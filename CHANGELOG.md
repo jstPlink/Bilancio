@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.34.1
+- **Budget, barre a liquido**: la barra di ogni voce (speso nel mese su budget) ha onde che scorrono dentro il liquido e un bordo che ondeggia appena (si ferma con «riduci animazioni»). Solo nell'app: il widget Android non può animarsi.
+- **Budget, tabella compatta**: più bassa e senza «al mese» nel titolo; sta sempre nella larghezza dello schermo, senza scorrimento. Sul telefono ogni voce diventa un blocchetto (nome e budget, «Di solito», barra).
+
 ## 0.34.0
 - **Budget: il risparmio è un risultato**, non si imposta più: entrate medie (ultimi 3 mesi) − spese fisse medie − totale dei budget. Una barra a colori divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e risparmio (con un segno se si superano le entrate); per ogni voce una barra si riempie con quanto speso nel mese rispetto al budget. «Usa i consigli» diventa «Parti dalle medie». `/api/budget` restituisce anche le spese del mese (`spent`).
 - **Widget «Questo mese»**: i riquadri Spese, Carburante e Svago hanno ora gli stessi angoli tondi di «Da pagare» (sono disegni con angoli da 14dp che si riempiono dal basso, non più immagini stirate); «dal 1° OTT» ha un leggero sfondo che dice che si tocca e il mese è a tre lettere.
