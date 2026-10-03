@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.33.0
+- **Scheda Budget** (quinta scheda, non più nelle Impostazioni): budget di Spesa, Svago e Carburante e risparmio voluto, con le **entrate medie mensili** sempre in vista e il **totale dei budget** che si aggiorna a ogni cifra scritta, con l'esito «rientri / non rientri nelle entrate medie». Il budget si salva da solo.
+- **Entrate medie sugli ultimi 3 mesi** chiusi con entrate (prima seguivano i mesi usati per le spese). Le spese correnti restano sulla media degli ultimi 6 mesi chiusi.
+- **Widget «Questo mese»**: «dal 1° ottobre» più grande, a sinistra di «Da pagare», e un tocco apre la scheda Budget. Spese, Carburante e Svago sono **contenitori che si riempiono dal basso** su tutta la cella (bianco, arancione da 80%, rosso oltre il budget).
+
 ## 0.32.0
 - **Budget di spesa** (Impostazioni → Budget di spesa): budget mensile per Spesa, Svago e Carburante e risparmio mensile voluto. L'app stima le tre voci dalla media degli ultimi mesi chiusi e consiglia i budget per arrivare al risparmio (entrate medie − spese fisse − risparmio, tagli in proporzione). `GET`/`PUT /api/budget`; i budget viaggiano anche in `/api/grid`.
 - **Widget «Questo mese»**: titolo in alto, testo più grande del 10%, barra del budget in Spese, Carburante e Svago (bianca, gialla da 80%, rossa oltre), «Da pagare» rosso pieno quando resta qualcosa. Ogni riquadro apre l'app: Spese, Carburante e Svago i Movimenti del mese già filtrati per categoria, «Da pagare» la Panoramica.

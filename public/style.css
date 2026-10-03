@@ -526,3 +526,19 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
 .cnt { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 12px; font-weight: 600; }
 details.transfers { margin-top: 18px; }
 #settingsBtn .badge { margin-right: 4px; vertical-align: middle; }
+
+/* Scheda Budget */
+#budget .cards { margin-bottom: 10px; }
+.card.bgok { border-color: var(--accent); }
+.card.bgbad { background: var(--warn-bg); color: var(--warn-ink); border-color: transparent; }
+.card.bgbad .k, .card.bgbad .sub { color: inherit; opacity: .85; }
+.bgverdict { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; font-weight: 600; }
+.bgverdict.bgok { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.bgverdict.bgbad { background: var(--warn-bg); color: var(--warn-ink); }
+.bgtable { width: 100%; }
+.bgtable th, .bgtable td { padding: 8px 10px; text-align: left; }
+.bgtable td.num, .bgtable th.num { text-align: right; }
+.bgtable input, .bgsave input { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-weight: 600; width: 9rem; max-width: 100%; }
+.bgsave { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 10px; }
+#budget .bgest { margin-bottom: 10px; }
+.bgtable { min-width: 0; }

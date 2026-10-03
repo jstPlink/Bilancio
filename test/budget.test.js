@@ -95,3 +95,14 @@ test('budgetOverview: budget salvati e stima col risparmio impostato o provato',
   assert.equal(o.estimate.savings, 1100);
   assert.equal(budgetOverview(db, { now: NOW, savings: 0 }).estimate.savings, 0);
 });
+
+test('entrate medie: solo gli ultimi 3 mesi chiusi con entrate', () => {
+  const db = sample();
+  db.docs['busta-4'] = { name: 'Busta 4', kind: 'stipendio', year: 2026, month: 4, amount: 1000 };
+  db.docs['busta-6'] = { name: 'Busta 6', kind: 'stipendio', year: 2026, month: 6, amount: 1000 };
+  const e = estimateBudget(db, { now: NOW });
+  assert.equal(e.incomeMonths, 3);
+  assert.equal(e.income, 2000); // lug, ago, set: 2000 ciascuno; aprile e giugno restano fuori
+  db.docs['busta-9'].amount = 3100;
+  assert.equal(estimateBudget(db, { now: NOW }).income, 2366.67); // (2000 + 2000 + 3100) / 3
+});

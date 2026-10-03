@@ -98,11 +98,12 @@ public class MainActivity extends Activity {
         Reminders.scheduleAll(this);
     }
 
-    /** Dove aprire l'app quando arriva da un widget: «#moves/spesa» (Movimenti con quella categoria) o «#overview»; vuoto se è un avvio normale. */
+    /** Dove aprire l'app quando arriva da un widget: «#moves/spesa» (Movimenti con quella categoria), «#overview» o «#budget»; vuoto se è un avvio normale. */
     private static String hashOf(Intent i) {
         String open = i == null ? null : i.getStringExtra("open");
         if (open == null) return "";
         if ("overview".equals(open)) return "#overview";
+        if ("budget".equals(open)) return "#budget";
         String cat = i.getStringExtra("cat");
         if ("moves".equals(open) && cat != null && cat.matches("[a-z]{1,20}")) return "#moves/" + cat;
         return "";

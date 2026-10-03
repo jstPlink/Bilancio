@@ -48,6 +48,11 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
   I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
   altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
+- **Budget** (quinta scheda). Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget) e **quanto vorresti risparmiare ogni mese**; si salva da solo.
+  In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e quanto
+  ti resta (o ti manca) al mese: **a ogni cifra che scrivi il totale si aggiorna** e una riga dice se **rientri nelle entrate medie**. Accanto a ogni voce: «Di solito» (media delle spese degli ultimi mesi
+  chiusi, fino a 6; il mese in corso non conta) e **«Consigliato»** per arrivare al risparmio voluto. Il calcolo: entrate medie − spese fisse medie − risparmio voluto = quanto resta per le tre voci; se è meno
+  del solito, le tre voci si tagliano nella stessa proporzione; se nemmeno spendendo zero si arriva al risparmio voluto, te lo dice. «Usa i consigli» copia i valori nei budget.
 - **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
   *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
   I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
@@ -73,12 +78,12 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 L'app Android ha in più:
 - **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
   mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
-- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): in alto il titolo («Questo mese · dal 1° OTT»), sotto quattro riquadri affiancati con le cifre dal primo del mese in corso:
+- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): a sinistra «dal 1° ottobre» (un tocco apre la scheda **Budget**), poi quattro riquadri affiancati con le cifre dal primo del mese in corso:
   **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso pieno** finché resta qualcosa, verde quando è
-  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (Impostazioni → Budget di spesa), Spese, Carburante e Svago hanno
-  sotto una **barra che si riempie** con la spesa: bianca, gialla da 80% del budget, rossa quando lo superi; senza budget la barra non c'è. Stesse cifre delle colonne della Panoramica;
+  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (scheda Budget), i riquadri di Spese, Carburante e Svago sono
+  **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
   si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago aprono Movimenti sul mese in corso
-  già filtrati per quella categoria, «Da pagare» apre la Panoramica; il titolo e i bordi aprono l'app. (I budget arrivano dal server: serve la versione che li include.)
+  già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
@@ -98,10 +103,6 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
    - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
      stipendio né i giri tra i tuoi conti.
-   - **Budget di spesa**: quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget) e **quanto vorresti risparmiare ogni mese**. Sotto, l'app mostra la
-     **stima**: la media di queste tre voci sugli ultimi mesi chiusi (fino a 6, il mese in corso non conta) e un **budget consigliato** per arrivare al risparmio voluto. Il calcolo:
-     entrate medie − spese fisse medie (bollette, affitto, prestito, donazioni, tasse) − risparmio voluto = quanto resta per le tre voci; se è meno del solito, le tre voci si tagliano tutte nella stessa
-     proporzione; se nemmeno spendendo zero si arriva al risparmio voluto, te lo dice. «Usa i consigli» copia i valori nei budget; poi si salva come le altre impostazioni.
 2. In **Impostazioni → Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.

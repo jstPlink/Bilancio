@@ -3,80 +3,97 @@
     android:id="@+id/widget_month_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="4dp"
+    android:paddingTop="6dp"
     android:paddingBottom="6dp"
     android:background="@drawable/widget_bg">
 
-    <!-- Titolo in alto: «Questo mese · dal 1° OTT» -->
-    <TextView
-        android:id="@+id/widget_month_abbr"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingLeft="4dp"
-        android:paddingBottom="2dp"
-        android:textColor="#CCFFFFFF"
-        android:textSize="9.9sp"
-        android:textStyle="bold"
-        android:singleLine="true" />
-
+    <!-- «dal 1° ottobre»: da quando partono le cifre; un tocco apre la scheda Budget -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:id="@+id/widget_month_since_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.2"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="2dp"
+        android:paddingRight="2dp">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="dal 1°"
+            android:textColor="#CCFFFFFF"
+            android:textSize="11sp"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_month_since"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="14.3sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Da pagare: rosso pieno se resta qualcosa, verde chiaro se è tutto pagato -->
+    <LinearLayout
+        android:id="@+id/widget_month_due_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.15"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp"
+        android:background="@drawable/widget_cell_due">
+        <TextView
+            android:id="@+id/widget_month_topay_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Da pagare"
+            android:textColor="#E6FFFFFF"
+            android:textSize="11sp"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_month_topay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="16.5sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Spese: il riquadro è un contenitore che si riempie dal basso in proporzione al budget -->
+    <FrameLayout
+        android:id="@+id/widget_month_spese_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="horizontal">
-
-        <!-- Da pagare: rosso pieno se resta qualcosa, verde chiaro se è tutto pagato -->
-        <LinearLayout
-            android:id="@+id/widget_month_due_cell"
-            android:layout_width="0dp"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp">
+        <ImageView
+            android:id="@+id/widget_month_spese_fill"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1.15"
-            android:layout_marginLeft="2dp"
-            android:layout_marginRight="2dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="6dp"
-            android:paddingRight="6dp"
-            android:background="@drawable/widget_cell_due">
-            <TextView
-                android:id="@+id/widget_month_topay_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Da pagare"
-                android:textColor="#E6FFFFFF"
-                android:textSize="11sp"
-                android:singleLine="true" />
-            <TextView
-                android:id="@+id/widget_month_topay"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="16.5sp"
-                android:textStyle="bold"
-                android:singleLine="true" />
-        </LinearLayout>
-
-        <!-- Spese -->
-        <LinearLayout
-            android:id="@+id/widget_month_spese_cell"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginLeft="2dp"
-            android:layout_marginRight="2dp"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingLeft="6dp"
-            android:paddingRight="6dp"
-            android:background="@drawable/widget_cell">
+            android:paddingRight="6dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Spese"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#E6FFFFFF"
                 android:textSize="11sp"
                 android:singleLine="true" />
             <TextView
@@ -87,33 +104,34 @@
                 android:textSize="15.4sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
-            <ImageView
-                android:id="@+id/widget_month_spese_bar"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="2dp"
-                android:scaleType="fitXY"
-                android:visibility="gone" />
         </LinearLayout>
+    </FrameLayout>
 
-        <!-- Carburante -->
-        <LinearLayout
-            android:id="@+id/widget_month_carburante_cell"
-            android:layout_width="0dp"
+    <!-- Carburante -->
+    <FrameLayout
+        android:id="@+id/widget_month_carburante_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp">
+        <ImageView
+            android:id="@+id/widget_month_carburante_fill"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginLeft="2dp"
-            android:layout_marginRight="2dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="6dp"
-            android:paddingRight="6dp"
-            android:background="@drawable/widget_cell">
+            android:paddingRight="6dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Carburante"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#E6FFFFFF"
                 android:textSize="11sp"
                 android:singleLine="true" />
             <TextView
@@ -124,33 +142,34 @@
                 android:textSize="15.4sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
-            <ImageView
-                android:id="@+id/widget_month_carburante_bar"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="2dp"
-                android:scaleType="fitXY"
-                android:visibility="gone" />
         </LinearLayout>
+    </FrameLayout>
 
-        <!-- Svago -->
-        <LinearLayout
-            android:id="@+id/widget_month_svago_cell"
-            android:layout_width="0dp"
+    <!-- Svago -->
+    <FrameLayout
+        android:id="@+id/widget_month_svago_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp">
+        <ImageView
+            android:id="@+id/widget_month_svago_fill"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginLeft="2dp"
-            android:layout_marginRight="2dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="6dp"
-            android:paddingRight="6dp"
-            android:background="@drawable/widget_cell">
+            android:paddingRight="6dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Svago"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#E6FFFFFF"
                 android:textSize="11sp"
                 android:singleLine="true" />
             <TextView
@@ -161,13 +180,6 @@
                 android:textSize="15.4sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
-            <ImageView
-                android:id="@+id/widget_month_svago_bar"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="2dp"
-                android:scaleType="fitXY"
-                android:visibility="gone" />
         </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

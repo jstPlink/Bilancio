@@ -4,7 +4,8 @@ import { buildCells, EXPENSE_KINDS, INCOME_KINDS, SPENDING_KINDS } from './grid.
 // Il budget sta nelle impostazioni (`settings.budgets`, `settings.savingsGoal`); la stima si ricalcola a ogni richiesta.
 
 export const BUDGET_KINDS = ['spese', 'svago', 'carburante'];
-export const ESTIMATE_MONTHS = 6; // quanti mesi chiusi, al massimo, entrano nella media
+export const ESTIMATE_MONTHS = 6; // quanti mesi chiusi, al massimo, entrano nella media delle spese
+export const INCOME_MONTHS = 3;   // le entrate medie si calcolano sugli ultimi 3 mesi chiusi con entrate
 
 const round = (n) => Math.round(n * 100) / 100;
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -20,7 +21,7 @@ export function cleanBudgets(input) {
 }
 
 /**
- * La stima: media mensile di ciascuna voce sugli ultimi mesi chiusi (il mese in corso non c'è ancora tutto) e, da lì,
+ * La stima: media mensile di ciascuna voce sugli ultimi mesi chiusi (il mese in corso non c'è ancora tutto; le entrate medie usano gli ultimi 3) e, da lì,
  * i budget consigliati per arrivare al risparmio voluto.
  *   disponibile = entrate medie − spese fisse medie (bollette, affitto, prestito, donazioni, tasse) − risparmio voluto
  * Se i budget abituali stanno nel disponibile, il consiglio è la media stessa; se no, si tagliano le tre voci tutte nella stessa
@@ -48,20 +49,23 @@ export function estimateBudget(db, { now = new Date(), savings = db.settings?.sa
     .sort((a, b) => a[0] - b[0]).slice(-window);
   const ym = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
 
+  // Entrate medie: ultimi 3 mesi chiusi con entrate, anche se in quei mesi non c'erano ancora spese correnti.
+  const incomeUsed = [...months.entries()].filter(([, m]) => m.income > 0).sort((a, b) => a[0] - b[0]).slice(-INCOME_MONTHS);
+  const income = incomeUsed.length ? round(sum(incomeUsed.map(([, m]) => m.income)) / incomeUsed.length) : null;
+
   const result = {
+    incomeMonths: incomeUsed.length, income,
     months: used.length, from: used.length ? ym(used[0][0]) : null, to: used.length ? ym(used.at(-1)[0]) : null,
-    average: null, income: null, fixed: null, savings: goal,
+    average: null, fixed: null, savings: goal,
     available: null, savingsNoCuts: null, suggested: null, expectedSavings: null, reachable: true,
   };
   if (!used.length) return result;
 
   const n = used.length;
   const average = Object.fromEntries(BUDGET_KINDS.map((k) => [k, round(sum(used.map(([, m]) => m.spend[k])) / n)]));
-  const incomeMonths = used.filter(([, m]) => m.income > 0);
-  const income = incomeMonths.length ? round(sum(incomeMonths.map(([, m]) => m.income)) / incomeMonths.length) : null;
   const fixed = round(sum(used.map(([, m]) => m.fixed)) / n);
   const usual = sum(Object.values(average));
-  Object.assign(result, { average, income, fixed });
+  Object.assign(result, { average, fixed });
 
   if (income == null) {
     // Senza entrate non si può dire quanto resta: si consiglia la media.

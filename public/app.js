@@ -849,14 +849,6 @@ async function openSettings() {
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </div></details>
     <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
-    <details class="fs" id="bgBox"><summary>Budget di spesa</summary><div class="fsbody">
-      <small>Quanto vuoi spendere al mese per ogni voce. Il widget Android mostra una barra che si riempie man mano che spendi; lascia vuoto per non avere un budget.</small>
-      <div class="row">
-        ${BUDGET_KINDS.map(([id, label]) => `<label>${label} (€ al mese)<input name="bg_${id}" inputmode="decimal" value="${inputValue(s.budgets?.[id] ?? null)}" placeholder="–"></label>`).join('')}
-      </div>
-      <label>Quanto vorrei risparmiare ogni mese (€)<input name="bgSavings" inputmode="decimal" value="${inputValue(s.savingsGoal || null)}" placeholder="0"></label>
-      <div id="bgEst" class="bgest"><small class="muted">Calcolo la stima…</small></div>
-    </div></details>
     <details class="fs"><summary>Riconoscimento automatico</summary><div class="fsbody">
       <small>Lo stipendio (già nelle buste paga) e i giri tra i tuoi conti non si contano due volte. Nome e datore di lavoro si ricavano da soli dalle buste paga e dai movimenti: non serve scriverli.</small>
       <small><b>Stipendio da:</b> ${esc(s.incomePayers) || '— (si impara dopo due buste paga abbinate ai bonifici)'}<br><b>I miei conti (nome):</b> ${esc(s.ownNames) || '— (si impara dai giri tra i tuoi conti)'}</small>
@@ -876,27 +868,15 @@ async function openSettings() {
   loadDocs().catch(() => {});
   dlg.addEventListener('close', () => { docs.hidden = true; $('main').appendChild(docs); }, { once: true });
   // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
-  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom', ...BUDGET_KINDS.map(([id]) => `bg_${id}`), 'bgSavings'];
+  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom'];
   const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
   const initial = snapshot();
-  const budgetOld = JSON.stringify([...BUDGET_KINDS.map(([id]) => form[`bg_${id}`].value), form.bgSavings.value]);
   const dirty = () => snapshot() !== initial;
   const refreshFoot = () => { $('#setFoot').hidden = !dirty(); };
   // Promemoria: i loro campi non fanno parte del «Salva» delle impostazioni (hanno un salvataggio loro) e Invio non invia il pannello.
   form.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.name?.startsWith('rem')) e.preventDefault(); });
   form.addEventListener('change', (e) => { if (e.target.name === 'remRepeat') syncReminderEditor(); if (e.target.dataset.act === 'rem-toggle') reminderAction(e.target); });
   if ($('#remBody')) renderReminders();
-  // Budget: la stima si ricalcola quando cambia il risparmio voluto; «Usa i consigli» riempie i tre budget.
-  let estimate = null;
-  let estimateTimer;
-  const loadEstimate = () => {
-    const goal = parseInput(form.bgSavings.value);
-    if (Number.isNaN(goal)) return;
-    api(`/api/budget?savings=${goal ?? 0}`).then((o) => { estimate = o.estimate; renderBudgetEstimate(estimate); })
-      .catch((err) => { $('#bgEst').innerHTML = `<small class="error">${esc(err.message)}</small>`; });
-  };
-  loadEstimate();
-  form.bgSavings.addEventListener('input', () => { clearTimeout(estimateTimer); estimateTimer = setTimeout(loadEstimate, 350); });
   form.addEventListener('input', refreshFoot);
   form.addEventListener('change', refreshFoot);
   const leave = () => { if (!dirty() || confirm('Hai modifiche non salvate. Uscire senza salvare?')) dlg.close(); };
@@ -904,10 +884,6 @@ async function openSettings() {
   form.addEventListener('click', (e) => {
     if (e.target.closest('[data-act=close]')) leave();
     if (e.target.dataset.act === 'logout') logout();
-    if (e.target.dataset.act === 'bg-use' && estimate?.suggested) {
-      for (const [id] of BUDGET_KINDS) form[`bg_${id}`].value = inputValue(estimate.suggested[id] || null);
-      form.dispatchEvent(new Event('input', { bubbles: true }));
-    }
     if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
     if (e.target.dataset.act?.startsWith('rem-') && e.target.dataset.act !== 'rem-toggle') reminderAction(e.target);
   });
@@ -924,12 +900,6 @@ async function openSettings() {
           rentFrom: form.rentFrom.value,
         },
       });
-      const budgetNew = JSON.stringify([...BUDGET_KINDS.map(([id]) => form[`bg_${id}`].value), form.bgSavings.value]);
-      if (budgetNew !== budgetOld) {
-        const budgets = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, parseInput(form[`bg_${id}`].value)]));
-        if (Object.values(budgets).some(Number.isNaN) || Number.isNaN(parseInput(form.bgSavings.value))) throw new Error('Budget o risparmio non validi.');
-        await api('/api/budget', { method: 'PUT', body: { budgets, savingsGoal: parseInput(form.bgSavings.value) ?? 0 } });
-      }
       dlg.close();
       toast('Impostazioni salvate. Premi Aggiorna per leggere i documenti.');
       await loadGrid();
@@ -939,28 +909,99 @@ async function openSettings() {
   loadBanking().catch((err) => { $('#bkBody').innerHTML = `<p class="error">${esc(err.message)}</p>`; });
 }
 
-// Stima del budget: media dei mesi chiusi e consigli per arrivare al risparmio voluto (calcolati dal server).
-function renderBudgetEstimate(e) {
+// ------------------------------------------------------------------- scheda Budget
+
+// Budget mensile di Spesa, Svago e Carburante, con le entrate medie degli ultimi 3 mesi e il totale che si aggiorna a ogni cifra scritta.
+const budgetBox = $('#budgetBody');
+state.budget = null;
+let budgetTimer;
+
+async function loadBudget(savings) {
+  state.budget = await api(`/api/budget${savings == null ? '' : `?savings=${savings}`}`);
+  if (savings == null) renderBudgetTab(); else renderBudgetParts();
+}
+
+const budgetField = (name) => budgetBox.querySelector(`[name=${name}]`);
+const budgetNumber = (name) => { const n = parseInput(budgetField(name)?.value); return Number.isNaN(n) ? 0 : n ?? 0; };
+
+function renderBudgetTab() {
+  const b = state.budget;
+  const rows = BUDGET_KINDS.map(([id, label]) => `<tr><th scope="row">${label}</th>
+    <td><input name="bg_${id}" inputmode="decimal" value="${inputValue(b.budgets[id] ?? null)}" placeholder="–" aria-label="Budget mensile ${label}"></td>
+    <td class="num" data-avg="${id}"></td><td class="num" data-sug="${id}"></td></tr>`).join('');
+  budgetBox.innerHTML = `
+    <div id="bgSummary" class="cards"></div>
+    <div id="bgVerdict"></div>
+    <div class="tablewrap"><table class="bgtable"><thead><tr><th>Voce</th><th>Budget al mese (€)</th><th class="num">Di solito</th><th class="num">Consigliato</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <label class="bgsave">Quanto vorrei risparmiare ogni mese (€)<input name="bgSavings" inputmode="decimal" value="${inputValue(b.savingsGoal || null)}" placeholder="0"></label>
+    <div id="bgEst" class="bgest"></div>
+    <small class="muted">Il budget si salva da solo. Il widget Android mostra ogni voce come un contenitore che si riempie man mano che spendi. Lascia vuoto per non avere un budget.</small>`;
+  renderBudgetParts();
+}
+
+// Totali e consigli: si ricalcolano a ogni cifra scritta (il server dà la stima, il totale si fa qui).
+function renderBudgetParts() {
+  const e = state.budget.estimate;
+  const total = BUDGET_KINDS.reduce((a, [id]) => a + budgetNumber(`bg_${id}`), 0);
+  const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
+  const left = e.income == null ? null : Math.round((e.income - e.fixed - total) * 100) / 100;
+  const ok = left != null && left >= 0;
+  $('#bgSummary').innerHTML = [
+    card('Entrate medie al mese', e.income == null ? '—' : money(e.income), e.income == null ? 'Nessuna entrata nei mesi chiusi' : `ultimi ${e.incomeMonths} mesi chiusi`),
+    card('Spese fisse medie', e.fixed == null ? '—' : money(e.fixed), 'bollette, affitto, prestito, tasse…'),
+    card('Totale budget', money(total), BUDGET_KINDS.map(([id, label]) => `${label} ${money(budgetNumber(`bg_${id}`))}`).join(' · ')),
+    card(ok ? 'Ti resta al mese' : 'Ti manca al mese', left == null ? '—' : money(Math.abs(left)), left == null ? '' : ok ? 'dopo spese fisse e budget' : 'sopra le entrate medie', left == null ? '' : ok ? 'bgok' : 'bgbad'),
+  ].join('');
+  $('#bgVerdict').innerHTML = left == null ? '' : ok
+    ? `<p class="bgverdict bgok">Rientri nelle entrate medie: ${money(e.income)} − ${money(e.fixed)} di spese fisse − ${money(total)} di budget = ${money(left)} al mese${e.savings > 0 ? (left >= e.savings ? ` (il risparmio voluto di ${money(e.savings)} è raggiunto)` : ` (ma il risparmio voluto è ${money(e.savings)}: mancano ${money(e.savings - left)})`) : ''}.</p>`
+    : `<p class="bgverdict bgbad">Non rientri nelle entrate medie: il budget di ${money(total)} più ${money(e.fixed)} di spese fisse supera di ${money(-left)} i ${money(e.income)} al mese.</p>`;
+
+  for (const [id] of BUDGET_KINDS) {
+    budgetBox.querySelector(`[data-avg=${id}]`).textContent = e.average ? money(e.average[id]) : '–';
+    budgetBox.querySelector(`[data-sug=${id}]`).textContent = e.suggested ? money(e.suggested[id]) : '–';
+  }
   const box = $('#bgEst');
-  if (!box) return;
   if (!e.months) { box.innerHTML = '<small class="muted">Non ho ancora abbastanza dati per una stima: servono movimenti di spesa, svago o carburante di almeno un mese già chiuso.</small>'; return; }
-  const lines = BUDGET_KINDS.map(([id, label]) => `<li><b>${label}</b>: di solito ${money(e.average[id])} al mese · consigliato <b>${money(e.suggested[id])}</b></li>`).join('');
   const usual = Object.values(e.average).reduce((a, b) => a + b, 0);
   const planned = Object.values(e.suggested).reduce((a, b) => a + b, 0);
-  const notes = [];
+  const notes = [`Di solito = media degli ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).`];
   if (e.income != null) {
-    notes.push(`Entrate medie ${money(e.income)} e spese fisse (bollette, affitto, prestito, tasse…) ${money(e.fixed)}: se spendi come al solito ti restano ${money(e.savingsNoCuts)} al mese.`);
+    notes.push(`Se spendi come al solito ti restano ${money(e.savingsNoCuts)} al mese.`);
     if (e.savings > 0) {
       if (!e.reachable) notes.push(`<b class="warnline">Per risparmiare ${money(e.savings)} al mese non basta:</b> anche senza spesa, svago e carburante mancherebbero ${money(-e.available)}.`);
       else if (planned < usual) notes.push(`Per mettere da parte ${money(e.savings)} al mese puoi spendere ${money(e.available)} in tutto per queste tre voci: ${money(usual - planned)} in meno del solito, tagliati in parti uguali.`);
       else notes.push(`Per mettere da parte ${money(e.savings)} al mese non serve tagliare: hai già margine.`);
     }
-  } else notes.push('Non ho entrate nei mesi usati, quindi il consiglio è la media e non posso calcolare il risparmio.');
-  box.innerHTML = `<small class="muted">Stima sugli ultimi ${e.months} mesi chiusi (${monthLong(e.from)} – ${monthLong(e.to)}).</small>
-    <ul class="bglist">${lines}</ul>
-    ${notes.map((n) => `<small>${n}</small>`).join('')}
-    <div class="foot"><button type="button" class="ghost" data-act="bg-use">Usa i consigli</button></div>`;
+  }
+  box.innerHTML = `${notes.map((n) => `<small>${n}</small>`).join('')}<div class="foot"><button type="button" class="ghost" data-act="bg-use">Usa i consigli</button></div>`;
 }
+
+async function saveBudget() {
+  const budgets = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, parseInput(budgetField(`bg_${id}`).value)]));
+  const goal = parseInput(budgetField('bgSavings').value);
+  if (Object.values(budgets).some(Number.isNaN) || Number.isNaN(goal)) return toast('Importo non valido.');
+  state.budget = await api('/api/budget', { method: 'PUT', body: { budgets, savingsGoal: goal ?? 0 } });
+  renderBudgetParts();
+  toast('Budget salvato.', 1800);
+}
+
+budgetBox.addEventListener('input', (e) => {
+  if (!state.budget) return;
+  renderBudgetParts();
+  if (e.target.name === 'bgSavings') {
+    // il risparmio voluto cambia i consigli: li richiede al server
+    clearTimeout(budgetTimer);
+    const goal = parseInput(e.target.value);
+    if (!Number.isNaN(goal)) budgetTimer = setTimeout(() => loadBudget(goal ?? 0).catch(() => {}), 350);
+  }
+});
+budgetBox.addEventListener('change', () => { saveBudget().catch((err) => toast(err.message)); });
+budgetBox.addEventListener('click', (e) => {
+  if (e.target.dataset.act !== 'bg-use' || !state.budget.estimate.suggested) return;
+  for (const [id] of BUDGET_KINDS) budgetField(`bg_${id}`).value = inputValue(state.budget.estimate.suggested[id] || null);
+  renderBudgetParts();
+  saveBudget().catch((err) => toast(err.message));
+});
 
 // ------------------------------------------------------------------- promemoria (solo app Android)
 
@@ -1266,10 +1307,11 @@ const banks = mountBanks($('#banksBody'), api, toast);
 
 function showTab(name) {
   document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
-  for (const id of ['overview', 'moves', 'analysis', 'banks']) $(`#${id}`).hidden = id !== name;
+  for (const id of ['overview', 'moves', 'analysis', 'banks', 'budget']) $(`#${id}`).hidden = id !== name;
   $('#years').hidden = name !== 'overview';
   if (name === 'moves' || name === 'analysis') loadBank().catch((err) => toast(err.message));
   if (name === 'banks') banks.load().catch((err) => toast(err.message));
+  if (name === 'budget') loadBudget().catch((err) => { budgetBox.innerHTML = `<p class="error">${esc(err.message)}</p>`; });
 }
 
 document.addEventListener('click', (e) => {
@@ -1353,7 +1395,7 @@ async function logout() {
 }
 $('#logoutBtn').addEventListener('click', logout);
 
-// Dal widget Android: #moves/<categoria> apre i Movimenti del mese in corso filtrati per quella categoria, #overview la Panoramica.
+// Dal widget Android: #moves/<categoria> apre i Movimenti del mese in corso filtrati per quella categoria, #overview la Panoramica, #budget il Budget.
 // Il widget aggiunge in coda un numero, così lo stesso tocco ripetuto cambia comunque l'indirizzo.
 const HASH_CATS = new Set(['spesa', 'svago', 'carburante']);
 function openFromHash() {
@@ -1366,6 +1408,7 @@ function openFromHash() {
     $('#moveSearch').value = '';
     showTab('moves');
   } else if (dest === 'overview') showTab('overview');
+  else if (dest === 'budget') showTab('budget');
 }
 window.addEventListener('hashchange', openFromHash);
 openFromHash();
