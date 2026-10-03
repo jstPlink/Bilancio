@@ -89,7 +89,9 @@ L'app Android ha in più:
   già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
 - **Widget «Questo mese (stime al giorno)»** (Widget → Bilancio, 5×2): copia del widget precedente, che resta com'è, con in più in ogni riquadro di spesa, carburante e svago due righe: la **spesa stimata al giorno**
   («stima», il budget diviso i giorni del mese) e la **spesa reale al giorno** («reale», quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore della stima, rossa se è peggiore**;
-  senza budget non c'è confronto. Il codice dei due layout si rigenera con `node scripts/genera-widget.mjs`.
+  senza budget non c'è confronto. Il codice dei due layout si rigenera con `node scripts/genera-widget.mjs` (lì si cambia anche il tempo di cambio fotogramma).
+  **Regolare l'onda** (in `MonthWidget.java`): `FRAMES` (fotogrammi di un giro; oggi 16, ognuno mostrato 285 ms: un giro dura 4,6 s), `AMPLITUDE` (altezza dell'onda in pixel del disegno 56×40; oggi 0,9) e `CRESTS` (quante onde nella larghezza del riquadro; oggi 2).
+  Per rallentare basta alzare l'intervallo in `genera-widget.mjs`, per mantenerla fluida servono più fotogrammi (pesano poco, ma il widget va aggiornato con meno di 1 MB).
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
@@ -304,10 +306,10 @@ conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.
 ```
 public/        pagine (index.html, app.js, charts.js, style.css, login.html)
 src/           server Express: server.js, banking.js (banche collegate), uploads.js (documenti caricati), grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
-               statements.js e pdfstatements.js (banca), bankexplorer.js (scheda Banche: saldi, andamento, nomi dei pocket), billmatch.js, identity.js (nome e datore di lavoro),
-               ocr.js, sources.js (cartelle e Seafile), auth.js, store.js, proxy-server.js (localhost collegato al server)
-scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs, banca-finta.mjs e demo-banche.mjs (banca e demo con dati finti)
-android/       app Android (manifest, codice Java, script che inietta le chiamate al server)
+               statements.js e pdfstatements.js (banca), bankexplorer.js (scheda Banche: saldi, andamento, nomi dei pocket), billmatch.js, identity.js (nome e datore di lavoro, giroconti visti dai due lati),
+               budget.js (budget di spesa e stime sul server), ocr.js, sources.js (cartelle e Seafile), auth.js, store.js, proxy-server.js (localhost collegato al server)
+scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs, genera-widget.mjs (layout dei due widget «Questo mese»), banca-finta.mjs e demo-banche.mjs (banca e demo con dati finti)
+android/       app Android (manifest, codice Java: MainActivity, widget MonthWidget e MonthWidgetDetail, Due, Month…; script che inietta le chiamate al server)
 test/          node --test; free-port.js sceglie porte libere per i test che avviano un server vero
 ```
 

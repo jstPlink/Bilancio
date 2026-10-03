@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.35.4
+- **Documentazione**: struttura del progetto aggiornata (`budget.js`, `genera-widget.mjs`, widget Android) e come regolare velocità, ampiezza e numero di onde del widget.
+
 ## 0.35.3
 - **Widget**: l'ampiezza dell'onda è dimezzata (superficie più piatta, ondina appena accennata).
 
