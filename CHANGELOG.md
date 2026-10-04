@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.40.2
+- **Panoramica**: tutte le celle della tabella sono scure come lo sfondo; solo i titoli Entrate, Uscite e Bilancio sono leggermente colorati.
+
 ## 0.40.1
 - **Movimenti in sospeso, date e verso**: la data è la prima valida fra registrazione, valuta e operazione (una data vuota non nasconde più le altre); senza indicatore entrata/uscita si guarda il segno dell'importo. In Movimenti la riga sopra l'elenco dice quanti sono in sospeso e già contati.
 - **Panoramica**: celle normali nel colore base dell'app; Entrate, Uscite e Bilancio colorate.

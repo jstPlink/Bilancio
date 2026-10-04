@@ -646,11 +646,10 @@ details.bankconn[open] > summary.bk-head { margin-bottom: 12px; }
   .mv-l2 { padding-left: 26px; }
 }
 
-/* Panoramica: le celle normali hanno il colore base dell'app; Entrate, Uscite e Bilancio (e le loro righe di media e da pagare) sono colorate */
-#grid thead th, #grid tbody td, #grid tfoot td { background: var(--bg); }
-#grid thead th.total, #grid tbody td.total, #grid tfoot td.total { background: color-mix(in srgb, var(--accent) 24%, var(--surface)); }
-#grid tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, var(--bg)); }
-#grid tbody tr:hover td.total { background: color-mix(in srgb, var(--accent) 30%, var(--surface)); }
+/* Panoramica: tutte le celle scure come lo sfondo; solo i titoli Entrate, Uscite e Bilancio sono leggermente colorati */
+#grid tbody td, #grid tfoot td, #grid tbody th[scope=row], #grid tbody tr:hover th[scope=row], #grid tfoot th, #grid thead th, #grid thead th.g-month { background: var(--bg); }
+#grid thead th.total { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); color: var(--ink); }
+#grid tbody tr:hover td, #grid tbody tr:hover th[scope=row] { background: color-mix(in srgb, var(--accent) 6%, var(--bg)); }
 
 /* Impostazioni: stessa estetica del resto dell'app — pagina su fondo base, sezioni come riquadri, campi e pulsanti come altrove */
 #settingsDlg { width: min(760px, calc(100vw - 24px)); background: var(--bg); border: 1px solid var(--line); }

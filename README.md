@@ -18,7 +18,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 
 ## Le schede
 
-- **Panoramica.** La tabella ha le celle normali nel colore base dell'app, e **Entrate, Uscite e Bilancio** (con le loro righe di media e da pagare) colorate col colore dell'app. In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
+- **Panoramica.** La tabella ha tutte le celle scure come lo sfondo; solo i titoli **Entrate, Uscite e Bilancio** sono leggermente colorati. In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
   entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
   nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci di *Crispiano* in una sola
   colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
