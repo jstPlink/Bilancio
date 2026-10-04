@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.40.4
+- **Banche, pagamenti in sospeso**: accanto a ogni pagamento in sospeso un'etichetta dice se è già nei dati dell'app e se conta nelle somme: «contato · Spesa», «non contato · Altro» (è in Movimenti ma la categoria non conta: cambiala lì), «non ancora nell'app» (premi Aggiorna) o «non leggibile». Serve a capire subito perché un sospeso non compare nelle spese o nel widget.
+- **Versione in alto**: tolto «locale».
+- **Regole di progetto**: commit e push solo quando l'utente li chiede; a ogni modifica restano versione, changelog, test e installazione dell'APK (CLAUDE.md, README).
+
 ## 0.40.3
 - **Panoramica**: la colonna dei mesi (titolo, nomi dei mesi e righe di media e da pagare) ha lo stesso colore leggero dei titoli Entrate, Uscite e Bilancio.
 

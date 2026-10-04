@@ -1432,7 +1432,7 @@ $('#settingsBtn').addEventListener('click', () => openSettings().catch((err) => 
 api('/api/version').then(({ version, serverVersion, protected: hasPassword }) => {
   // In localhost collegato al server: pagine locali, dati del server.
   const local = serverVersion !== undefined;
-  $('#version').textContent = `v${version}${local ? ' · locale' : ''}`;
+  $('#version').textContent = `v${version}`;
   if (local) $('#version').title = `Pagine di questa cartella (v${version}) con i dati del server${serverVersion ? ` (v${serverVersion})` : ''}`;
   state.protected = hasPassword;
   $('#logoutBtn').hidden = !hasPassword;

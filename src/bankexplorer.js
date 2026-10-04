@@ -1,6 +1,7 @@
 // Analisi dei dati originali letti dalle banche (copia in db.banking.snapshots) per la scheda «Banche».
 // Solo lettura: niente qui crea o cambia movimenti, categorie o totali dell'app.
-import { BANKS, SYNCS_PER_DAY, bankingState } from './banking.js';
+import { BANKS, SYNCS_PER_DAY, bankingState, mapTransaction } from './banking.js';
+import { CATEGORY_KIND, NOT_COUNTED } from './statements.js';
 
 const DAY = 86400000;
 const round = (n) => Math.round(n * 100) / 100;
@@ -153,7 +154,14 @@ export function buildExplore(db, now = Date.now()) {
       const dates = a.booked.map(dateOf).filter(Boolean).sort();
       for (const [status, list] of [['BOOK', a.booked], ['PDNG', a.pending]]) {
         for (const tx of list) {
-          rows.push({ key: `${acc.uid}|${status}|${rawKey(tx)}`, account: acc.uid, status, date: dateOf(tx) || (status === 'PDNG' ? String(snap.fetchedAt ?? '').slice(0, 10) : ''), amount: Number.isFinite(amountOf(tx)) ? round(signedOf(tx)) : null, currency: tx.transaction_amount?.currency ?? '', party: partyOf(tx), remittance: remittanceOf(tx), raw: tx });
+          // Per i sospesi: sono già nei dati dell'app (Panoramica, Movimenti, widget)? E con quale categoria, contano nelle somme?
+          let inApp = null;
+          if (status === 'PDNG') {
+            const mapped = mapTransaction(tx, conn, acc, db.rules ?? {}, new Map(), true, String(snap.fetchedAt ?? '').slice(0, 10));
+            const mine = mapped ? db.transactions?.[mapped.id] : null;
+            inApp = !mapped ? { state: 'illeggibile' } : !mine ? { state: 'assente' } : { state: 'presente', category: mine.category, date: mine.date, counted: Boolean(CATEGORY_KIND[mine.category]) && !NOT_COUNTED.has(mine.category) };
+          }
+          rows.push({ inApp, key: `${acc.uid}|${status}|${rawKey(tx)}`, account: acc.uid, status, date: dateOf(tx) || (status === 'PDNG' ? String(snap.fetchedAt ?? '').slice(0, 10) : ''), amount: Number.isFinite(amountOf(tx)) ? round(signedOf(tx)) : null, currency: tx.transaction_amount?.currency ?? '', party: partyOf(tx), remittance: remittanceOf(tx), raw: tx });
         }
       }
       const holder = acc.name || a.details?.name || 'Conto';

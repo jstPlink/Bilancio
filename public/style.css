@@ -669,3 +669,4 @@ details.bankconn[open] > summary.bk-head { margin-bottom: 12px; }
 #settingsDlg .foot.sticky { background: var(--bg); border-top: 1px solid var(--line); }
 #settingsDlg #docsBox { background: color-mix(in srgb, var(--accent) 9%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 @media (max-width: 720px) { #settingsDlg { width: 100vw; border: 0; } #settingsDlg .dlg { padding: 14px; } #settingsDlg .dlghead { margin: -14px -14px 4px; padding: 12px 14px; } }
+.pill.err { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }

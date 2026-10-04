@@ -248,3 +248,20 @@ test('readAndMerge: una sola lettura aggiorna la copia della scheda Banche e por
   await readAndMerge({ client, db, conn, now: NOW + 3600000 });
   assert.equal(Object.values(db.transactions).filter((t) => t.pending).length, 0);
 });
+
+test('scheda Banche: per ogni pagamento in sospeso si dice se è già nell\'app e se conta nelle somme', async () => {
+  const { readAndMerge } = await import('../src/banking.js');
+  const db = makeDb();
+  const conn = makeConn();
+  db.banking.connections.push(conn);
+  const pend = (id, name) => ({ ...tx(id, '2026-10-01', -5, name), booking_date: undefined, value_date: '2026-10-01', status: 'PDNG' });
+  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [pend('p1', 'Supermercato Coop'), pend('p2', 'Ferramenta Rossi')] : [] }), balances: async () => ({ balances: [] }), details: async () => ({}) };
+  await readAndMerge({ client, db, conn, now: NOW });
+  const rows = () => buildExplore(db, NOW).connections[0].transactions.filter((t) => t.status === 'PDNG');
+  const by = Object.fromEntries(rows().map((t) => [t.party, t.inApp]));
+  assert.deepEqual([by['Supermercato Coop'].state, by['Supermercato Coop'].counted, by['Supermercato Coop'].category], ['presente', true, 'spesa']);
+  assert.deepEqual([by['Ferramenta Rossi'].state, by['Ferramenta Rossi'].counted], ['presente', false]); // categoria «altro»: si vede ma non si somma
+  // un sospeso nella copia ma non ancora nei dati dell'app (copia letta da un server vecchio)
+  for (const id of Object.keys(db.transactions)) if (db.transactions[id].pending) delete db.transactions[id];
+  assert.ok(rows().every((t) => t.inApp.state === 'assente'));
+});

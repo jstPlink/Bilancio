@@ -318,7 +318,6 @@ test/          node --test; free-port.js sceglie porte libere per i test che avv
 ```
 
 - `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.
-- **A ogni modifica dell'app si aggiorna anche il telefono**: oltre a versione, `CHANGELOG.md`, commit, tag e push, si installa l'APK nuovo con `npm run apk:installa` (su Windows con `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`).
-- **A ogni push la versione sale**: `npm version <x.y.z> --no-git-tag-version`, una voce in `CHANGELOG.md`, commit e tag `vX.Y.Z` (push anche dei tag).
-  La versione compare accanto al nome nell'app.
+- **A ogni modifica dell'app** la versione sale (`npm version <x.y.z> --no-git-tag-version`), si aggiunge una voce in `CHANGELOG.md`, si eseguono i test e si installa l'APK sul telefono con `npm run apk:installa`
+  (su Windows con `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
 - I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.

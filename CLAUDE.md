@@ -5,12 +5,13 @@ Vedi README.md per le schede, le impostazioni e il funzionamento.
 
 ## Regole di rilascio
 
-- **Ad ogni push aggiorna la versione**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`),
-  aggiungi la voce in `CHANGELOG.md`, committa, crea il tag `vX.Y.Z` e pusha anche i tag.
-- **Ad ogni modifica dell'app aggiorna anche il telefono**, senza aspettare che l'utente lo chieda: dopo test e rilascio (versione, changelog, commit, tag, push)
-  costruisci e installa l'APK con `npm run apk:installa`. Su Windows serve `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`
-  (da Git Bash: `ANDROID_HOME="$LOCALAPPDATA/Android/Sdk" npm run apk:installa`). Se il telefono non risponde a adb, dillo all'utente.
-  Ricorda sempre che il server (NAS) si aggiorna a parte: `docker compose pull && docker compose up -d` dopo che GitHub ha costruito l'immagine.
+- **Commit e push solo quando l'utente li chiede.** Non committare né pushare di tua iniziativa dopo ogni modifica.
+- **Ad ogni modifica dell'app**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`) e aggiungi la voce in `CHANGELOG.md`
+  (così sul telefono si riconosce la versione), esegui `npm test` e **aggiorna il telefono** senza aspettare che l'utente lo chieda, costruendo e installando l'APK con `npm run apk:installa`.
+  Su Windows serve `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk` (da Git Bash: `ANDROID_HOME="$LOCALAPPDATA/Android/Sdk" npm run apk:installa`). Se il telefono non risponde a adb, dillo all'utente.
+  Le modifiche restano non committate finché l'utente non chiede commit e push.
+- **Quando l'utente chiede commit e push**: committa tutto, crea il tag `vX.Y.Z` della versione corrente e pusha anche i tag (le voci di `CHANGELOG.md` non ancora pubblicate vanno insieme).
+  Ricorda che il server (NAS) si aggiorna a parte: `docker compose pull && docker compose up -d` dopo che GitHub ha costruito l'immagine.
 - Semver: patch per correzioni, minor per nuove funzioni, major per cambi incompatibili.
 - Non committare mai `data/`, PDF, chiavi o link privati (sono in `.gitignore`).
 - Dopo modifiche a `src/` esegui `npm test`.

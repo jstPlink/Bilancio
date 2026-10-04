@@ -83,6 +83,17 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
       <div class="bk-moves"><div class="bk-movehead"><h3 class="bk-section">Movimenti <span class="muted">· ${c.transactionsTotal} in tutto${c.transactionsTotal > c.transactions.length ? `, i ${c.transactions.length} più recenti` : ''}</span></h3>${filters}</div><div data-rows="${esc(c.id)}"></div></div>`);
   };
 
+  // Un pagamento in sospeso è nell'app (Panoramica, Movimenti, widget)? Conta nelle somme? Dipende dalla categoria.
+  const CAT_NAMES = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bollette', giroconti: 'Giroconto', sospesi: 'Da suddividere', altro: 'Altro', entrate: 'Entrate' };
+  const inAppPill = (a) => {
+    if (!a) return '';
+    if (a.state === 'assente') return ' <span class="pill err" title="Non è ancora nei dati dell\'app: premi Aggiorna">non ancora nell\'app</span>';
+    if (a.state === 'illeggibile') return ' <span class="pill err" title="La banca non ha dato un importo leggibile: l\'app non può contarlo">non leggibile</span>';
+    const name = CAT_NAMES[a.category] ?? a.category;
+    return a.counted ? ` <span class="pill ok" title="Nell'app dal ${fmtDate(a.date)} e contato nelle somme">contato · ${esc(name)}</span>`
+      : ` <span class="pill edit" title="È nell'app (Movimenti) ma la categoria «${esc(name)}» non conta nelle somme: cambiala in Movimenti">non contato · ${esc(name)}</span>`;
+  };
+
   function rowsHtml(c) {
     const s = stateOf(c.id);
     const needle = s.q.trim().toLowerCase();
@@ -94,7 +105,7 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
       const open = s.open.has(t.key);
       return `<tr class="mv${open ? ' open' : ''}" data-bkrow="${esc(t.key)}">
         <td class="dcol">${fmtDate(t.date)}</td>
-        <td class="st">${t.status === 'PDNG' ? '<span class="pill warn">In sospeso</span>' : '<span class="pill ok">Registrato</span>'}</td>
+        <td class="st">${t.status === 'PDNG' ? `<span class="pill warn">In sospeso</span>${inAppPill(t.inApp)}` : '<span class="pill ok">Registrato</span>'}</td>
         <td class="ac muted">${esc(names[t.account] ?? '')}</td>
         <td class="fname party" title="${esc(t.party)}">${esc(t.party) || '<span class="muted">–</span>'}</td>
         <td class="fname rem" title="${esc(t.remittance)}">${esc(t.remittance) || '<span class="muted">–</span>'}</td>
