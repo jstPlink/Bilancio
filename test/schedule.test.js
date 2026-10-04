@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nextDailyRun } from '../src/schedule.js';
+import { nextDailyRun, nextRun } from '../src/schedule.js';
 
 const at = (iso) => nextDailyRun(new Date(iso), 5, 'Europe/Rome').toISOString();
 
@@ -16,4 +16,12 @@ test('aggiornamento delle 5: attraversa il cambio dell\'ora legale', () => {
   assert.equal(at('2026-10-24T10:00:00Z'), '2026-10-25T04:00:00.000Z');
   // il 29 marzo 2026 alle 2:00 l'ora va avanti: le 5:00 di quel giorno sono in ora legale (03:00 UTC)
   assert.equal(at('2026-03-28T10:00:00Z'), '2026-03-29T03:00:00.000Z');
+});
+
+test('aggiornamento automatico: 5, 12 e 17 ogni giorno', () => {
+  const n = (iso) => nextRun(new Date(iso), [5, 12, 17], 'Europe/Rome').toISOString();
+  assert.equal(n('2026-10-04T01:00:00Z'), '2026-10-04T03:00:00.000Z'); // le 3: prossimo alle 5
+  assert.equal(n('2026-10-04T03:00:00Z'), '2026-10-04T10:00:00.000Z'); // dopo le 5: alle 12
+  assert.equal(n('2026-10-04T10:00:00Z'), '2026-10-04T15:00:00.000Z'); // dopo le 12: alle 17
+  assert.equal(n('2026-10-04T15:00:00Z'), '2026-10-05T03:00:00.000Z'); // dopo le 17: domani alle 5
 });

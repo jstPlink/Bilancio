@@ -16,7 +16,7 @@ import { learnIdentity } from './identity.js';
 import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, readAndMerge, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildBankWidget, buildExplore } from './bankexplorer.js';
 import { reconcileBankAndFiles } from './reconcile.js';
-import { AUTO_READ_HOUR, AUTO_READ_TZ, nextDailyRun } from './schedule.js';
+import { AUTO_READ_HOURS, AUTO_READ_TZ, nextRun } from './schedule.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -378,8 +378,8 @@ app.post('/api/banking/sync', async (req, res) => {
 });
 
 // Scheda «Banche»: i dati originali delle banche, in una copia separata che non entra in Panoramica, Movimenti né Statistiche.
-// L'aggiornamento automatico di ogni notte: a che ora e come è andato l'ultimo.
-const exploreUi = () => ({ ...buildExplore(db()), auto: { hour: AUTO_READ_HOUR, last: bankingState(db()).lastAuto ?? null } });
+// L'aggiornamento automatico delle banche: a che ore e come è andato l'ultimo.
+const exploreUi = () => ({ ...buildExplore(db()), auto: { hours: AUTO_READ_HOURS, last: bankingState(db()).lastAuto ?? null } });
 app.get('/api/banking/explore', (req, res) => res.json(exploreUi()));
 
 // Per il widget Android di una banca: saldo e ultimi movimenti dell'ultima copia letta (non chiama la banca).
@@ -537,7 +537,7 @@ app.put('/api/transactions', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Aggiornamento automatico di tutte le banche collegate ogni giorno alle 5 (ora italiana): è un accesso automatico, senza le intestazioni dell'utente presente.
+// Aggiornamento automatico di tutte le banche collegate ogni giorno alle 5, alle 12 e alle 17 (ora italiana): è un accesso automatico, senza le intestazioni dell'utente presente.
 // Le altre letture le fai tu a mano durante la giornata. Un errore (consenso scaduto, banca che non risponde) si registra e non ferma nulla.
 async function autoRead() {
   const b = bankingState(db());
@@ -554,7 +554,7 @@ async function autoRead() {
   console.log(`Aggiornamento automatico delle banche: ${added} nuovi movimenti${errors.length ? `, errori: ${errors.join(' · ')}` : ''}`);
 }
 function scheduleAutoRead() {
-  const when = nextDailyRun(new Date(), AUTO_READ_HOUR, AUTO_READ_TZ);
+  const when = nextRun(new Date(), AUTO_READ_HOURS, AUTO_READ_TZ);
   const timer = setTimeout(async () => {
     try { await autoRead(); } catch (e) { console.error('Aggiornamento automatico delle banche non riuscito:', e.message); }
     scheduleAutoRead();

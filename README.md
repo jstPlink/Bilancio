@@ -164,9 +164,9 @@ estratti. Usa [Enable Banking](https://enablebanking.com), gratuito per uso pers
 se la banca lo dà, il saldo dopo il movimento). Non le carte di credito UniCredit, né investimenti o pagamenti ricorrenti. Lo storico dipende dalla
 banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90 giorni.
 
-**Quando si legge dalle banche:** (1) **ogni giorno alle 5 del mattino, in automatico, da tutte le banche collegate** (ora italiana, anche se il server gira in UTC; lo fa il server, non serve aprire l'app; l'esito dell'ultima lettura automatica è scritto in cima alla scheda Banche;
-`BILANCIO_AUTO_READ_HOUR` cambia l'ora, `BILANCIO_NO_AUTO_READ=1` la spegne); (2) quando premi **Aggiorna** nella scheda Banche o **Aggiorna ora** in Impostazioni → Collega le banche (fanno la stessa cosa: una lettura che aggiorna tutto), quante volte vuoi fino al tetto giornaliero (vedi «Limiti»).
-La lettura automatica è un accesso senza utente presente e conta come una delle letture del giorno. **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
+**Quando si legge dalle banche:** (1) **ogni giorno alle 5, alle 12 e alle 17, in automatico, da tutte le banche collegate** (ora italiana, anche se il server gira in UTC; lo fa il server, non serve aprire l'app; l'esito dell'ultima lettura automatica è scritto in cima alla scheda Banche;
+`BILANCIO_AUTO_READ_HOUR` cambia le ore (un elenco, es. `5,12,17`), `BILANCIO_NO_AUTO_READ=1` la spegne); (2) quando premi **Aggiorna** nella scheda Banche o **Aggiorna ora** in Impostazioni → Collega le banche (fanno la stessa cosa: una lettura che aggiorna tutto), quante volte vuoi fino al tetto giornaliero (vedi «Limiti»).
+Le letture automatiche sono accessi senza utente presente e contano come tre delle 4 letture giornaliere concesse dalle banche a questi accessi. **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
 **Limiti:** da **Aggiorna ora** e **Leggi dalla banca** (e dalla lettura dopo il collegamento) puoi leggere a mano **fino a 10 volte al giorno per banca** (finestra mobile di 24 ore; il contatore è unico per tutte queste letture).

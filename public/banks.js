@@ -130,7 +130,7 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
   function render() {
     if (!data) return;
     const auto = data.auto
-      ? `<p class="bk-auto muted">Aggiornamento automatico ogni giorno alle ${data.auto.hour}:00${data.auto.last ? ` · ultimo: ${fmtDateTime(data.auto.last.at)}${data.auto.last.errors?.length ? ` (errori: ${esc(data.auto.last.errors.join(' · '))})` : `, ${data.auto.last.added} nuovi movimenti`}` : ''}. Gli altri li fai tu con «Aggiorna».</p>`
+      ? `<p class="bk-auto muted">Aggiornamento automatico ogni giorno alle ${(data.auto.hours ?? [data.auto.hour]).join(', ')}${data.auto.last ? ` · ultimo: ${fmtDateTime(data.auto.last.at)}${data.auto.last.errors?.length ? ` (errori: ${esc(data.auto.last.errors.join(' · '))})` : `, ${data.auto.last.added} nuovi movimenti`}` : ''}. Gli altri li fai tu con «Aggiorna».</p>`
       : '';
     const note = '';
     if (!data.configured || !data.connections.length) {

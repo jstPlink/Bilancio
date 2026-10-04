@@ -1,5 +1,7 @@
-// Orario dell'aggiornamento automatico notturno delle banche: ogni giorno alle 5:00 (ora italiana, anche se il server gira in UTC).
-export const AUTO_READ_HOUR = Number(process.env.BILANCIO_AUTO_READ_HOUR ?? 5);
+// Orari dell'aggiornamento automatico delle banche: ogni giorno alle 5:00, 12:00 e 17:00 (ora italiana, anche se il server gira in UTC).
+// `BILANCIO_AUTO_READ_HOUR` accetta un'ora o un elenco separato da virgole (es. «5,12,17»).
+export const AUTO_READ_HOURS = String(process.env.BILANCIO_AUTO_READ_HOUR ?? '5,12,17').split(',').map((h) => Number(h.trim())).filter((h) => Number.isInteger(h) && h >= 0 && h < 24);
+export const AUTO_READ_HOUR = AUTO_READ_HOURS[0] ?? 5;
 export const AUTO_READ_TZ = process.env.BILANCIO_TZ ?? 'Europe/Rome';
 
 // Differenza (ms) tra l'ora locale del fuso e UTC in quell'istante: +7200000 per l'Italia d'estate.
@@ -20,4 +22,9 @@ export function nextDailyRun(now = new Date(), hour = AUTO_READ_HOUR, timeZone =
   let at = target - offsetAt(target - offsetAt(ts, timeZone), timeZone);
   if (at <= ts) at += 86400000;
   return new Date(at);
+}
+
+/** Il prossimo istante tra quelli di tutti gli orari dati. */
+export function nextRun(now = new Date(), hours = AUTO_READ_HOURS, timeZone = AUTO_READ_TZ) {
+  return new Date(Math.min(...hours.map((h) => nextDailyRun(now, h, timeZone).getTime())));
 }

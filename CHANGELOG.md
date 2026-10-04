@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.41.1
+- **Banche**: correzione dell'errore «Cannot read properties of undefined (reading join)» con un server non ancora aggiornato.
+
+## 0.41.0
+- **Aggiornamento automatico delle banche tre volte al giorno**: alle 5, alle 12 e alle 17 (ora italiana). Restano sotto il tetto di 4 accessi automatici al giorno; `BILANCIO_AUTO_READ_HOUR` accetta un elenco di ore (es. `5,12,17`). La scheda Banche mostra tutti gli orari (e funziona anche con un server non ancora aggiornato).
+
 ## 0.40.4
 - **Banche, pagamenti in sospeso**: accanto a ogni pagamento in sospeso un'etichetta dice se è già nei dati dell'app e se conta nelle somme: «contato · Spesa», «non contato · Altro» (è in Movimenti ma la categoria non conta: cambiala lì), «non ancora nell'app» (premi Aggiorna) o «non leggibile». Serve a capire subito perché un sospeso non compare nelle spese o nel widget.
 - **Versione in alto**: tolto «locale».
