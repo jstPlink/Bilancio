@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.40.1
+- **Movimenti in sospeso, date e verso**: la data è la prima valida fra registrazione, valuta e operazione (una data vuota non nasconde più le altre); senza indicatore entrata/uscita si guarda il segno dell'importo. In Movimenti la riga sopra l'elenco dice quanti sono in sospeso e già contati.
+- **Panoramica**: celle normali nel colore base dell'app; Entrate, Uscite e Bilancio colorate.
+- **Impostazioni**: stessa estetica del resto dell'app (fondo base, sezioni come riquadri, campi e intestazione come altrove).
+
 ## 0.40.0
 - **Aggiornamento automatico delle banche ogni giorno alle 5** (ora italiana), da tutte le banche collegate; l'esito è in cima alla scheda Banche. Gli altri aggiornamenti si fanno a mano con **Aggiorna**.
 - **Pagamenti in sospeso senza data** (come li dà a volte la banca) venivano scartati: ora contano dal giorno in cui si leggono, e nella scheda Banche stanno in cima all'elenco.

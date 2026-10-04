@@ -534,7 +534,7 @@ function renderMoves() {
   const list = filteredMoves();
   const out = list.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   const inn = list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const summary = `<p class="muted resultline">${list.length} movimenti · uscite ${money(out)} · entrate ${money(inn)} <span title="Comprese le bollette già contate nei documenti, che non entrano nei totali dell'app. I giroconti stanno nella sezione in fondo">(${periodLabel()})</span>. Tocca un movimento per vederne i dati completi. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
+  const summary = `<p class="muted resultline">${list.length} movimenti${list.some((t) => t.pending) ? ` (${list.filter((t) => t.pending).length} in sospeso, già contati)` : ''} · uscite ${money(out)} · entrate ${money(inn)} <span title="Comprese le bollette già contate nei documenti, che non entrano nei totali dell'app. I giroconti stanno nella sezione in fondo">(${periodLabel()})</span>. Tocca un movimento per vederne i dati completi. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
   const flowName = { in: 'solo entrate', out: 'solo uscite' }[state.bank.flow];
   const filter = (state.bank.cat ? `<p class="catfilter">Categoria: <b>${esc(catName(state.bank.cat))}</b> <button class="link" data-clearcat="1">Togli il filtro</button></p>` : '')
     + (flowName ? `<p class="catfilter">Mostro <b>${flowName}</b> <button class="link" data-clearflow="1">Mostra tutto</button></p>` : '');

@@ -27,8 +27,9 @@ export function flatten(value, prefix = '', out = new Map()) {
   return out;
 }
 
-const dateOf = (tx) => String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '').slice(0, 10);
-const isCredit = (tx) => tx.credit_debit_indicator === 'CRDT';
+const dayOf = (v) => { const d = String(v ?? '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : ''; };
+const dateOf = (tx) => dayOf(tx.booking_date) || dayOf(tx.value_date) || dayOf(tx.transaction_date);
+const isCredit = (tx) => (tx.credit_debit_indicator ? tx.credit_debit_indicator === 'CRDT' : Number(tx.transaction_amount?.amount) > 0);
 const amountOf = (tx) => Math.abs(Number(tx.transaction_amount?.amount));
 const signedOf = (tx) => (isCredit(tx) ? amountOf(tx) : -amountOf(tx));
 const remittanceOf = (tx) => (Array.isArray(tx.remittance_information) ? tx.remittance_information.join(' ') : String(tx.remittance_information ?? '')).replace(/\s+/g, ' ').trim();

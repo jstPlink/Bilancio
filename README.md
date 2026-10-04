@@ -18,7 +18,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 
 ## Le schede
 
-- **Panoramica.** In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
+- **Panoramica.** La tabella ha le celle normali nel colore base dell'app, e **Entrate, Uscite e Bilancio** (con le loro righe di media e da pagare) colorate col colore dell'app. In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
   entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
   nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci di *Crispiano* in una sola
   colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
@@ -30,7 +30,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 - **Movimenti.** I movimenti della banca collegata e degli estratti conto caricati, in un solo elenco. Un solo pulsante **Filtra** (col numero dei filtri attivi) apre anno, mese, categoria, ricerca e «Ordina per». Ogni movimento è un riquadro: in alto **data, importo
   e, a destra, il menu della categoria**; sotto la **descrizione**. I pagamenti allo stesso ente (stessa descrizione) sono accorpati in un riquadro con «×n» e la somma: un tocco lo apre sui singoli pagamenti. Toccando un movimento si apre il **dettaglio completo** dentro lo stesso riquadro:
   giorno della settimana e ora, metodo (carta, bonifico, prelievo…), commissione e valuta, saldo dopo il pagamento, testo completo della banca, gli altri pagamenti con la stessa
-  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. I pagamenti ancora in sospeso hanno l'etichetta «in sospeso».
+  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. I pagamenti ancora in sospeso hanno l'etichetta «in sospeso» e una **linea arancione sul bordo sinistro**; la riga sopra l'elenco dice quanti ce ne sono e che sono già contati. **Contano nei totali solo se la loro categoria conta** (Spesa, Svago, Carburante…): un pagamento in «Altro» si vede ma non si somma, finché non cambi la categoria.
   **Giroconti:** i giri di denaro tra i tuoi conti e pocket non sono nell'elenco: stanno nella sezione «Giroconti tra i tuoi conti» in fondo alla scheda, e non entrano in nessun
   totale né in Panoramica e Statistiche (vedi «Riconoscimento automatico»).
 - **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…; i giroconti non ci sono): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,

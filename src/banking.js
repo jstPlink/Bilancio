@@ -177,8 +177,10 @@ export async function finishLink({ client, db, code, state, now = Date.now() }) 
 export function mapTransaction(tx, conn, account, rules, seen = new Map(), pending = false, fallbackDate = '') {
   const amount = Math.abs(Number(tx.transaction_amount?.amount));
   if (!Number.isFinite(amount)) return null;
-  const credit = tx.credit_debit_indicator === 'CRDT';
-  let date = String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '').slice(0, 10);
+  // senza indicatore entrata/uscita (alcune banche) si guarda il segno dell'importo; la data è la prima valida fra registrazione, valuta e operazione
+  const credit = tx.credit_debit_indicator ? tx.credit_debit_indicator === 'CRDT' : Number(tx.transaction_amount?.amount) > 0;
+  const day = (v) => { const d = String(v ?? '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : ''; };
+  let date = day(tx.booking_date) || day(tx.value_date) || day(tx.transaction_date);
   // Un pagamento in sospeso può non avere ancora nessuna data: conta dal giorno in cui lo si legge, così non si perde.
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) && pending && /^\d{4}-\d{2}-\d{2}$/.test(fallbackDate)) date = fallbackDate;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;

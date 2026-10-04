@@ -253,3 +253,16 @@ test('movimento in sospeso senza nessuna data: conta dal giorno in cui lo si leg
   // un registrato senza data resta scartato come prima
   assert.equal(mapTransaction({ ...nodate, transaction_id: 'x' }, { bank: 'revolut' }, { uid: 'u1' }, {}), null);
 });
+
+test('date e verso dei movimenti: data vuota o nulla → la prima valida; senza indicatore si guarda il segno', () => {
+  const conn = { bank: 'revolut' };
+  const base = { transaction_amount: { amount: '5.00', currency: 'EUR' }, creditor: { name: 'Bar' } };
+  const a = mapTransaction({ ...base, transaction_id: '1', booking_date: '', value_date: '2026-10-03', credit_debit_indicator: 'DBIT' }, conn, { uid: 'u' }, {});
+  assert.equal(a.date, '2026-10-03');
+  const b = mapTransaction({ ...base, transaction_id: '2', booking_date: null, value_date: null, transaction_date: '2026-10-02T10:11:12Z', credit_debit_indicator: 'DBIT' }, conn, { uid: 'u' }, {});
+  assert.equal(b.date, '2026-10-02');
+  const c = mapTransaction({ ...base, transaction_id: '3', value_date: '2026-10-03', transaction_amount: { amount: '-9.99', currency: 'EUR' } }, conn, { uid: 'u' }, {});
+  assert.equal(c.amount, -9.99);
+  const d = mapTransaction({ ...base, transaction_id: '4', value_date: '2026-10-03', transaction_amount: { amount: '20', currency: 'EUR' }, creditor: undefined, debtor: { name: 'Mario' } }, conn, { uid: 'u' }, {});
+  assert.equal(d.amount, 20);
+});
