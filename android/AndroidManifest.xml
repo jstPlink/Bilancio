@@ -18,25 +18,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver android:name=".DueWidget" android:label="Da pagare" android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_due_info" />
-        </receiver>
-        <receiver android:name=".MonthWidget" android:label="Questo mese" android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_month_info" />
-        </receiver>
-        <receiver android:name=".MonthWidgetDetail" android:label="Questo mese (stime al giorno)" android:exported="true">
+        <receiver android:name=".MonthWidgetDetail" android:label="Questo mese" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_month2_info" />
         </receiver>
-        <receiver android:name=".BankWidget" android:label="Revolut" android:exported="true">
+        <receiver android:name=".BankWidget" android:label="Saldo" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

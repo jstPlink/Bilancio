@@ -38,7 +38,7 @@ test('bolletta senza dati utili: incompleta, con i campi mancanti', () => {
 
 test('griglia: da pagare, medie; solo le spese si inseriscono a mano', () => {
   const db = {
-    settings: { rentAmount: 500, rentFrom: '2026-01' },
+    settings: { rentAmount: 500, rentFrom: '2026-01', billShare: 100 },
     docs: {
       a: { name: 'a', kind: 'luce', year: 2026, month: 1, amount: 40, status: 'ok' },
       b: { name: 'b', kind: 'luce', year: 2026, month: 2, amount: 60, status: 'ok' },

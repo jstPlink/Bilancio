@@ -42,7 +42,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
   Il nome compare anche nel filtro per conto e nelle righe dei movimenti. Poi **quali campi la banca fornisce davvero e in quanti movimenti**, i principali interlocutori, i pagamenti
   ricorrenti riconosciuti e tutti i movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga). **Leggi dalla banca**
-  aggiorna la copia; conta come una delle 4 letture giornaliere concesse dalle banche.
+  aggiorna la copia; conta come una delle 10 letture giornaliere (vedi «Limiti»).
   **Storico:** le banche concedono pochi mesi (Revolut, di norma, solo 90 giorni; l'app ne chiede 12 e, se la banca rifiuta, lo scrive sotto al conto con il motivo).
   Ad ogni lettura i movimenti già letti restano nella copia e si aggiungono i nuovi, quindi lo storico cresce nel tempo; quello precedente alla prima lettura
   non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
@@ -79,22 +79,18 @@ npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wirel
 ```
 
 L'app Android ha in più:
-- **Widget «Da pagare»** (tieni premuto sulla Home → Widget → Bilancio): un blocchetto con la scritta e il totale ancora da pagare. Si aggiorna ogni
-  mezz'ora, quando apri l'app e quando segni qualcosa come pagato; un tocco apre l'app.
-- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1): a sinistra «dal 1° OTT» (mese a tre lettere, su un leggero sfondo che dice che si tocca: apre la scheda **Budget**), poi quattro riquadri affiancati con le cifre dal primo del mese in corso:
-  **Da pagare** (le voci non ancora pagate, con quante sono), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso pieno** finché resta qualcosa, verde quando è
-  tutto pagato; gli altri tre, già pagati, sono bianchi sul fondo turchese. Se hai impostato un **budget** (scheda Budget), i riquadri di Spese, Carburante e Svago sono
-  **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; la superficie del liquido è un'**onda sinusoidale che scorre verso destra** (fotogrammi alternati da un ViewFlipper: consuma un po' di batteria finché la Home è visibile); senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
-  si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago aprono Movimenti sul mese in corso
-  già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
-- **Widget «Questo mese (stime al giorno)»** (Widget → Bilancio, 5×1, testi più grandi): copia del widget precedente, che resta com'è, con in più in spesa, carburante e svago una riga `stima→reale/g`:
-  la **spesa stimata al giorno** (il budget diviso i giorni del mese) e la **spesa reale al giorno** (quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore della stima, rossa se è peggiore**;
-  senza budget non c'è confronto. Il codice dei layout si rigenera con `node scripts/genera-widget.mjs` (lì si cambia anche il tempo di cambio fotogramma).
+- **Widget «Questo mese»** (Widget → Bilancio → Questo mese, 5×1, testi grandi; è l'unico widget del mese: «Da pagare» e la versione semplice sono stati tolti): a sinistra «dal 1° OTT» (mese a tre lettere, su un leggero sfondo che dice che si tocca: apre la scheda **Budget**),
+  poi quattro riquadri affiancati con le cifre dal primo del mese in corso: **Da pagare** (le voci non ancora pagate, con quante sono, **nella tua quota**: vedi «Bollette»), **Spese**, **Carburante** e **Svago**. «Da pagare» ha un colore tutto suo: **rosso**
+  finché resta qualcosa, verde quando è tutto pagato. Se hai impostato un **budget** (scheda Budget), i riquadri di Spese, Carburante e Svago sono **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi,
+  arancioni da 80% del budget, rossi quando lo superi; la superficie del liquido è un'**onda sinusoidale che scorre verso destra** (fotogrammi alternati da un ViewFlipper: consuma un po' di batteria finché la Home è visibile); senza budget il riquadro resta vuoto.
+  In ogni riquadro di spesa c'è anche una riga `stima→reale/g`: la **spesa stimata al giorno** (il budget diviso i giorni del mese) e la **spesa reale al giorno** (quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore
+  della stima, rossa se è peggiore**; senza budget non c'è confronto. Stesse cifre delle colonne della Panoramica; si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago
+  aprono Movimenti sul mese in corso già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
+  Il codice del layout si rigenera con `node scripts/genera-widget.mjs` (lì si cambia anche il tempo di cambio fotogramma).
   **Regolare l'onda** (in `MonthWidget.java`): `FRAMES` (fotogrammi di un giro; oggi 16, ognuno mostrato 285 ms: un giro dura 4,6 s), `AMPLITUDE` (altezza dell'onda in pixel del disegno 56×40; oggi 0,9) e `CRESTS` (quante onde nella larghezza del riquadro; oggi 2).
   Per rallentare basta alzare l'intervallo in `genera-widget.mjs`, per mantenerla fluida servono più fotogrammi (pesano poco, ma il widget va aggiornato con meno di 1 MB).
-- **Widget «Revolut»** (Widget → Bilancio, 4×1): **saldo totale in euro** (conti e pocket) e **ultimo movimento** (in sospeso se non ancora registrato), con scritto da quando sono i dati. **Non è in tempo reale**: legge dal server l'ultima copia
-  della scheda Banche e non chiama mai la banca (le banche concedono poche letture al giorno). Si aggiorna quando premi «Leggi dalla banca» o «Aggiorna ora» nell'app e ogni mezz'ora rilegge dal server; un tocco apre la scheda Banche.
-  Serve il server alla versione che ha `/api/banking/widget` (0.36.0).
+- **Widget «Saldo»** (Widget → Bilancio, 4×1; mostra Revolut): **saldo totale in euro** (conti e pocket) e **ultimo movimento** (in sospeso se non ancora registrato), con scritto da quando sono i dati. **Non è in tempo reale**: legge dal server l'ultima copia
+  della scheda Banche e non chiama mai la banca. Si aggiorna quando premi «Leggi dalla banca» o «Aggiorna ora» nell'app e ogni mezz'ora rilegge dal server; un tocco apre la scheda Banche. Serve il server alla versione che ha `/api/banking/widget` (0.36.0).
 - **Anteprima nella lista dei widget**: ogni widget ha un'anteprima statica con dati di esempio (`previewLayout`, Android 12 e successivi, generata da `scripts/genera-widget.mjs`) e, da Android 15, l'anteprima **con i tuoi dati veri**,
   aggiornata dal widget stesso (al massimo una volta l'ora). Se ne hai già uno sulla Home e l'anteprima non cambia, il launcher la tiene in cache: riavvialo o aspetta.
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
@@ -116,6 +112,7 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
    - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
      stipendio né i giri tra i tuoi conti.
+   - **Bollette**: la **tua quota di acqua, luce, gas e wifi** (di norma 50%: convivi e le dividi). L'app conta solo la tua parte (nelle uscite, nel «Da pagare», nel widget, nella notifica e nel budget); i PDF e l'importo dei documenti restano interi. Cambia la percentuale per cambiare la quota; l'affitto non è diviso.
 2. In **Impostazioni → Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
@@ -171,16 +168,15 @@ banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90
 Movimenti) o **Leggi dalla banca** nella scheda Banche (aggiorna la copia). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
-**Limiti:** le banche concedono 4 letture al giorno per collegamento, e le letture a mano contano tutte: **Aggiorna ora**, **Leggi dalla banca** e la lettura dopo il collegamento usano lo stesso contatore (finestra mobile
-di 24 ore, per ogni banca). Alla quinta l'app rifiuta con «massimo 4 letture al giorno» senza chiamare la banca; la lettura torna disponibile quando la più vecchia ha compiuto 24 ore.
-Il limite viene dalla normativa PSD2 (art. 36 delle norme tecniche RTS) e vale per gli accessi **senza l'utente presente**; le richieste fatte mentre l'utente è davanti all'app non hanno il tetto, ma vanno segnalate alla banca
-con le intestazioni `Psu-Ip-Address`, `Psu-User-Agent`… (tutte o nessuna) che l'app oggi **non invia**: per questo conta ogni lettura come «senza utente». Inviarle è possibile, ma la banca può comunque applicare limiti suoi.
+**Limiti:** da **Aggiorna ora** e **Leggi dalla banca** (e dalla lettura dopo il collegamento) puoi leggere a mano **fino a 10 volte al giorno per banca** (finestra mobile di 24 ore; il contatore è unico per tutte queste letture).
+Alla undicesima l'app rifiuta con «massimo 10 letture al giorno» senza chiamare la banca. Il tetto normale delle banche è 4 al giorno (PSD2, art. 36 delle norme tecniche RTS) e vale per gli accessi **senza l'utente presente**; per le letture fatte a mano l'app invia
+le intestazioni «PSU» (`Psu-Ip-Address`, `Psu-User-Agent`, `Psu-Accept-Language`… ricavate dalla richiesta del browser o dell'app) che dichiarano alla banca che la lettura l'ha chiesta una persona in quel momento. Se la banca le rifiuta, l'app riprova subito senza.
+**Non è garantito che ogni banca accetti più di 4 letture**: se Revolut o UniCredit rispondono con un errore di limite, il messaggio compare nell'app e vale il tetto della banca. Il consenso dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco.
+I movimenti già importati da CSV/PDF (stessa data e importo) non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
 
 **Movimenti Revolut che «mancano» dopo la lettura.** Cause possibili, in ordine di probabilità: (1) **«Leggi dalla banca»** aggiorna solo la scheda Banche; per portarli in Panoramica e Movimenti serve **Aggiorna ora** (Impostazioni → Collega le banche);
 (2) i pagamenti con la carta restano **in sospeso** per uno o due giorni: in Banche si vedono come «in sospeso» ma entrano in Movimenti solo quando la banca li registra; (3) sono stati riconosciuti come **giroconti** (soldi tra i tuoi conti o pocket) e stanno nella sezione
-«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data era già stato importato da un CSV o PDF e non si duplica; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0). Il consenso
-dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
-non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
+«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data era già stato importato da un CSV o PDF e non si duplica; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0).
 
 **Demo della scheda Banche.** `npm run demo:banche` avvia la banca finta e un'app di prova su `http://localhost:4871` (password `demo-banche`) con dati inventati,
 in un database a parte (`data/demo-banche`): serve a provare la scheda anche quando il server vero non ha ancora la versione nuova. UniCredit parte già

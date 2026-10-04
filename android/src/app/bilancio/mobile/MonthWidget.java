@@ -18,16 +18,15 @@ import java.util.Calendar;
 import java.util.Locale;
 
 /**
- * Widget «Questo mese» (5×1): a sinistra «dal 1° OTT» (apre la scheda Budget), poi quattro riquadri affiancati, tutti dal primo del mese.
+ * Widget «Questo mese» (5×1, testi grandi; è l'unico widget del mese, registrato come {@link MonthWidgetDetail}): a sinistra «dal 1° OTT» (apre la scheda Budget), poi quattro riquadri affiancati, tutti dal primo del mese.
  * «Da pagare» ha un colore tutto suo (rosso se resta qualcosa, verde se è tutto pagato); spese, carburante e svago sono già pagati
  * e, se c'è un budget, il loro riquadro è un contenitore che si riempie dal basso in proporzione alla spesa, con la superficie ad
  * onda sinusoidale che scorre verso destra. Ogni riquadro apre l'app: «Da pagare» sulla Panoramica, gli altri sui Movimenti del mese
  * filtrati per la loro categoria; il resto del widget apre l'app dall'inizio.
- * La copia {@link MonthWidgetDetail} (5×1, testi più grandi) aggiunge in ogni riquadro la spesa stimata al giorno e quella reale.
+ * In ogni riquadro di spesa c'è anche la spesa stimata al giorno e quella reale.
  */
 public class MonthWidget extends AppWidgetProvider {
-    /** La copia con le spese al giorno ridefinisce questo metodo. */
-    boolean detailed() { return false; }
+    boolean detailed() { return true; }
 
     @Override public void onUpdate(final Context c, final AppWidgetManager m, final int[] ids) {
         final boolean detailed = detailed();
@@ -44,15 +43,10 @@ public class MonthWidget extends AppWidgetProvider {
     static void refreshAll(final Context context) {
         final Context c = context.getApplicationContext();
         final AppWidgetManager m = AppWidgetManager.getInstance(c);
-        final int[] plain = m.getAppWidgetIds(new ComponentName(c, MonthWidget.class));
-        final int[] detail = m.getAppWidgetIds(new ComponentName(c, MonthWidgetDetail.class));
-        if (plain.length == 0 && detail.length == 0) return;
+        final int[] ids = m.getAppWidgetIds(new ComponentName(c, MonthWidgetDetail.class));
+        if (ids.length == 0) return;
         new Thread(new Runnable() {
-            @Override public void run() {
-                Month d = load(c);
-                if (plain.length > 0) paint(c, m, plain, d, false);
-                if (detail.length > 0) paint(c, m, detail, d, true);
-            }
+            @Override public void run() { paint(c, m, ids, load(c), true); }
         }).start();
     }
 
@@ -150,7 +144,7 @@ public class MonthWidget extends AppWidgetProvider {
     }
 
     static void paint(Context c, AppWidgetManager m, int[] ids, Month d, boolean detailed) {
-        RemoteViews v = new RemoteViews(c.getPackageName(), detailed ? R.layout.widget_month2 : R.layout.widget_month);
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_month2);
         Month shown = d.ok || d.needLogin ? d : Month.cached(c); // server non raggiungibile: ultimo dato noto del mese
         v.setTextViewText(R.id.widget_month_since, Month.NAMES[Month.currentMonth() - 1].substring(0, 3).toUpperCase(Locale.ITALY));
 

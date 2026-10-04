@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.37.0
+- **Bollette divise in due**: acqua, luce, gas e wifi contano per la **tua quota** (Impostazioni → Bollette, di norma 50%) nelle uscite, nel «Da pagare», nel widget, nella notifica del primo del mese e nel budget. I PDF restano interi; l'affitto non è diviso. Nuovo `billShare` nelle impostazioni.
+- **Letture a mano fino a 10 al giorno** per banca (prima 4). Le letture a mano inviano alla banca le intestazioni «PSU» (l'utente è presente) e, se la banca le rifiuta, riprovano senza; non è garantito che ogni banca accetti più di 4 letture: se rifiuta, l'errore si vede nell'app.
+- **Widget**: tolti «Da pagare» e «Questo mese» semplice. Resta «Questo mese» (quello completo, 5×1) e il widget Revolut si chiama «Saldo».
+
 ## 0.36.0
 - **Widget «Questo mese (stime al giorno)»** ora 5×1, con testi più grandi e una riga sola `stima→reale/g` per voce (la reale verde o rossa).
 - **Nuovo widget «Revolut»** (4×1): saldo totale in euro e ultimo movimento dall'ultima lettura, con l'ora; non in tempo reale e non chiama mai la banca. Nuovo `GET /api/banking/widget`.

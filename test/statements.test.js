@@ -64,7 +64,7 @@ test('la griglia somma i movimenti nelle colonne giuste', () => {
 test('luce e gas hanno una colonna per casa, con la propria spunta', () => {
   const doc = (name, amount) => ({ name, kind: 'luce', year: 2026, month: 2, amount, named: true });
   const db = {
-    settings: {}, paid: { 'luce|2026|2': true }, manual: {}, transactions: {}, rules: {},
+    settings: { billShare: 100 }, paid: { 'luce|2026|2': true }, manual: {}, transactions: {}, rules: {},
     docs: { a: doc('Budrio/2026/Luce 2026.02.pdf', 40), b: doc('Crispiano/2026/Luce 2026.02.pdf', 25) },
   };
   const g = buildGrid(db, 2026, new Date(2026, 5, 1));

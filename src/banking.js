@@ -15,7 +15,7 @@ export const BANKS = {
 
 const DAY = 86400000;
 export const CONSENT_DAYS = 180;      // durata del consenso richiesto (la banca può ridurla)
-export const SYNCS_PER_DAY = 4;       // limite PSD2 per gli accessi non assistiti
+export const SYNCS_PER_DAY = 10;      // letture a mano al giorno per collegamento (l'utente è presente e la richiesta lo dichiara con le intestazioni PSU; senza, le banche concedono 4)
 const FIRST_SYNC_DAYS = 365;          // storico richiesto al primo collegamento (si ripiega su 90 giorni se la banca non lo consente)
 const FALLBACK_SYNC_DAYS = 90;
 const OVERLAP_DAYS = 7;               // ogni aggiornamento riparte qualche giorno prima, per non perdere i movimenti registrati in ritardo
@@ -44,13 +44,27 @@ export function makeJwt({ appId, privateKey }, now = Date.now()) {
   return `${input}.${signature.toString('base64url')}`;
 }
 
-export function createClient(app, fetchImpl = fetch) {
-  async function call(method, path, { query, body } = {}) {
+// Intestazioni «PSU» (l'utente è presente): dicono alla banca che la lettura l'ha chiesta una persona in quel momento, non un accesso automatico.
+// Sono tutte insieme o nessuna; si ricavano dalla richiesta del browser o dell'app. Senza indirizzo IP e browser non si inviano.
+export function psuHeaders(req) {
+  const h = req?.headers ?? {};
+  const ip = (String(h['x-forwarded-for'] ?? '').split(',')[0].trim() || req?.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  const agent = h['user-agent'];
+  if (!ip || !agent) return null;
+  const out = {
+    'Psu-Ip-Address': ip, 'Psu-User-Agent': agent, 'Psu-Referer': h.referer, 'Psu-Accept': h.accept,
+    'Psu-Accept-Charset': 'utf-8', 'Psu-Accept-Encoding': h['accept-encoding'], 'Psu-Accept-Language': h['accept-language'],
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v));
+}
+
+export function createClient(app, fetchImpl = fetch, psu = null) {
+  async function call(method, path, { query, body, headers } = {}) {
     const url = new URL(API + path);
     for (const [k, v] of Object.entries(query ?? {})) if (v != null && v !== '') url.searchParams.set(k, String(v));
     const res = await fetchImpl(url, {
       method,
-      headers: { Authorization: `Bearer ${makeJwt(app)}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { Authorization: `Bearer ${makeJwt(app)}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(headers ?? {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
@@ -59,14 +73,20 @@ export function createClient(app, fetchImpl = fetch) {
     if (!res.ok) throw new Error(`Enable Banking: ${data.message ?? data.error ?? `risposta ${res.status}`}`);
     return data;
   }
+  // Letture dei conti: con le intestazioni PSU se ci sono; se la banca le rifiuta («PSU_HEADER…») si riprova senza, come lettura automatica.
+  async function account(path, query) {
+    if (!psu) return call('GET', path, { query });
+    try { return await call('GET', path, { query, headers: psu }); }
+    catch (e) { if (/psu/i.test(e.message)) return call('GET', path, { query }); throw e; }
+  }
   return {
     aspsps: (query) => call('GET', '/aspsps', { query }),
     auth: (body) => call('POST', '/auth', { body }),
     createSession: (code) => call('POST', '/sessions', { body: { code } }),
     deleteSession: (id) => call('DELETE', `/sessions/${encodeURIComponent(id)}`),
-    transactions: (uid, query) => call('GET', `/accounts/${encodeURIComponent(uid)}/transactions`, { query }),
-    balances: (uid) => call('GET', `/accounts/${encodeURIComponent(uid)}/balances`),
-    details: (uid) => call('GET', `/accounts/${encodeURIComponent(uid)}/details`),
+    transactions: (uid, query) => account(`/accounts/${encodeURIComponent(uid)}/transactions`, query),
+    balances: (uid) => account(`/accounts/${encodeURIComponent(uid)}/balances`),
+    details: (uid) => account(`/accounts/${encodeURIComponent(uid)}/details`),
   };
 }
 

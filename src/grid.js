@@ -42,6 +42,7 @@ export function buildCells(db, now = new Date()) {
     if (!cells.has(k)) cells.set(k, { kind, year, month, place, auto: null, manual: null, files: [] });
     return cells.get(k);
   };
+  const billShare = Math.min(100, Math.max(1, Number(db.settings?.billShare ?? 50))) / 100;
   const docPlace = (d) => (PLACE_KINDS.has(d.kind) ? placeOf(d.name) : DEFAULT_PLACE);
 
   // Una cella = un documento: se esiste un file col mese nel nome (es. "Acqua 2025.10.pdf"),
@@ -52,7 +53,8 @@ export function buildCells(db, now = new Date()) {
     const place = docPlace(d);
     if (!d.named && namedCells.has(cellKey(d.kind, d.year, d.month, place))) continue;
     const c = get(d.kind, d.year, d.month, place);
-    c.auto = round((c.auto ?? 0) + d.amount);
+    // Acqua, luce, gas e wifi si dividono con chi convive: conta la quota dell'utente (Impostazioni → Bollette, di norma 50%).
+    c.auto = round((c.auto ?? 0) + d.amount * (PLACE_KINDS.has(d.kind) ? billShare : 1));
     c.files.push({ key, name: d.name });
   }
 

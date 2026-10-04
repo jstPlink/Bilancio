@@ -13,7 +13,7 @@ import { parsePdfStatement } from './pdfstatements.js';
 import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
-import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
+import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildBankWidget, buildExplore } from './bankexplorer.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
@@ -62,6 +62,11 @@ app.put('/api/settings', async (req, res) => {
       if (src?.type === 'invalid') return bad(res, src.reason);
       s[key] = b[key].trim();
     }
+  }
+  if (b.billShare !== undefined) {
+    const n = Number(b.billShare);
+    if (!(n > 0 && n <= 100)) return bad(res, 'La quota delle bollette deve essere tra 1 e 100.');
+    s.billShare = n;
   }
   if (b.rentAmount !== undefined) {
     const n = Number(b.rentAmount);
@@ -343,7 +348,7 @@ app.get('/api/banking/callback', async (req, res) => {
 // Lettura manuale dei movimenti di una banca (o di tutte).
 app.post('/api/banking/sync', async (req, res) => {
   try {
-    const client = bankClient(bankApp());
+    const client = bankClient(bankApp(), fetch, psuHeaders(req));
     const total = { found: 0, added: 0, duplicates: 0 };
     const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
     if (!targets.length) return bad(res, 'Nessuna banca collegata.');
@@ -370,7 +375,7 @@ app.get('/api/banking/widget', (req, res) => {
 // Legge dalla banca (una o tutte) e aggiorna la copia. Conta come una lettura del limite giornaliero.
 app.post('/api/banking/explore/read', async (req, res) => {
   try {
-    const client = bankClient(bankApp());
+    const client = bankClient(bankApp(), fetch, psuHeaders(req));
     const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
     if (!targets.length) return bad(res, 'Nessuna banca collegata.');
     const errors = [];

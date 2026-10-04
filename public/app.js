@@ -848,6 +848,10 @@ async function openSettings() {
       </div>
       <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </div></details>
+    <details class="fs"><summary>Bollette</summary><div class="fsbody">
+      <label>La mia quota di acqua, luce, gas e wifi (%)<input name="billShare" inputmode="decimal" value="${inputValue(s.billShare ?? 50)}" placeholder="50"></label>
+      <small>Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
+    </div></details>
     <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
     <details class="fs"><summary>Riconoscimento automatico</summary><div class="fsbody">
       <small>Lo stipendio (già nelle buste paga) e i giri tra i tuoi conti non si contano due volte. Nome e datore di lavoro si ricavano da soli dalle buste paga e dai movimenti: non serve scriverli.</small>
@@ -868,7 +872,7 @@ async function openSettings() {
   loadDocs().catch(() => {});
   dlg.addEventListener('close', () => { docs.hidden = true; $('main').appendChild(docs); }, { once: true });
   // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
-  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom'];
+  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom', 'billShare'];
   const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
   const initial = snapshot();
   const dirty = () => snapshot() !== initial;
@@ -898,6 +902,7 @@ async function openSettings() {
           statementsSource: form.statementsSource.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
+          billShare: parseInput(form.billShare.value) ?? 50,
         },
       });
       dlg.close();
@@ -1153,7 +1158,7 @@ function reminderAction(el) {
 
 const BANK_HELP = `
   <details><summary class="muted">Che dati leggo?</summary>
-    <p><small><b>Conti</b>: nome, IBAN (mascherato qui) e valuta. <b>Movimenti registrati</b>: data, importo, entrata o uscita, controparte (negozio o mittente), causale e, se la banca lo fornisce, il saldo dopo il movimento; finiscono in Movimenti, con le categorie di sempre. L'accesso è <b>in sola lettura</b>: l'app non può spostare denaro. <b>Non</b> sono disponibili le carte di credito UniCredit, gli investimenti né i pagamenti ricorrenti. Quanto storico arriva dipende dalla banca (al primo collegamento si chiede un anno, poi ci si ferma a ciò che concede). Le banche permettono 4 letture al giorno e il consenso va rinnovato ogni pochi mesi.</small></p>
+    <p><small><b>Conti</b>: nome, IBAN (mascherato qui) e valuta. <b>Movimenti registrati</b>: data, importo, entrata o uscita, controparte (negozio o mittente), causale e, se la banca lo fornisce, il saldo dopo il movimento; finiscono in Movimenti, con le categorie di sempre. L'accesso è <b>in sola lettura</b>: l'app non può spostare denaro. <b>Non</b> sono disponibili le carte di credito UniCredit, gli investimenti né i pagamenti ricorrenti. Quanto storico arriva dipende dalla banca (al primo collegamento si chiede un anno, poi ci si ferma a ciò che concede). Puoi leggere a mano fino a 10 volte al giorno per banca (la richiesta dichiara alla banca che ci sei tu: senza, le banche concedono 4); il consenso va rinnovato ogni pochi mesi.</small></p>
   </details>`;
 
 async function loadBanking() {

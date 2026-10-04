@@ -149,10 +149,10 @@ test('se la banca non concede un anno di storico si ripiega su 90 giorni', async
   assert.deepEqual(from, ['2025-10-02', '2026-07-04']);
 });
 
-test('limite di 4 letture al giorno e consenso scaduto', async () => {
+test('limite di 10 letture al giorno e consenso scaduto', async () => {
   const client = { transactions: async () => ({ transactions: [] }) };
-  const busy = makeConn({ calls: [NOW - 1000, NOW - 2000, NOW - 3000, NOW - 4000] });
-  await assert.rejects(syncConnection({ client, db: freshDb(), conn: busy, now: NOW }), /massimo 4 aggiornamenti al giorno/);
+  const busy = makeConn({ calls: Array.from({ length: 10 }, (_, i) => NOW - 1000 * (i + 1)) });
+  await assert.rejects(syncConnection({ client, db: freshDb(), conn: busy, now: NOW }), /massimo 10 aggiornamenti al giorno/);
   await assert.rejects(syncConnection({ client, db: freshDb(), conn: makeConn({ validUntil: '2026-09-01T00:00:00Z' }), now: NOW }), /scaduto/);
   // le letture di ieri non contano più
   const old = makeConn({ calls: [NOW - 90000000, NOW - 91000000, NOW - 92000000, NOW - 93000000] });
@@ -172,4 +172,32 @@ test('movimenti senza identificativo: due pagamenti identici nello stesso giorno
   const seen2 = new Map();
   assert.equal(mapTransaction(tx, conn, { uid: 'u1' }, {}, seen2).id, a.id);
   assert.equal(mapTransaction({ ...tx }, conn, { uid: 'u1' }, {}, seen2).id, b.id);
+});
+
+test('letture a mano: le intestazioni PSU partono con i dati dei conti e, se la banca le rifiuta, si riprova senza', async () => {
+  const { psuHeaders } = await import('../src/banking.js');
+  assert.equal(psuHeaders({ headers: {}, socket: {} }), null); // senza IP e browser non si inviano
+  const h = psuHeaders({ headers: { 'x-forwarded-for': '203.0.113.7, 10.0.0.1', 'user-agent': 'Mozilla/5.0', 'accept-language': 'it' }, socket: { remoteAddress: '::ffff:10.0.0.2' } });
+  assert.equal(h['Psu-Ip-Address'], '203.0.113.7');
+  assert.equal(h['Psu-User-Agent'], 'Mozilla/5.0');
+  assert.equal(h['Psu-Accept-Language'], 'it');
+  const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
+  const seen = [];
+  let refuse = false;
+  const fake = async (url, init) => {
+    seen.push({ url: String(url), psu: init.headers['Psu-Ip-Address'] });
+    if (refuse && init.headers['Psu-Ip-Address']) return { ok: false, status: 400, text: async () => JSON.stringify({ message: 'PSU_HEADER_NOT_PROVIDED' }) };
+    return { ok: true, status: 200, text: async () => '{"transactions":[]}' };
+  };
+  const client = createClient({ appId: 'app', privateKey }, fake, h);
+  await client.transactions('u1', {});
+  await client.balances('u1');
+  assert.deepEqual(seen.map((s) => s.psu), ['203.0.113.7', '203.0.113.7']);
+  seen.length = 0;
+  refuse = true;
+  await client.transactions('u1', {});
+  assert.deepEqual(seen.map((s) => s.psu), ['203.0.113.7', undefined]); // rifiutata con le intestazioni, riprovata senza
+  seen.length = 0;
+  await createClient({ appId: 'app', privateKey }, fake).details('u1'); // senza PSU: nessuna intestazione
+  assert.deepEqual(seen.map((s) => s.psu), [undefined]);
 });

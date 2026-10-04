@@ -131,10 +131,10 @@ test('se la banca non fornisce saldi o movimenti in sospeso, la lettura prosegue
   assert.equal(a.booked, 1);
 });
 
-test('stessi limiti delle altre letture: massimo 4 al giorno e consenso scaduto', async () => {
+test('stessi limiti delle altre letture: massimo 10 al giorno e consenso scaduto', async () => {
   const client = { transactions: async () => ({ transactions: [] }), balances: async () => ({}), details: async () => ({}) };
-  const busy = makeConn({ calls: [NOW - 1000, NOW - 2000, NOW - 3000, NOW - 4000] });
-  await assert.rejects(readBankData({ client, db: makeDb(), conn: busy, now: NOW }), /massimo 4 letture al giorno/);
+  const busy = makeConn({ calls: Array.from({ length: 10 }, (_, i) => NOW - 1000 * (i + 1)) });
+  await assert.rejects(readBankData({ client, db: makeDb(), conn: busy, now: NOW }), /massimo 10 letture al giorno/);
   await assert.rejects(readBankData({ client, db: makeDb(), conn: makeConn({ validUntil: '2026-09-01T00:00:00Z' }), now: NOW }), /scaduto/);
 });
 

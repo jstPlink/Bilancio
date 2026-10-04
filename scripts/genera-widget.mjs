@@ -1,4 +1,4 @@
-// Genera i layout dei due widget «Questo mese» (e le loro anteprime statiche per la lista dei widget).
+// Genera il layout del widget «Questo mese» (widget_month2.xml) e la sua anteprima statica per la lista dei widget.
 // Uso: node scripts/genera-widget.mjs  (dalla cartella del progetto). Qui si cambiano anche il numero di fotogrammi dell'onda
 // (devono coincidere con FRAMES in MonthWidget.java) e il tempo di cambio fotogramma.
 import fs from 'node:fs';
@@ -164,9 +164,7 @@ const fill = (name, color, dp) => `<?xml version="1.0" encoding="utf-8"?>
 </layer-list>
 `;
 
-fs.writeFileSync('android/res/layout/widget_month.xml', layout('plain', false));
 fs.writeFileSync('android/res/layout/widget_month2.xml', layout('detail', false));
-fs.writeFileSync('android/res/layout/widget_month_preview.xml', layout('plain', true));
 fs.writeFileSync('android/res/layout/widget_month2_preview.xml', layout('detail', true));
 fs.writeFileSync('android/res/drawable/preview_fill_a.xml', fill('a', '#66FFFFFF', PREVIEW_FILL.spese[1]));
 fs.writeFileSync('android/res/drawable/preview_fill_b.xml', fill('b', '#CCF59E0B', PREVIEW_FILL.carburante[1]));

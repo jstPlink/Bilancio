@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        DueWidget.refreshAll(this); // i widget si aggiornano ogni volta che apri l'app
+        // i widget si aggiornano ogni volta che apri l'app
         MonthWidget.refreshAll(this);
         BankWidget.refreshAll(this);
     }
@@ -286,7 +286,6 @@ public class MainActivity extends Activity {
                     // Anche categorie, importi manuali, estratti e letture della banca cambiano le cifre del mese.
                     if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/paid") || path.startsWith("/api/pay-all") || path.startsWith("/api/refresh") || path.startsWith("/api/upload")
                         || path.startsWith("/api/transactions") || path.startsWith("/api/manual") || path.startsWith("/api/statements") || path.startsWith("/api/banking/sync") || path.startsWith("/api/budget"))) {
-                        DueWidget.refreshAll(MainActivity.this);
                         MonthWidget.refreshAll(MainActivity.this);
                     }
                     // Una lettura dalla banca cambia saldo e ultimo movimento del widget Revolut.
