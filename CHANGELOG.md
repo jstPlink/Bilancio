@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.40.3
+- **Panoramica**: la colonna dei mesi (titolo, nomi dei mesi e righe di media e da pagare) ha lo stesso colore leggero dei titoli Entrate, Uscite e Bilancio.
+
 ## 0.40.2
 - **Panoramica**: tutte le celle della tabella sono scure come lo sfondo; solo i titoli Entrate, Uscite e Bilancio sono leggermente colorati.
 
