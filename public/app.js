@@ -84,15 +84,15 @@ function renderYears() {
 
 function renderCards() {
   const s = state.grid.summary;
-  const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
+  const card = (k, v, sub = '', cls = '', vcls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v ${vcls}">${v}</div><div class="sub">${sub}</div></div>`;
   const dueParts = EXPENSES.filter((k) => s.toPayAll[k.id] > 0).map((k) => k.label).join(', ');
   $('#cards').innerHTML = [
     s.totalToPay > 0
       ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
       : card('Da pagare', money(0), 'Tutto pagato', 'due'),
-    card('Entrate medie', money(s.avgIncome) || '—'),
-    card('Uscite medie', money(s.avgSpent) || '—'),
-    card('Bilancio medio', money(s.avgBalance) || '—'),
+    card('Entrate medie', money(s.avgIncome) || '—', '', '', 'good'),
+    card('Uscite medie', money(s.avgSpent) || '—', '', '', 'bad'),
+    card('Bilancio medio', money(s.avgBalance) || '—', '', '', s.avgBalance == null ? '' : s.avgBalance >= 0 ? 'good' : 'bad'),
   ].join('');
 }
 
@@ -579,11 +579,11 @@ function movesTable(list, listId = 'moveTable') {
   }
   const expander = (id, open, label) => `<button class="expander" data-expand="${id}" aria-expanded="${open}" title="${open ? 'Nascondi' : 'Mostra'} i dettagli" aria-label="Dettagli di ${esc(label)}">${open ? '▾' : '▸'}</button>`;
   const amountHtml = (v) => `<span class="mv-amt ${v > 0 ? 'pos-in' : ''}">${v > 0 ? '+' : ''}${money(v)}</span>`;
-  const pending = (t) => (t.pending ? ' <span class="pill warn" title="Non ancora registrato dalla banca: conta già nei totali; se viene rifiutato sparisce alla lettura successiva">in sospeso</span>' : '');
+  const pending = (t) => (t.pending ? ' <span class="pill warn" title="Non ancora tracciato dalla banca: conta già nei totali; se viene rifiutato sparisce alla lettura successiva">in sospeso</span>' : '');
   // un movimento: riga in alto (data, importo, categoria a destra) e sotto la descrizione; aperto, i dati completi restano dentro lo stesso riquadro
   const single = (t) => {
     const open = state.bank.open.has(t.id);
-    return `<div class="mvitem${open ? ' open' : ''}">
+    return `<div class="mvitem${open ? ' open' : ''}${t.pending ? ' pending' : ''}">
       <div class="mvrow" data-mv="${t.id}">
         <div class="mv-l1">${expander(t.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}</span>${amountHtml(t.amount)}<span class="mv-cat">${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</span></div>
         <div class="mv-l2"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${pending(t)}</div>
@@ -592,8 +592,8 @@ function movesTable(list, listId = 'moveTable') {
   // un singolo pagamento dentro un gruppo aperto: senza menu della categoria (vale per tutto il gruppo)
   const part = (t) => {
     const open = state.bank.open.has(t.id);
-    return `<div class="mvsub${open ? ' open' : ''}" data-mv="${t.id}">
-      <div class="mv-l1">${expander(t.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}${t.time ? ` · ${t.time}` : ''}</span>${amountHtml(t.amount)}</div>
+    return `<div class="mvsub${open ? ' open' : ''}${t.pending ? ' pending' : ''}" data-mv="${t.id}">
+      <div class="mv-l1">${expander(t.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}${t.time ? ` · ${t.time}` : ''}</span>${amountHtml(t.amount)}<span class="mv-cat"></span></div>
       ${metaLine(t) ? `<div class="mv-l2">${metaLine(t)}</div>` : ''}</div>${open ? detailRow(t, similar) : ''}`;
   };
   const body = rows.map((e) => {
@@ -601,10 +601,10 @@ function movesTable(list, listId = 'moveTable') {
     const open = state.bank.open.has(e.id);
     const n = e.items.length;
     const t = e.first;
-    return `<div class="mvitem group${open ? ' open' : ''}">
+    return `<div class="mvitem group${open ? ' open' : ''}${e.items.some((x) => x.pending) ? ' pending' : ''}">
       <div class="mvrow" data-mv="${e.id}">
         <div class="mv-l1">${expander(e.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}</span>${amountHtml(e.amount)}<span class="mv-cat">${categorySelect('data-moves', e.ids.join(','), t.category, e.title, t.amount > 0)}</span></div>
-        <div class="mv-l2"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span> <span class="cnt" title="${n} pagamenti dal ${fmtDate(e.last.date)}, media ${money(Math.abs(e.amount) / n)}">×${n}</span></div>
+        <div class="mv-l2"><span class="cnt" title="${n} pagamenti dal ${fmtDate(e.last.date)}, media ${money(Math.abs(e.amount) / n)}">×${n}</span><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span></div>
       </div>${open ? `<div class="mvsubs">${e.items.map(part).join('')}</div>` : ''}</div>`;
   }).join('');
   return `<div class="mvlist" id="${listId}">${body}</div>`;
@@ -857,11 +857,6 @@ async function openSettings() {
       <small>Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
     </div></details>
     <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
-    <details class="fs"><summary>Riconoscimento automatico</summary><div class="fsbody">
-      <small>Lo stipendio (già nelle buste paga) e i giri tra i tuoi conti non si contano due volte. Nome e datore di lavoro si ricavano da soli dalle buste paga e dai movimenti: non serve scriverli.</small>
-      <small><b>Stipendio da:</b> ${esc(s.incomePayers) || '— (si impara dopo due buste paga abbinate ai bonifici)'}<br><b>I miei conti (nome):</b> ${esc(s.ownNames) || '— (si impara dai giri tra i tuoi conti)'}</small>
-      <small>Se un movimento è classificato male, cambia la categoria in Movimenti: la scelta vale per tutte le descrizioni uguali.</small>
-    </div></details>
     ${window.Native?.remindersGet ? '<details class="fs" id="remBox"><summary>Promemoria</summary><div class="fsbody" id="remBody"></div></details>' : ''}
     <details class="fs" id="bkBox"><summary>Collega le banche</summary><div class="fsbody" id="bkBody"><p class="muted">Caricamento…</p></div></details>
     ${state.protected ? '<details class="fs"><summary>Account</summary><div class="fsbody"><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></div></details>' : ''}
@@ -998,11 +993,11 @@ function renderBudgetParts() {
   const ok = saving != null && saving >= 0;
   const card = (k, v, sub = '', cls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`;
   // Due riquadri: entrate e spese fisse in una riga, budget e risparmio in un'altra.
-  const duo = (title, a, b, sub, cls = '') => `<div class="card duo ${cls}"><div class="k">${title}</div><div class="pairs"><div><small>${a[0]}</small><div class="v">${a[1]}</div></div><div><small>${b[0]}</small><div class="v">${b[1]}</div></div></div><div class="sub">${sub}</div></div>`;
+  const duo = (title, a, b, sub, cls = '') => `<div class="card duo ${cls}"><div class="k">${title}</div><div class="pairs"><div><small>${a[0]}</small><div class="v ${a[2] ?? ''}">${a[1]}</div></div><div><small>${b[0]}</small><div class="v ${b[2] ?? ''}">${b[1]}</div></div></div><div class="sub">${sub}</div></div>`;
   $('#bgSummary').innerHTML = [
-    duo('Medie al mese', ['Entrate', hasIncome ? money(e.income) : '—'], ['Spese fisse', e.fixed == null ? '—' : money(e.fixed)],
+    duo('Medie al mese', ['Entrate', hasIncome ? money(e.income) : '—', 'good'], ['Spese fisse', e.fixed == null ? '—' : money(e.fixed), 'bad'],
       hasIncome ? `entrate degli ultimi ${e.incomeMonths} mesi chiusi · spese fisse: bollette, affitto, prestito, tasse…` : 'Nessuna entrata nei mesi chiusi'),
-    duo('Il tuo budget', ['Budget', money(total)], [ok ? 'Risparmio' : 'Sfori di', saving == null ? '—' : money(Math.abs(saving))],
+    duo('Il tuo budget', ['Budget', money(total)], [ok ? 'Risparmio' : 'Sfori di', saving == null ? '—' : money(Math.abs(saving)), ok ? 'good' : ''],
       saving == null ? amounts.map((x) => `${x.label} ${money(x.value)}`).join(' · ') : ok ? 'entrate − spese fisse − budget' : 'sopra le entrate medie', saving == null ? '' : ok ? 'bgok' : 'bgbad'),
   ].join('');
 

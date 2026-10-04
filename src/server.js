@@ -16,6 +16,7 @@ import { learnIdentity } from './identity.js';
 import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, readAndMerge, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildBankWidget, buildExplore } from './bankexplorer.js';
 import { reconcileBankAndFiles } from './reconcile.js';
+import { AUTO_READ_HOUR, AUTO_READ_TZ, nextDailyRun } from './schedule.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -377,7 +378,9 @@ app.post('/api/banking/sync', async (req, res) => {
 });
 
 // Scheda «Banche»: i dati originali delle banche, in una copia separata che non entra in Panoramica, Movimenti né Statistiche.
-app.get('/api/banking/explore', (req, res) => res.json(buildExplore(db())));
+// L'aggiornamento automatico di ogni notte: a che ora e come è andato l'ultimo.
+const exploreUi = () => ({ ...buildExplore(db()), auto: { hour: AUTO_READ_HOUR, last: bankingState(db()).lastAuto ?? null } });
+app.get('/api/banking/explore', (req, res) => res.json(exploreUi()));
 
 // Per il widget Android di una banca: saldo e ultimi movimenti dell'ultima copia letta (non chiama la banca).
 app.get('/api/banking/widget', (req, res) => {
@@ -399,7 +402,7 @@ app.post('/api/banking/explore/read', async (req, res) => {
     }
     learn();
     await store.save();
-    res.json({ ...buildExplore(db()), errors, merged });
+    res.json({ ...exploreUi(), errors, merged });
   } catch (e) { bad(res, e.message); }
 });
 
@@ -411,7 +414,7 @@ app.put('/api/banking/account-name', async (req, res) => {
   const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
   if (name) b.names[uid] = name; else delete b.names[uid];
   await store.save();
-  res.json(buildExplore(db()));
+  res.json(exploreUi());
 });
 
 app.delete('/api/banking/connections/:id', async (req, res) => {
@@ -533,6 +536,32 @@ app.put('/api/transactions', async (req, res) => {
   await store.save();
   res.json({ ok: true });
 });
+
+// Aggiornamento automatico di tutte le banche collegate ogni giorno alle 5 (ora italiana): è un accesso automatico, senza le intestazioni dell'utente presente.
+// Le altre letture le fai tu a mano durante la giornata. Un errore (consenso scaduto, banca che non risponde) si registra e non ferma nulla.
+async function autoRead() {
+  const b = bankingState(db());
+  if (!b.app?.appId || !b.app?.privateKey || !b.connections.length) return;
+  const client = bankClient(b.app);
+  const errors = [];
+  let added = 0;
+  for (const conn of b.connections) {
+    try { const r = await readAndMerge({ client, db: db(), conn }); added += r.added; } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
+  }
+  learn();
+  b.lastAuto = { at: new Date().toISOString(), added, errors };
+  await store.save();
+  console.log(`Aggiornamento automatico delle banche: ${added} nuovi movimenti${errors.length ? `, errori: ${errors.join(' · ')}` : ''}`);
+}
+function scheduleAutoRead() {
+  const when = nextDailyRun(new Date(), AUTO_READ_HOUR, AUTO_READ_TZ);
+  const timer = setTimeout(async () => {
+    try { await autoRead(); } catch (e) { console.error('Aggiornamento automatico delle banche non riuscito:', e.message); }
+    scheduleAutoRead();
+  }, Math.max(1000, when.getTime() - Date.now()));
+  timer.unref?.();
+}
+if (!process.env.BILANCIO_NO_AUTO_READ) scheduleAutoRead();
 
 const port = Number(process.env.PORT ?? 4870);
 const host = process.env.HOST ?? '127.0.0.1';

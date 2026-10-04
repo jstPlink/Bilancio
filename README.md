@@ -18,7 +18,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 
 ## Le schede
 
-- **Panoramica.** Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
+- **Panoramica.** In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
   entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
   nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci di *Crispiano* in una sola
   colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
@@ -35,11 +35,11 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   totale né in Panoramica e Statistiche (vedi «Riconoscimento automatico»).
 - **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…; i giroconti non ci sono): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
-- **Banche** (anche sul telefono e nell'app Android). Tutto il blocco di ogni banca è **collassabile** (clic sul nome). Dentro: consenso, letture di oggi e **Leggi dalla banca**, poi **una finestra per ogni conto e per ogni pocket**, **chiusa** di norma:
+- **Banche** (anche sul telefono e nell'app Android). Tutto il blocco di ogni banca è **collassabile** (clic sul nome). Dentro: consenso, letture di oggi e **Aggiorna** (a destra, nella riga della banca, che ha un bordo per far capire dove si clicca), poi **una finestra per ogni conto e per ogni pocket**, **chiusa** di norma:
   da chiusa mostra **nome e saldo**; aperta aggiunge l'**IBAN**, **quanti movimenti ci sono e in che periodo** e **Rinomina** (niente grafici). Il saldo **comprende i pagamenti in sospeso** (saldo contabile + sospesi, con scritto «di cui in sospeso»); se la banca dà solo saldi «disponibili»,
   che di norma li contengono già, si usa quello. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario; l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
   In fondo l'elenco dei movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga) e un pulsante **Filtra** (conto, stato, ricerca).
-  **I dati della banca sono i dati dell'app.** **Leggi dalla banca** (come **Aggiorna ora** in Impostazioni → Collega le banche) fa **una sola lettura**: aggiorna saldi e movimenti qui e li porta anche in Panoramica, Movimenti e Statistiche, con le categorie di sempre.
+  **I dati della banca sono i dati dell'app.** **Aggiorna** (come **Aggiorna ora** in Impostazioni → Collega le banche) fa **una sola lettura**: aggiorna saldi e movimenti qui e li porta anche in Panoramica, Movimenti e Statistiche, con le categorie di sempre.
   **In sospeso:** un pagamento in sospeso conta subito, anche in Movimenti e nelle somme di Panoramica (con l'etichetta «in sospeso»). A ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso: se la banca **rifiuta** il pagamento sparisce da solo,
   se lo **registra** ricompare come registrato (senza doppioni). Se la banca non dà i sospesi, restano quelli letti l'ultima volta.
   **Estratti conto e banca insieme:** un movimento visto da tutte e due le parti (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) **si conta una volta sola e vince quello della banca**; la categoria scelta a mano sul movimento dell'estratto passa a quello della banca.
@@ -110,8 +110,6 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    - **Buste paga** e **Bollette**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`, senza password)
      oppure un percorso locale. Le sottocartelle vengono lette in automatico.
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
-   - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
-     stipendio né i giri tra i tuoi conti.
    - **Bollette**: la **tua quota di acqua, luce, gas e wifi** (di norma 50%: convivi e le dividi). L'app conta solo la tua parte (nelle uscite, nel «Da pagare», nel widget, nella notifica e nel budget); i PDF e l'importo dei documenti restano interi. Cambia la percentuale per cambiare la quota; l'affitto non è diviso.
 2. In **Impostazioni → Documenti** premi **Aggiorna**: vengono letti solo i file nuovi o modificati (Maiusc + clic per rileggere tutto). La stessa ricerca parte da sola
    **ogni volta che apri l'app**: una targhetta in alto mostra l'avanzamento, e se la lettura la sta facendo qualcun altro (un altro browser,
@@ -120,7 +118,7 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
 
 ## Riconoscimento automatico di nome e datore di lavoro
 
-Non va scritto nulla: a ogni aggiornamento (e dopo un caricamento o la lettura delle banche) `src/identity.js` lo ricava dai dati.
+Non va scritto nulla e non ha una sezione nelle Impostazioni (lavora in silenzio): a ogni aggiornamento (e dopo un caricamento o la lettura delle banche) `src/identity.js` lo ricava dai dati.
 - **Chi ti paga lo stipendio**: il bonifico in entrata con lo stesso importo del netto di una busta paga, per almeno due mesi, entro il 20 del mese dopo.
 - **Il tuo nome**: un'uscita che ricompare identica come entrata su un altro conto (entro 3 giorni), con lo stesso nome come destinatario e come mittente, almeno due volte.
 Con questi nomi i bonifici dello stipendio e i giri tra i tuoi conti diventano *Giroconti* (non contati) e lo stipendio compare come una sola voce in Movimenti.
@@ -163,7 +161,9 @@ estratti. Usa [Enable Banking](https://enablebanking.com), gratuito per uso pers
 se la banca lo dà, il saldo dopo il movimento). Non le carte di credito UniCredit, né investimenti o pagamenti ricorrenti. Lo storico dipende dalla
 banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90 giorni.
 
-**Quando si legge dalle banche:** solo quando premi un pulsante apposta: **Aggiorna ora** in Impostazioni → Collega le banche o **Leggi dalla banca** nella scheda Banche (fanno la stessa cosa: una lettura che aggiorna tutto). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
+**Quando si legge dalle banche:** (1) **ogni giorno alle 5 del mattino, in automatico, da tutte le banche collegate** (ora italiana, anche se il server gira in UTC; lo fa il server, non serve aprire l'app; l'esito dell'ultima lettura automatica è scritto in cima alla scheda Banche;
+`BILANCIO_AUTO_READ_HOUR` cambia l'ora, `BILANCIO_NO_AUTO_READ=1` la spegne); (2) quando premi **Aggiorna** nella scheda Banche o **Aggiorna ora** in Impostazioni → Collega le banche (fanno la stessa cosa: una lettura che aggiorna tutto), quante volte vuoi fino al tetto giornaliero (vedi «Limiti»).
+La lettura automatica è un accesso senza utente presente e conta come una delle letture del giorno. **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
 **Limiti:** da **Aggiorna ora** e **Leggi dalla banca** (e dalla lettura dopo il collegamento) puoi leggere a mano **fino a 10 volte al giorno per banca** (finestra mobile di 24 ore; il contatore è unico per tutte queste letture).

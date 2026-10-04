@@ -563,7 +563,7 @@ details.transfers { margin-top: 18px; }
 .card.duo.bgbad .pairs small { color: inherit; opacity: .85; }
 .card.duo .v { font-size: 22px; }
 #budget .cards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-@media (max-width: 720px) { .tabs { gap: 4px; } .tabs > button[role=tab] { padding: 10px 1px !important; font-size: 11.5px !important; overflow: hidden; } }
+@media (max-width: 720px) { .tabs { column-gap: 4px; } .years { margin-top: 6px; } .tabs > button[role=tab] { padding: 10px 1px !important; font-size: 11.5px !important; overflow: hidden; } }
 
 /* Budget: la barra che divide l'entrata media */
 .splitbar { position: relative; display: flex; height: 26px; border-radius: 8px; overflow: hidden; background: var(--line); margin: 8px 0 10px; }
@@ -607,3 +607,41 @@ ul.legend li { display: inline-flex; align-items: center; gap: 6px; }
 .mvdetail .facts { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 16px; }
 .mvdetail .facts dd { font-size: 14px; }
 .mvdetail .similar h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+/* Valori colorati: entrate in verde, uscite in rosso, bilancio verde o rosso */
+.card .v.good { color: var(--viz-entrate); }
+.card .v.bad { color: var(--viz-tasse); }
+.card.duo.bgbad .v.good, .card.duo.bgbad .v.bad { color: inherit; }
+
+/* Budget: blocchi superiori con i valori separati da una linea e la descrizione sotto una linea */
+.card.duo .pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 4px 0 0; }
+.card.duo .pairs > div { padding: 2px 0 2px 0; }
+.card.duo .pairs > div + div { border-left: 1px solid var(--line-strong); padding-left: 18px; }
+.card.duo .sub { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+
+/* Impostazioni: la sezione Documenti si distingue */
+#docsBox { background: color-mix(in srgb, var(--accent) 9%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+#docsBox > summary { color: var(--accent); font-weight: 700; }
+
+/* Banche: la riga della banca (cliccabile) ha un bordo e il pulsante sta a destra */
+summary.bk-head { padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+summary.bk-head:hover { border-color: var(--accent); }
+summary.bk-head > button { margin-left: auto; }
+details.bankconn[open] > summary.bk-head { margin-bottom: 12px; }
+.bk-auto { font-size: 13px; margin: 0 0 12px; }
+
+/* Movimenti: data a sinistra, importo e categoria in colonne a destra, un po' più compatti. In sospeso = linea a sinistra */
+.mv-l1 { display: grid; grid-template-columns: 22px minmax(5.4rem, auto) 1fr 8.2rem 8.6rem; align-items: center; column-gap: 8px; }
+.mv-amt { grid-column: 4; justify-self: end; text-align: right; }
+.mv-cat { grid-column: 5; margin-left: 0; justify-self: end; }
+.mv-cat select { padding: 3px 6px; font-size: 12.5px; max-width: 8.6rem; width: 100%; border-radius: 7px; }
+.mv-l2 { padding-left: 30px; gap: 8px; }
+.mv-l2 .cnt { margin-left: 0; flex: none; }
+.mvitem.pending { box-shadow: inset 4px 0 0 #f59e0b; }
+.mvsub.pending { box-shadow: inset 4px 0 0 #f59e0b; }
+@media (max-width: 720px) {
+  .mv-l1 { grid-template-columns: 20px auto 1fr 6.6rem 7.2rem; column-gap: 6px; }
+  .mv-cat select { max-width: 7.2rem; font-size: 12px; }
+  .mv-date { font-size: 12px; }
+  .mv-l2 { padding-left: 26px; }
+}

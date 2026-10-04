@@ -152,7 +152,7 @@ export function buildExplore(db, now = Date.now()) {
       const dates = a.booked.map(dateOf).filter(Boolean).sort();
       for (const [status, list] of [['BOOK', a.booked], ['PDNG', a.pending]]) {
         for (const tx of list) {
-          rows.push({ key: `${acc.uid}|${status}|${rawKey(tx)}`, account: acc.uid, status, date: dateOf(tx), amount: Number.isFinite(amountOf(tx)) ? round(signedOf(tx)) : null, currency: tx.transaction_amount?.currency ?? '', party: partyOf(tx), remittance: remittanceOf(tx), raw: tx });
+          rows.push({ key: `${acc.uid}|${status}|${rawKey(tx)}`, account: acc.uid, status, date: dateOf(tx) || (status === 'PDNG' ? String(snap.fetchedAt ?? '').slice(0, 10) : ''), amount: Number.isFinite(amountOf(tx)) ? round(signedOf(tx)) : null, currency: tx.transaction_amount?.currency ?? '', party: partyOf(tx), remittance: remittanceOf(tx), raw: tx });
         }
       }
       const holder = acc.name || a.details?.name || 'Conto';
@@ -172,7 +172,8 @@ export function buildExplore(db, now = Date.now()) {
         trend: balanceTrend(a.booked, a.balances), unavailable: a.unavailable ?? [],
       };
     });
-    rows.sort((x, y) => y.date.localeCompare(x.date) || (x.status === 'PDNG' ? -1 : 1));
+    // In cima i pagamenti in sospeso (non hanno sempre una data), poi tutto il resto dal più recente.
+    rows.sort((x, y) => (y.status === 'PDNG') - (x.status === 'PDNG') || y.date.localeCompare(x.date));
     return {
       ...base, accounts,
       transactions: rows.slice(0, MAX_ROWS), transactionsTotal: rows.length,

@@ -174,11 +174,13 @@ export async function finishLink({ client, db, code, state, now = Date.now() }) 
 // ------------------------------------------------------------------ movimenti
 
 // Un movimento dell'aggregatore diventa un movimento dell'app. Negativo = uscita.
-export function mapTransaction(tx, conn, account, rules, seen = new Map(), pending = false) {
+export function mapTransaction(tx, conn, account, rules, seen = new Map(), pending = false, fallbackDate = '') {
   const amount = Math.abs(Number(tx.transaction_amount?.amount));
   if (!Number.isFinite(amount)) return null;
   const credit = tx.credit_debit_indicator === 'CRDT';
-  const date = String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '').slice(0, 10);
+  let date = String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '').slice(0, 10);
+  // Un pagamento in sospeso può non avere ancora nessuna data: conta dal giorno in cui lo si legge, così non si perde.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) && pending && /^\d{4}-\d{2}-\d{2}$/.test(fallbackDate)) date = fallbackDate;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const signed = credit ? amount : -amount;
   const party = String((credit ? tx.debtor?.name : tx.creditor?.name) ?? '').trim();
@@ -225,7 +227,7 @@ async function fetchAccount(client, uid, dateFrom, status = 'BOOK') {
 // i movimenti dei file con lo stesso importo e la stessa data vengono tolti da `reconcileBankAndFiles` (src/reconcile.js), quindi qui non si scarta nulla.
 // In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
 // spariscono da soli e quelli che la banca ha registrato ricompaiono come registrati. Con `pendingList` nullo (la banca non li dà) si tengono quelli di prima.
-function ingestAccount({ db, conn, account, booked, pendingList, seen, report }) {
+function ingestAccount({ db, conn, account, booked, pendingList, seen, report, today }) {
   const label = BANKS[conn.bank]?.label ?? conn.bank;
   const all = (db.transactions ??= {});
   const items = booked.map((tx) => mapTransaction(tx, conn, account, db.rules ?? {}, seen)).filter(Boolean);
@@ -240,7 +242,7 @@ function ingestAccount({ db, conn, account, booked, pendingList, seen, report })
     for (const id of Object.keys(all)) if (all[id].pendingAcct === account.uid) delete all[id];
     const pseen = new Map();
     for (const tx of pendingList) {
-      const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true);
+      const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true, today);
       if (!t) continue;
       all[t.id] = { ...t, file: `Collegamento ${label}`, pending: true, pendingAcct: account.uid };
       report.pending++;
@@ -268,7 +270,7 @@ export async function syncConnection({ client, db, conn, now = Date.now() }) {
     }
     let pendingList = null;
     try { pendingList = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'); } catch { /* sospesi non disponibili */ }
-    ingestAccount({ db, conn, account, booked, pendingList, seen, report });
+    ingestAccount({ db, conn, account, booked, pendingList, seen, report, today: isoDay(now) });
   }
   conn.lastSync = new Date(now).toISOString();
   return report;
@@ -340,7 +342,7 @@ export async function readAndMerge({ client, db, conn, now = Date.now() }) {
     const a = snap?.accounts?.[account.uid];
     if (!a) continue;
     const pendingOk = !(a.unavailable ?? []).some((u) => u.what === 'movimenti in sospeso');
-    ingestAccount({ db, conn, account, booked: a.booked ?? [], pendingList: pendingOk ? (a.pending ?? []) : null, seen, report });
+    ingestAccount({ db, conn, account, booked: a.booked ?? [], pendingList: pendingOk ? (a.pending ?? []) : null, seen, report, today: isoDay(now) });
   }
   conn.lastSync = new Date(now).toISOString();
   return { ...summary, ...report };

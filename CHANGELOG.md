@@ -2,6 +2,15 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.40.0
+- **Aggiornamento automatico delle banche ogni giorno alle 5** (ora italiana), da tutte le banche collegate; l'esito è in cima alla scheda Banche. Gli altri aggiornamenti si fanno a mano con **Aggiorna**.
+- **Pagamenti in sospeso senza data** (come li dà a volte la banca) venivano scartati: ora contano dal giorno in cui si leggono, e nella scheda Banche stanno in cima all'elenco.
+- **Movimenti**: «×n» a sinistra del nome, importo allineato a destra in colonna, categoria più compatta; i movimenti ancora in sospeso hanno una linea arancione sul bordo sinistro del riquadro.
+- **Banche**: «Leggi dalla banca» diventa **Aggiorna** e va a destra; la riga della banca ha un bordo che mostra dove si clicca.
+- **Panoramica**: entrate medie verdi, uscite medie rosse, bilancio medio verde o rosso; più distanza tra le schede e la riga dell'anno anche sul telefono (una regola la azzerava).
+- **Budget**: entrate verdi, spese fisse rosse, risparmio verde; i due blocchi in alto hanno una linea tra i valori e una sotto i valori, prima della descrizione.
+- **Impostazioni**: tolta la sezione «Riconoscimento automatico» (il riconoscimento continua a lavorare); la sezione Documenti è colorata.
+
 ## 0.39.0
 - **I dati della banca sono i dati dell'app**: «Leggi dalla banca» e «Aggiorna ora» fanno la stessa cosa, una sola lettura nel limite giornaliero: aggiornano saldi e movimenti della scheda Banche e portano gli stessi movimenti (registrati e in sospeso) in Panoramica, Movimenti e Statistiche. Nuova `readAndMerge`.
 - **Niente doppioni tra estratto conto e banca**: un movimento visto da entrambi (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) si conta una volta, vince la banca; la categoria scelta a mano passa al movimento della banca; un estratto riletto non fa ricomparire il doppione. Nuovo `src/reconcile.js`.

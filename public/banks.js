@@ -65,9 +65,9 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
     const blocked = c.expired || c.readsToday >= c.readsPerDay;
     const head = `<summary class="bk-head"><h2>${esc(c.label)}</h2>${consent}
       <span class="muted">${c.fetchedAt ? `Copia letta il ${fmtDateTime(c.fetchedAt)}` : 'Nessuna lettura ancora'} · ${reads}</span>
-      <button class="primary" data-read="${esc(c.id)}" ${blocked ? 'disabled' : ''} title="Legge saldi e movimenti dalla banca e li porta in tutta l'app (conta come una delle ${c.readsPerDay} letture giornaliere)">Leggi dalla banca</button></summary>`;
+      <button class="primary" data-read="${esc(c.id)}" ${blocked ? 'disabled' : ''} title="Legge saldi e movimenti dalla banca e li porta in tutta l'app (conta come una delle ${c.readsPerDay} letture giornaliere)">Aggiorna</button></summary>`;
     const wrap = (inner) => `<details class="bankconn" data-conn="${esc(c.id)}" ${closedConns.has(c.id) ? '' : 'open'}>${head}${inner}</details>`;
-    if (c.empty) return wrap(`<div class="empty"><p>Premi <b>Leggi dalla banca</b> per scaricare conti, saldi e movimenti.</p></div>`);
+    if (c.empty) return wrap(`<div class="empty"><p>Premi <b>Aggiorna</b> per scaricare conti, saldi e movimenti.</p></div>`);
 
     const s = stateOf(c.id);
     const active = [s.account, s.status, s.q.trim()].filter(Boolean).length;
@@ -118,12 +118,15 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
 
   function render() {
     if (!data) return;
+    const auto = data.auto
+      ? `<p class="bk-auto muted">Aggiornamento automatico ogni giorno alle ${data.auto.hour}:00${data.auto.last ? ` · ultimo: ${fmtDateTime(data.auto.last.at)}${data.auto.last.errors?.length ? ` (errori: ${esc(data.auto.last.errors.join(' · '))})` : `, ${data.auto.last.added} nuovi movimenti`}` : ''}. Gli altri li fai tu con «Aggiorna».</p>`
+      : '';
     const note = '';
     if (!data.configured || !data.connections.length) {
       host.innerHTML = `${note}<div class="empty"><h2>Nessuna banca collegata</h2><p>Inserisci le credenziali di Enable Banking e collega UniCredit o Revolut da <b>Impostazioni → Collega le banche</b>.</p></div>`;
       return;
     }
-    host.innerHTML = note + data.connections.map(connectionHtml).join('');
+    host.innerHTML = note + auto + data.connections.map(connectionHtml).join('');
     for (const c of data.connections) {
       if (c.empty) continue;
       renderRows(c.id);

@@ -239,3 +239,17 @@ test('movimenti in sospeso: se la banca non li dà, si tengono quelli di prima',
   await syncConnection({ client, db, conn: c, now: NOW + 3600000 });
   assert.equal(Object.values(db.transactions).filter((t) => t.pending).length, 1);
 });
+
+test('movimento in sospeso senza nessuna data: conta dal giorno in cui lo si legge', async () => {
+  const db = freshDb();
+  const nodate = { transaction_id: 'p9', credit_debit_indicator: 'DBIT', transaction_amount: { amount: '12.00', currency: 'EUR' }, creditor: { name: 'Supermercato Coop' } };
+  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [nodate] : [] }) };
+  const r = await syncConnection({ client, db, conn: makeConn(), now: NOW });
+  assert.equal(r.pending, 1);
+  const t = Object.values(db.transactions)[0];
+  assert.equal(t.date, '2026-10-02');
+  assert.equal(t.pending, true);
+  assert.equal(t.amount, -12);
+  // un registrato senza data resta scartato come prima
+  assert.equal(mapTransaction({ ...nodate, transaction_id: 'x' }, { bank: 'revolut' }, { uid: 'u1' }, {}), null);
+});
