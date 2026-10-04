@@ -159,3 +159,17 @@ test('limite di 4 letture al giorno e consenso scaduto', async () => {
   await syncConnection({ client, db: freshDb(), conn: old, now: NOW });
 });
 
+
+test('movimenti senza identificativo: due pagamenti identici nello stesso giorno restano due', async () => {
+  const { mapTransaction } = await import('../src/banking.js');
+  const tx = { booking_date: '2026-10-02', credit_debit_indicator: 'DBIT', transaction_amount: { amount: '2.50', currency: 'EUR' }, creditor: { name: 'Bar Centrale' } };
+  const conn = { bank: 'revolut' };
+  const seen = new Map();
+  const a = mapTransaction(tx, conn, { uid: 'u1' }, {}, seen);
+  const b = mapTransaction({ ...tx }, conn, { uid: 'u1' }, {}, seen);
+  assert.notEqual(a.id, b.id);
+  // riletti in un'altra lettura: gli stessi identificativi, nello stesso ordine
+  const seen2 = new Map();
+  assert.equal(mapTransaction(tx, conn, { uid: 'u1' }, {}, seen2).id, a.id);
+  assert.equal(mapTransaction({ ...tx }, conn, { uid: 'u1' }, {}, seen2).id, b.id);
+});

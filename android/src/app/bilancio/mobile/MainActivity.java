@@ -98,12 +98,13 @@ public class MainActivity extends Activity {
         Reminders.scheduleAll(this);
     }
 
-    /** Dove aprire l'app quando arriva da un widget: «#moves/spesa» (Movimenti con quella categoria), «#overview» o «#budget»; vuoto se è un avvio normale. */
+    /** Dove aprire l'app quando arriva da un widget: «#moves/spesa» (Movimenti con quella categoria), «#overview», «#budget» o «#banks»; vuoto se è un avvio normale. */
     private static String hashOf(Intent i) {
         String open = i == null ? null : i.getStringExtra("open");
         if (open == null) return "";
         if ("overview".equals(open)) return "#overview";
         if ("budget".equals(open)) return "#budget";
+        if ("banks".equals(open)) return "#banks";
         String cat = i.getStringExtra("cat");
         if ("moves".equals(open) && cat != null && cat.matches("[a-z]{1,20}")) return "#moves/" + cat;
         return "";
@@ -123,6 +124,7 @@ public class MainActivity extends Activity {
         super.onResume();
         DueWidget.refreshAll(this); // i widget si aggiornano ogni volta che apri l'app
         MonthWidget.refreshAll(this);
+        BankWidget.refreshAll(this);
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
@@ -286,6 +288,10 @@ public class MainActivity extends Activity {
                         || path.startsWith("/api/transactions") || path.startsWith("/api/manual") || path.startsWith("/api/statements") || path.startsWith("/api/banking/sync") || path.startsWith("/api/budget"))) {
                         DueWidget.refreshAll(MainActivity.this);
                         MonthWidget.refreshAll(MainActivity.this);
+                    }
+                    // Una lettura dalla banca cambia saldo e ultimo movimento del widget Revolut.
+                    if (r.status >= 200 && r.status < 300 && (path.startsWith("/api/banking/sync") || path.startsWith("/api/banking/explore/read"))) {
+                        BankWidget.refreshAll(MainActivity.this);
                     }
                     runOnUiThread(new Runnable() {
                         @Override public void run() {

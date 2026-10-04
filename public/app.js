@@ -1440,7 +1440,7 @@ async function logout() {
 }
 $('#logoutBtn').addEventListener('click', logout);
 
-// Dal widget Android: #moves/<categoria> apre i Movimenti del mese in corso filtrati per quella categoria, #overview la Panoramica, #budget il Budget.
+// Dal widget Android: #moves/<categoria> apre i Movimenti del mese in corso filtrati per quella categoria, #overview la Panoramica, #budget il Budget, #banks le Banche.
 // Il widget aggiunge in coda un numero, così lo stesso tocco ripetuto cambia comunque l'indirizzo.
 const HASH_CATS = new Set(['spesa', 'svago', 'carburante']);
 function openFromHash() {
@@ -1454,6 +1454,7 @@ function openFromHash() {
     showTab('moves');
   } else if (dest === 'overview') showTab('overview');
   else if (dest === 'budget') showTab('budget');
+  else if (dest === 'banks') showTab('banks');
 }
 window.addEventListener('hashchange', openFromHash);
 openFromHash();

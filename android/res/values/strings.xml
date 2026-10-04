@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_month_description">Da pagare, spese, carburante e svago, dal primo del mese, in una riga.</string>
-    <string name="widget_month2_description">Copia di «Questo mese» con la spesa stimata e quella reale al giorno per spese, carburante e svago.</string>
+    <string name="widget_bank_description">Revolut: saldo e ultimo movimento dall\'ultima lettura (non in tempo reale).</string>
+    <string name="widget_month2_description">Copia di «Questo mese» con, in spese, carburante e svago, la spesa stimata e quella reale al giorno.</string>
     <string name="widget_description">Quanto resta da pagare, con le prime voci in scadenza.</string>
 </resources>

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget «Revolut»: saldo e ultimo movimento dall'ultima lettura (non in tempo reale) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_bank_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="0.9"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginRight="2dp"
+        android:background="@drawable/widget_since_bg">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Revolut"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_bank_since"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#CCFFFFFF"
+            android:textSize="10.5sp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp"
+        android:background="@drawable/widget_cell">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Saldo"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_bank_balance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginLeft="2dp"
+        android:background="@drawable/widget_cell">
+        <TextView
+            android:id="@+id/widget_bank_last_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ultimo"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_bank_last"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_bank_last_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:maxWidth="110dp"
+            android:textColor="#CCFFFFFF"
+            android:textSize="10.5sp"
+            android:ellipsize="end"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

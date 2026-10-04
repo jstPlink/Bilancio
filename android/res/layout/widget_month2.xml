@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copia di «Questo mese» con, in ogni riquadro di spesa, la spesa stimata al giorno e quella reale (verde se migliore della stima, rossa se peggiore). File generato da scripts/genera-widget.mjs -->
+<!-- Copia di «Questo mese» (5×1) con, in ogni riquadro di spesa, «stima → reale» al giorno: verde se la reale è migliore, rossa se peggiore. File generato da scripts/genera-widget.mjs -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_month_root"
     android:layout_width="match_parent"
@@ -8,8 +8,8 @@
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
     android:background="@drawable/widget_bg">
 
     <!-- «dal 1° OTT»: da quando partono le cifre; un tocco apre la scheda Budget -->
@@ -29,14 +29,14 @@
             android:layout_height="wrap_content"
             android:text="dal 1°"
             android:textColor="#CCFFFFFF"
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:singleLine="true" />
         <TextView
             android:id="@+id/widget_month_since"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FFFFFF"
-            android:textSize="14.3sp"
+            android:textSize="15sp"
             android:textStyle="bold"
             android:singleLine="true" />
     </LinearLayout>
@@ -60,14 +60,14 @@
             android:layout_height="wrap_content"
             android:text="Da pagare"
             android:textColor="#E6FFFFFF"
-            android:textSize="11sp"
+            android:textSize="12.5sp"
             android:singleLine="true" />
         <TextView
             android:id="@+id/widget_month_topay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FFFFFF"
-            android:textSize="16.5sp"
+            android:textSize="17.5sp"
             android:textStyle="bold"
             android:singleLine="true" />
     </LinearLayout>
@@ -117,32 +117,23 @@
                 android:layout_height="wrap_content"
                 android:text="Spese"
                 android:textColor="#E6FFFFFF"
-                android:textSize="11sp"
+                android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_spese"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
-                android:textSize="15.4sp"
+                android:textSize="16.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
-                android:id="@+id/widget_month_spese_est"
+                android:id="@+id/widget_month_spese_day"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="#E6FFFFFF"
-                android:textSize="9sp"
-                android:shadowColor="#99000000"
-                android:shadowRadius="2"
-                android:singleLine="true" />
-            <TextView
-                android:id="@+id/widget_month_spese_real"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:layout_marginTop="1dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:shadowColor="#99000000"
                 android:shadowRadius="2"
@@ -195,32 +186,23 @@
                 android:layout_height="wrap_content"
                 android:text="Carburante"
                 android:textColor="#E6FFFFFF"
-                android:textSize="11sp"
+                android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_carburante"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
-                android:textSize="15.4sp"
+                android:textSize="16.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
-                android:id="@+id/widget_month_carburante_est"
+                android:id="@+id/widget_month_carburante_day"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="#E6FFFFFF"
-                android:textSize="9sp"
-                android:shadowColor="#99000000"
-                android:shadowRadius="2"
-                android:singleLine="true" />
-            <TextView
-                android:id="@+id/widget_month_carburante_real"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:layout_marginTop="1dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:shadowColor="#99000000"
                 android:shadowRadius="2"
@@ -273,32 +255,23 @@
                 android:layout_height="wrap_content"
                 android:text="Svago"
                 android:textColor="#E6FFFFFF"
-                android:textSize="11sp"
+                android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_svago"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
-                android:textSize="15.4sp"
+                android:textSize="16.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
-                android:id="@+id/widget_month_svago_est"
+                android:id="@+id/widget_month_svago_day"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="#E6FFFFFF"
-                android:textSize="9sp"
-                android:shadowColor="#99000000"
-                android:shadowRadius="2"
-                android:singleLine="true" />
-            <TextView
-                android:id="@+id/widget_month_svago_real"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="9sp"
+                android:layout_marginTop="1dp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp"
                 android:textStyle="bold"
                 android:shadowColor="#99000000"
                 android:shadowRadius="2"

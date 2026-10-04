@@ -10,6 +10,9 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.widget.RemoteViews;
 import java.util.Calendar;
 import java.util.Locale;
@@ -20,7 +23,7 @@ import java.util.Locale;
  * e, se c'è un budget, il loro riquadro è un contenitore che si riempie dal basso in proporzione alla spesa, con la superficie ad
  * onda sinusoidale che scorre verso destra. Ogni riquadro apre l'app: «Da pagare» sulla Panoramica, gli altri sui Movimenti del mese
  * filtrati per la loro categoria; il resto del widget apre l'app dall'inizio.
- * La copia {@link MonthWidgetDetail} (5×2) aggiunge in ogni riquadro la spesa stimata al giorno e quella reale.
+ * La copia {@link MonthWidgetDetail} (5×1, testi più grandi) aggiunge in ogni riquadro la spesa stimata al giorno e quella reale.
  */
 public class MonthWidget extends AppWidgetProvider {
     /** La copia con le spese al giorno ridefinisce questo metodo. */
@@ -114,31 +117,29 @@ public class MonthWidget extends AppWidgetProvider {
 
     // ------------------------------------------------------------------ spesa al giorno (solo nella copia)
 
-    private static String perDay(double v) { return String.format(Locale.ITALY, "%.1f", v) + "/g"; }
+    private static String perDay(double v) { return String.format(Locale.ITALY, "%.1f", v); }
 
     /**
-     * «stima»: il budget diviso i giorni del mese; «reale»: quanto speso finora diviso i giorni passati (oggi compreso).
-     * La reale è verde se è pari o migliore della stima, rossa se peggiore; senza budget non c'è confronto e resta bianca.
+     * Una riga sola, «stima→reale/g»: la stima è il budget diviso i giorni del mese, la reale quanto speso finora diviso i giorni passati
+     * (oggi compreso). La reale è verde se è pari o migliore della stima, rossa se peggiore; senza budget non c'è confronto e resta bianca.
      */
-    private static void daily(RemoteViews v, String key, boolean ok, double spent, double budget, int estId, int realId) {
+    private static void daily(RemoteViews v, boolean ok, double spent, double budget, int dayId) {
         Calendar now = Calendar.getInstance();
         int day = now.get(Calendar.DAY_OF_MONTH);
         int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
-        String est = "stima —";
-        String real = "reale —";
-        int color = 0xFFFFFFFF;
-        if (ok) {
+        SpannableStringBuilder s = new SpannableStringBuilder();
+        if (!ok) {
+            s.append("—");
+        } else {
             double r = spent / day;
-            real = "reale " + perDay(r);
-            if (budget > 0) {
-                double e = budget / days;
-                est = "stima " + perDay(e);
-                color = r <= e ? 0xFF4ADE80 : 0xFFFF6B6B;
-            }
+            boolean hasBudget = budget > 0;
+            s.append(hasBudget ? perDay(budget / days) : "—").append("→");
+            int from = s.length();
+            s.append(perDay(r));
+            if (hasBudget) s.setSpan(new ForegroundColorSpan(r <= budget / days ? 0xFF4ADE80 : 0xFFFF6B6B), from, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            s.append("/g");
         }
-        v.setTextViewText(estId, est);
-        v.setTextViewText(realId, real);
-        v.setTextColor(realId, color);
+        v.setTextViewText(dayId, s);
     }
 
     private static PendingIntent tap(Context c, int code, String open, String cat, boolean detailed) {
@@ -180,9 +181,9 @@ public class MonthWidget extends AppWidgetProvider {
         fill(c, v, "svago", shown.ok, shown.svago, shown.budgetSvago);
 
         if (detailed) {
-            daily(v, "spese", shown.ok, shown.spese, shown.budgetSpese, R.id.widget_month_spese_est, R.id.widget_month_spese_real);
-            daily(v, "carburante", shown.ok, shown.carburante, shown.budgetCarburante, R.id.widget_month_carburante_est, R.id.widget_month_carburante_real);
-            daily(v, "svago", shown.ok, shown.svago, shown.budgetSvago, R.id.widget_month_svago_est, R.id.widget_month_svago_real);
+            daily(v, shown.ok, shown.spese, shown.budgetSpese, R.id.widget_month_spese_day);
+            daily(v, shown.ok, shown.carburante, shown.budgetCarburante, R.id.widget_month_carburante_day);
+            daily(v, shown.ok, shown.svago, shown.budgetSvago, R.id.widget_month_svago_day);
         }
 
         // «Da pagare» si distingue dagli altri: rosso con scritte bianche finché resta qualcosa, verde chiaro quando è tutto pagato.
@@ -198,5 +199,22 @@ public class MonthWidget extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.widget_month_carburante_cell, tap(c, 4, "moves", "carburante", detailed));
         v.setOnClickPendingIntent(R.id.widget_month_svago_cell, tap(c, 5, "moves", "svago", detailed));
         m.updateAppWidget(ids, v);
+        if (shown.ok) updatePreview(c, m, detailed, v);
+    }
+
+    /**
+     * Anteprima «vera» nella lista dei widget (Android 15 e successivi): l'ultimo aspetto con i dati reali. Prima di Android 15 vale
+     * l'anteprima statica con dati di esempio (previewLayout). Il sistema limita le richieste: al massimo una l'ora e senza errori.
+     */
+    private static void updatePreview(Context c, AppWidgetManager m, boolean detailed, RemoteViews v) {
+        if (android.os.Build.VERSION.SDK_INT < 35) return;
+        android.content.SharedPreferences p = c.getSharedPreferences("anteprima", Context.MODE_PRIVATE);
+        String key = detailed ? "mese2" : "mese";
+        long now = System.currentTimeMillis();
+        if (now - p.getLong(key, 0) < 3600000L) return;
+        try {
+            m.setWidgetPreview(new ComponentName(c, detailed ? MonthWidgetDetail.class : MonthWidget.class), android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN, v);
+            p.edit().putLong(key, now).apply();
+        } catch (Throwable e) { /* limite di richieste o non supportato: resta l'anteprima statica */ }
     }
 }

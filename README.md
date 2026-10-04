@@ -87,11 +87,16 @@ L'app Android ha in più:
   **contenitori che si riempiono dal basso verso l'alto** con la spesa, su tutta la cella: bianchi, arancioni da 80% del budget, rossi quando lo superi; la superficie del liquido è un'**onda sinusoidale che scorre verso destra** (fotogrammi alternati da un ViewFlipper: consuma un po' di batteria finché la Home è visibile); senza budget il riquadro resta vuoto. Stesse cifre delle colonne della Panoramica;
   si aggiorna ogni mezz'ora, quando apri l'app e quando cambi categorie, importi, spunte o budget. **Ogni riquadro è un tasto**: Spese, Carburante e Svago aprono Movimenti sul mese in corso
   già filtrati per quella categoria, «Da pagare» apre la Panoramica; il bordo del widget apre l'app. (I budget arrivano dal server: serve la versione che li include.)
-- **Widget «Questo mese (stime al giorno)»** (Widget → Bilancio, 5×2): copia del widget precedente, che resta com'è, con in più in ogni riquadro di spesa, carburante e svago due righe: la **spesa stimata al giorno**
-  («stima», il budget diviso i giorni del mese) e la **spesa reale al giorno** («reale», quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore della stima, rossa se è peggiore**;
-  senza budget non c'è confronto. Il codice dei due layout si rigenera con `node scripts/genera-widget.mjs` (lì si cambia anche il tempo di cambio fotogramma).
+- **Widget «Questo mese (stime al giorno)»** (Widget → Bilancio, 5×1, testi più grandi): copia del widget precedente, che resta com'è, con in più in spesa, carburante e svago una riga `stima→reale/g`:
+  la **spesa stimata al giorno** (il budget diviso i giorni del mese) e la **spesa reale al giorno** (quanto speso finora diviso i giorni passati, oggi compreso), questa **verde se è pari o migliore della stima, rossa se è peggiore**;
+  senza budget non c'è confronto. Il codice dei layout si rigenera con `node scripts/genera-widget.mjs` (lì si cambia anche il tempo di cambio fotogramma).
   **Regolare l'onda** (in `MonthWidget.java`): `FRAMES` (fotogrammi di un giro; oggi 16, ognuno mostrato 285 ms: un giro dura 4,6 s), `AMPLITUDE` (altezza dell'onda in pixel del disegno 56×40; oggi 0,9) e `CRESTS` (quante onde nella larghezza del riquadro; oggi 2).
   Per rallentare basta alzare l'intervallo in `genera-widget.mjs`, per mantenerla fluida servono più fotogrammi (pesano poco, ma il widget va aggiornato con meno di 1 MB).
+- **Widget «Revolut»** (Widget → Bilancio, 4×1): **saldo totale in euro** (conti e pocket) e **ultimo movimento** (in sospeso se non ancora registrato), con scritto da quando sono i dati. **Non è in tempo reale**: legge dal server l'ultima copia
+  della scheda Banche e non chiama mai la banca (le banche concedono poche letture al giorno). Si aggiorna quando premi «Leggi dalla banca» o «Aggiorna ora» nell'app e ogni mezz'ora rilegge dal server; un tocco apre la scheda Banche.
+  Serve il server alla versione che ha `/api/banking/widget` (0.36.0).
+- **Anteprima nella lista dei widget**: ogni widget ha un'anteprima statica con dati di esempio (`previewLayout`, Android 12 e successivi, generata da `scripts/genera-widget.mjs`) e, da Android 15, l'anteprima **con i tuoi dati veri**,
+  aggiornata dal widget stesso (al massimo una volta l'ora). Se ne hai già uno sulla Home e l'anteprima non cambia, il launcher la tiene in cache: riavvialo o aspetta.
 - **Notifica del primo del mese** (alle 9): quanti conti restano da pagare e quali, se ce ne sono. Alla prima apertura l'app chiede il permesso
   per le notifiche. Per provarla subito: `adb shell am broadcast -n app.bilancio.mobile/.Monthly -a app.bilancio.mobile.MONTHLY`.
 - **Promemoria personalizzati** (Impostazioni → Promemoria): scrivi cosa controllare (es. «Addebito del mutuo») e scegli la ricorrenza: ogni giorno,
@@ -167,7 +172,13 @@ Movimenti) o **Leggi dalla banca** nella scheda Banche (aggiorna la copia). **Ag
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
 **Limiti:** le banche concedono 4 letture al giorno per collegamento, e le letture a mano contano tutte: **Aggiorna ora**, **Leggi dalla banca** e la lettura dopo il collegamento usano lo stesso contatore (finestra mobile
-di 24 ore, per ogni banca). Alla quinta l'app rifiuta con «massimo 4 letture al giorno» senza chiamare la banca; la lettura torna disponibile quando la più vecchia ha compiuto 24 ore. Il consenso
+di 24 ore, per ogni banca). Alla quinta l'app rifiuta con «massimo 4 letture al giorno» senza chiamare la banca; la lettura torna disponibile quando la più vecchia ha compiuto 24 ore.
+Il limite viene dalla normativa PSD2 (art. 36 delle norme tecniche RTS) e vale per gli accessi **senza l'utente presente**; le richieste fatte mentre l'utente è davanti all'app non hanno il tetto, ma vanno segnalate alla banca
+con le intestazioni `Psu-Ip-Address`, `Psu-User-Agent`… (tutte o nessuna) che l'app oggi **non invia**: per questo conta ogni lettura come «senza utente». Inviarle è possibile, ma la banca può comunque applicare limiti suoi.
+
+**Movimenti Revolut che «mancano» dopo la lettura.** Cause possibili, in ordine di probabilità: (1) **«Leggi dalla banca»** aggiorna solo la scheda Banche; per portarli in Panoramica e Movimenti serve **Aggiorna ora** (Impostazioni → Collega le banche);
+(2) i pagamenti con la carta restano **in sospeso** per uno o due giorni: in Banche si vedono come «in sospeso» ma entrano in Movimenti solo quando la banca li registra; (3) sono stati riconosciuti come **giroconti** (soldi tra i tuoi conti o pocket) e stanno nella sezione
+«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data era già stato importato da un CSV o PDF e non si duplica; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0). Il consenso
 dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco. I movimenti già importati da CSV/PDF (stessa data e importo)
 non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
 

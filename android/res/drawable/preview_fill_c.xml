@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Liquido dell'anteprima dei widget: altezza fissa, angoli tondi come i riquadri -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="bottom" android:height="15dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#66FFFFFF" />
+            <corners android:radius="14dp" />
+        </shape>
+    </item>
+</layer-list>

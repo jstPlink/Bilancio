@@ -166,7 +166,15 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map()) {
   const description = party || remittance.slice(0, 120) || 'Movimento bancario';
   const iban = (credit ? tx.debtor_account?.iban : tx.creditor_account?.iban) ?? '';
   const detail = [remittance && remittance !== description ? remittance : '', iban ? `IBAN ${iban}` : ''].filter(Boolean).join(' · ');
-  const key = tx.transaction_id ?? tx.entry_reference ?? tx.reference_number ?? `${date}|${signed}|${description}`;
+  let key = tx.transaction_id ?? tx.entry_reference ?? tx.reference_number;
+  if (key == null) {
+    // Senza identificativo della banca, due pagamenti identici nello stesso giorno (stessa cifra, stesso nome) non devono diventare uno solo:
+    // il primo tiene l'identificativo di sempre, i successivi un numero d'ordine.
+    const base = `${date}|${signed}|${description}`;
+    const n = (seen.get(`bk:${base}`) ?? 0) + 1;
+    seen.set(`bk:${base}`, n);
+    key = n === 1 ? base : `${base}|${n}`;
+  }
   const id = `bk:${crypto.createHash('sha1').update(`${conn.bank}|${account.uid}|${key}`).digest('hex').slice(0, 24)}`;
   const after = tx.balance_after_transaction?.amount;
   const t = makeTransaction({

@@ -14,7 +14,7 @@ import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
 import { BANKS, bankingState, checkKey, createClient as bankClient, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
-import { buildExplore } from './bankexplorer.js';
+import { buildBankWidget, buildExplore } from './bankexplorer.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -359,6 +359,13 @@ app.post('/api/banking/sync', async (req, res) => {
 
 // Scheda «Banche»: i dati originali delle banche, in una copia separata che non entra in Panoramica, Movimenti né Statistiche.
 app.get('/api/banking/explore', (req, res) => res.json(buildExplore(db())));
+
+// Per il widget Android di una banca: saldo e ultimi movimenti dell'ultima copia letta (non chiama la banca).
+app.get('/api/banking/widget', (req, res) => {
+  const bank = String(req.query.bank ?? 'revolut');
+  if (!BANKS[bank]) return bad(res, 'Banca non prevista.');
+  res.json(buildBankWidget(db(), bank));
+});
 
 // Legge dalla banca (una o tutte) e aggiorna la copia. Conta come una lettura del limite giornaliero.
 app.post('/api/banking/explore/read', async (req, res) => {

@@ -232,3 +232,24 @@ test('se la banca non concede un anno di storico, il motivo si vede', async () =
   assert.match(a.historyNote, /90 giorni/);
   assert.equal(a.booked, 1);
 });
+
+test('buildBankWidget: saldo dei conti in euro e ultimi movimenti dalla copia, senza chiamare la banca', async () => {
+  const { buildBankWidget } = await import('../src/bankexplorer.js');
+  const db = { banking: { app: null, connections: [], pending: {} } };
+  const b = bankingState(db);
+  assert.deepEqual(buildBankWidget(db, 'revolut', NOW), { connected: false, label: 'Revolut' });
+  const bal = (amount, currency = 'EUR') => [{ balance_type: 'CLBD', balance_amount: { amount, currency } }];
+  b.connections.push({ id: 'c1', bank: 'revolut', validUntil: '2027-01-01T00:00:00Z', calls: [], accounts: [{ uid: 'a1', name: 'Mario', iban: 'IT1' }, { uid: 'a2', name: 'Mario' }, { uid: 'a3', name: 'Mario' }] });
+  assert.equal(buildBankWidget(db, 'revolut', NOW).empty, true);
+  const t = (id, date, amount, name) => ({ transaction_id: id, booking_date: date, credit_debit_indicator: amount < 0 ? 'DBIT' : 'CRDT', transaction_amount: { amount: String(Math.abs(amount)), currency: 'EUR' }, ...(amount < 0 ? { creditor: { name } } : { debtor: { name } }) });
+  b.snapshots.c1 = { fetchedAt: '2026-10-03T10:00:00.000Z', accounts: {
+    a1: { booked: [t('1', '2026-10-01', -10, 'Bar'), t('2', '2026-10-02', -3, 'Edicola')], pending: [{ ...t('p', '2026-10-03', -4.5, 'Caffè'), status: 'PDNG' }], balances: bal('100.50'), details: null, unavailable: [] },
+    a2: { booked: [], pending: [], balances: bal('20'), details: null, unavailable: [] },
+    a3: { booked: [], pending: [], balances: bal('999', 'USD'), details: null, unavailable: [] },
+  } };
+  const w = buildBankWidget(db, 'revolut', NOW);
+  assert.equal(w.total, 120.5); // il pocket in dollari non si somma
+  assert.equal(w.pending, 1);
+  assert.deepEqual(w.recent.map((r) => [r.status, r.amount, r.name]), [['PDNG', -4.5, 'Caffè'], ['BOOK', -3, 'Edicola'], ['BOOK', -10, 'Bar']]);
+  assert.equal(w.fetchedAt, '2026-10-03T10:00:00.000Z');
+});

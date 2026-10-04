@@ -248,3 +248,22 @@ export function buildExplore(db, now = Date.now()) {
   });
   return { configured: Boolean(b.app?.appId && b.app?.privateKey), connections };
 }
+
+// Widget Android di una banca (oggi Revolut): saldo totale e ultimi movimenti dall'ULTIMA copia letta. Non chiama mai la banca:
+// i dati si aggiornano solo quando si preme «Leggi dalla banca» o «Aggiorna ora», quindi il widget dice anche da quando sono.
+export function buildBankWidget(db, bank = 'revolut', now = Date.now()) {
+  const label = BANKS[bank]?.label ?? bank;
+  const conn = buildExplore(db, now).connections.find((c) => c.bank === bank);
+  if (!conn) return { connected: false, label };
+  const base = { connected: true, label, readsToday: conn.readsToday, readsPerDay: conn.readsPerDay, expired: conn.expired, daysLeft: conn.daysLeft };
+  if (conn.empty) return { ...base, empty: true };
+  const pick = (view) => { for (const t of BALANCE_PREFERENCE) { const hit = view.find((b) => b.type === t); if (hit) return hit; } return view[0]; };
+  // Solo conti e pocket in euro: sommare valute diverse non avrebbe senso.
+  const euro = conn.accounts.map((a) => pick(a.balances)).filter((b) => b && (!b.currency || b.currency === 'EUR'));
+  return {
+    ...base, fetchedAt: conn.fetchedAt, accounts: conn.accounts.length,
+    total: euro.length ? round(euro.reduce((s, b) => s + b.amount, 0)) : null,
+    pending: conn.transactions.filter((t) => t.status === 'PDNG').length,
+    recent: conn.transactions.slice(0, 3).map((t) => ({ date: t.date, status: t.status, amount: t.amount, name: (t.party || t.remittance || 'Movimento').slice(0, 40) })),
+  };
+}

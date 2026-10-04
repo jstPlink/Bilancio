@@ -2,6 +2,13 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.36.0
+- **Widget «Questo mese (stime al giorno)»** ora 5×1, con testi più grandi e una riga sola `stima→reale/g` per voce (la reale verde o rossa).
+- **Nuovo widget «Revolut»** (4×1): saldo totale in euro e ultimo movimento dall'ultima lettura, con l'ora; non in tempo reale e non chiama mai la banca. Nuovo `GET /api/banking/widget`.
+- **Anteprime dei widget** nella lista: anteprima statica con dati di esempio per tutti (`previewLayout`) e, da Android 15, anteprima con i dati veri.
+- **Revolut, movimenti persi**: due pagamenti identici nello stesso giorno, quando la banca non dà un identificativo, diventavano un solo movimento; ora restano due (gli identificativi già salvati non cambiano).
+- Documentazione: perché si può non vedere un movimento Revolut e che il limite di 4 letture vale per gli accessi senza l'utente presente (PSD2).
+
 ## 0.35.4
 - **Documentazione**: struttura del progetto aggiornata (`budget.js`, `genera-widget.mjs`, widget Android) e come regolare velocità, ampiezza e numero di onde del widget.
 
