@@ -27,7 +27,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
     passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
   - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
     *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
-- **Movimenti.** I movimenti della banca collegata e degli estratti conto caricati, in un solo elenco. Un solo pulsante **Filtra** (col numero dei filtri attivi) apre anno, mese, categoria, ricerca e «Ordina per». Ogni movimento è un riquadro: in alto **data, importo
+- **Movimenti.** I movimenti della banca collegata e degli estratti conto caricati, in un solo elenco. Un solo pulsante **Filtra** (col numero dei filtri attivi) apre anno, mese, categoria, ricerca e «Ordina per», più il checkbox **Unisci le transazioni ripetute**: spento (predefinito) ogni transazione è una riga a sé, acceso quelle con lo stesso ente si accorpano in una riga «×n» che si apre sui singoli pagamenti (la scelta resta sul dispositivo). Ogni movimento è un riquadro: in alto **data, importo
   e, a destra, il menu della categoria**; sotto la **descrizione**. I pagamenti allo stesso ente (stessa descrizione) sono accorpati in un riquadro con «×n» e la somma: un tocco lo apre sui singoli pagamenti. Toccando un movimento si apre il **dettaglio completo** dentro lo stesso riquadro:
   giorno della settimana e ora, metodo (carta, bonifico, prelievo…), commissione e valuta, saldo dopo il pagamento, testo completo della banca, gli altri pagamenti con la stessa
   descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. I pagamenti ancora in sospeso hanno l'etichetta «in sospeso» e una **linea arancione sul bordo sinistro**; la riga sopra l'elenco dice quanti ce ne sono e che sono già contati. **Contano nei totali solo se la loro categoria conta** (Spesa, Svago, Carburante…): un pagamento in «Altro» si vede ma non si somma, finché non cambi la categoria.
@@ -324,3 +324,11 @@ test/          node --test; free-port.js sceglie porte libere per i test che avv
 - **A ogni modifica dell'app** la versione sale (`npm version <x.y.z> --no-git-tag-version`), si aggiunge una voce in `CHANGELOG.md`, si eseguono i test e si installa l'APK sul telefono con `npm run apk:installa`
   (su Windows con `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
 - I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.
+
+## Regole di stile
+
+L'aspetto è definito una volta sola nell'ultimo blocco di `public/style.css` («Sistema di stile»), con gli stessi valori nelle schede, nelle Impostazioni e nel login:
+- **Testo:** 12 (note, pillole), 13 (etichette, intestazioni di tabella, testo secondario), 14 (testo, campi, pulsanti), 16 (titoli di sezione), 20 (titoli di pagina), 24 (numeri grandi; 22 sul telefono). Colori: `--ink` testo, `--muted` secondario.
+- **Pulsanti:** stessa altezza (`--ctl-h`: 38, sul telefono 42) e angoli a 10. **Primario** = accento pieno; **secondario** (ghost, schede, Filtra, case) = superficie con bordo; **selezionato** = accento pieno; **link** = solo testo in accento.
+- **Campi:** stessa altezza, angoli a 10, bordo `--line-strong`; quelli dentro le righe (categoria, importi del budget) sono più piccoli (30, angoli a 8).
+- **Schede e riquadri:** angoli a 14, bordo `--line`, ombra leggera. **Linee:** solo da 1px e leggere (`--line`, nella Panoramica ancora più tenui).

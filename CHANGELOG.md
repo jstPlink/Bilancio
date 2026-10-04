@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.43.0
+- **Panoramica**: linee di separazione della griglia più leggere (1px, colore tenue).
+- **Estetica omologata**: un solo sistema di regole per tutta l'app (testi 12/13/14/16/20/24, colori `--ink`/`--muted`/accento, angoli 8/10/14, pulsanti e campi della stessa altezza, primario/secondario/selezionato/link uguali in ogni scheda, Impostazioni e login). Descritto in README, «Regole di stile».
+- **Widget**: invariato, resta lo stile turchese di prima.
+
+## 0.42.0
+- **Movimenti**: ogni transazione è ora una riga a sé, anche per gli enti ripetuti. Nel filtro c'è il checkbox **Unisci le transazioni ripetute** per accorparle di nuovo in una riga «×n» (la scelta si ricorda).
+
 ## 0.41.1
 - **Banche**: correzione dell'errore «Cannot read properties of undefined (reading join)» con un server non ancora aggiornato.
 

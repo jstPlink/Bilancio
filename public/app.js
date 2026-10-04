@@ -350,7 +350,9 @@ const categorySelect = (attr, id, current, label, positive = false) => {
 
 const CURRENT_YEAR = new Date().getFullYear();
 // Periodo e filtri condivisi da Movimenti e Statistiche.
-state.bank = { year: CURRENT_YEAR, month: 0, data: null, cat: '', q: '', flow: '', open: new Set() };
+// «Unisci le transazioni ripetute»: spento, ogni transazione è una riga a sé; acceso, quelle con lo stesso ente si accorpano.
+const mergeSaved = () => { try { return localStorage.getItem('bilancio.mergeMoves') === '1'; } catch { return false; } };
+state.bank = { year: CURRENT_YEAR, month: 0, data: null, cat: '', q: '', flow: '', merge: mergeSaved(), open: new Set() };
 state.moves = [];
 
 // Carica movimenti e analisi del periodo scelto e ridisegna la scheda visibile.
@@ -383,6 +385,8 @@ function renderFilters() {
   document.querySelectorAll('.f-year').forEach((el) => { el.innerHTML = yearOptions; });
   document.querySelectorAll('.f-month').forEach((el) => { el.innerHTML = monthOptions; });
   const sortNow = `${sorting.moves.key}:${sorting.moves.dir}`;
+  const mergeBox = $('#moveMerge');
+  if (mergeBox) mergeBox.checked = state.bank.merge;
   const sortSelect = $('#moveSort');
   if (sortSelect) {
     const known = SORT_CHOICES.some(([v]) => v === sortNow);
@@ -546,11 +550,11 @@ function renderMoves() {
   $('#movesBody').innerHTML = filter + summary + movesTable(list) + transferBox;
 }
 
-// Un solo elenco: i pagamenti con la stessa descrizione (lo stesso ente) sono accorpati in una riga che si apre sui singoli movimenti.
-function moveEntries(list) {
+// Un solo elenco: ogni transazione è una riga; con «Unisci le transazioni ripetute» quelle con la stessa descrizione (lo stesso ente) sono accorpate in una riga che si apre sui singoli movimenti.
+function moveEntries(list, merge = state.bank.merge) {
   const groups = new Map();
   for (const t of list) {
-    const k = groupKey(t);
+    const k = merge ? groupKey(t) : t.id;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(t);
   }
@@ -1404,6 +1408,12 @@ document.addEventListener('change', (e) => {
   if (e.target.id === 'moveSort') {
     const [key, dir] = e.target.value.split(':');
     Object.assign(sorting.moves, { key, dir });
+    renderMoves();
+    return;
+  }
+  if (e.target.id === 'moveMerge') {
+    state.bank.merge = e.target.checked;
+    try { localStorage.setItem('bilancio.mergeMoves', e.target.checked ? '1' : '0'); } catch { /* senza archivio del browser vale solo per questa sessione */ }
     renderMoves();
     return;
   }
