@@ -475,7 +475,13 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
 /* --- scheda Banche: un blocco per conto/pocket (saldo, dati e grafico insieme) --- */
 .bk-accts { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
 .bk-section { font-size: 15px; margin: 18px 0 8px; }
-.bk-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.bk-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: nowrap; cursor: pointer; list-style: none; }
+.bk-top::-webkit-details-marker { display: none; }
+.bk-top h3::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--muted); }
+details.bk-acct[open] > .bk-top h3::before { content: '▾'; }
+details.bk-acct[open] { grid-column: 1 / -1; }
+.bk-body { margin-top: 8px; }
+.bk-rn { margin-top: 6px; }
 .bk-titlebox { min-width: 0; flex: 1 1 180px; }
 .bk-titleline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bk-titleline h3 { overflow-wrap: anywhere; }

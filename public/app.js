@@ -469,6 +469,7 @@ function detailRow(t, similarByKey) {
       ${fact('Valuta', esc(t.currency))}
       ${fact('Saldo dopo', t.balance != null ? money(t.balance) : '')}
       ${fact('Conto', esc(t.product))}
+      ${fact('Stato', t.pending ? 'In sospeso: non ancora registrato dalla banca' : '')}
       ${fact('Categoria', `${esc(catName(t.category))} <small class="muted">· ${t.manual ? 'scelta da te' : 'assegnata in automatico'}</small>`)}
       ${fact('Documento', origin)}
       ${fact('Dettaglio', t.detail ? `<span class="rawdetail">${esc(t.detail)}</span>` : '')}
@@ -578,7 +579,7 @@ function movesTable(list, tableId = 'moveTable') {
     const open = state.bank.open.has(t.id);
     return `<tr class="mv${cls}${open ? ' open' : ''}" data-mv="${t.id}">
       <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}</span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span></td>
+      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${t.pending ? ' <span class="pill warn" title="Non ancora registrato dalla banca: conta già nei totali; se viene rifiutato sparisce alla lettura successiva">in sospeso</span>' : ''}</td>
       <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
       <td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>${open ? detailRow(t, similar) : ''}`;
   };
@@ -1200,7 +1201,7 @@ async function bankAction(btn) {
     btn.disabled = true;
     try {
       const r = await api('/api/banking/sync', { method: 'POST', body: { id: btn.dataset.id } });
-      toast(`Letti ${r.found} movimenti dalla banca: ${r.added} nuovi.`);
+      toast(`Letti ${r.found} movimenti dalla banca: ${r.added} nuovi${r.pending ? `, più ${r.pending} in sospeso` : ''}.`);
       renderBanking(r);
       await Promise.all([loadGrid(), loadBank()]);
     } finally { btn.disabled = false; }

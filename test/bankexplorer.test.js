@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { balanceTrend, balanceView, buildExplore, counterparties, fieldCoverage, flatten, inferPocketName, recurring } from '../src/bankexplorer.js';
+import { balanceTrend, balanceView, buildExplore, flatten, inferPocketName, totalBalance } from '../src/bankexplorer.js';
 import { bankingState, readBankData } from '../src/banking.js';
 
 const NOW = Date.parse('2026-10-02T10:00:00Z');
@@ -13,47 +13,6 @@ const tx = (id, date, amount, name, extra = {}) => ({
 test('flatten: campi annidati, elenchi e valori vuoti', () => {
   const f = flatten({ a: { b: 'x', vuoto: '' }, lista: ['uno', 'due'], oggetti: [{ iban: 'IT1' }, { iban: 'IT2' }], nullo: null });
   assert.deepEqual([...f], [['a.b', 'x'], ['lista[]', 'uno · due'], ['oggetti[].iban', 'IT1']]);
-});
-
-test('fieldCoverage: per ogni campo quanti movimenti lo hanno, con un esempio', () => {
-  const list = [
-    tx('1', '2026-09-01', -10, 'Bar', { merchant_category_code: '5812' }),
-    tx('2', '2026-09-02', -20, 'Negozio'),
-    tx('3', '2026-09-03', 100, 'Azienda'),
-  ];
-  const fields = Object.fromEntries(fieldCoverage(list).map((x) => [x.path, x]));
-  assert.equal(fields.transaction_id.count, 3);
-  assert.equal(fields.transaction_id.total, 3);
-  assert.equal(fields.merchant_category_code.count, 1);
-  assert.equal(fields.merchant_category_code.example, '5812');
-  assert.equal(fields['creditor.name'].count, 2);
-  assert.equal(fields['debtor.name'].count, 1);
-});
-
-test('counterparties: raggruppate per nome (a meno di cifre), separate fra uscite ed entrate', () => {
-  const list = [tx('1', '2026-09-01', -10, 'AMAZON 123'), tx('2', '2026-09-05', -30, 'Amazon 987'), tx('3', '2026-09-06', -5, 'Bar'), tx('4', '2026-09-07', 900, 'Azienda')];
-  const c = counterparties(list);
-  assert.equal(c.out[0].count, 2);
-  assert.equal(c.out[0].total, 40);
-  assert.equal(c.out[0].last, '2026-09-05');
-  assert.equal(c.out[1].name, 'Bar');
-  assert.deepEqual(c.in.map((x) => [x.name, x.total]), [['Azienda', 900]]);
-});
-
-test('recurring: trova gli abbonamenti mensili, segnala gli importi variabili e ignora ciò che non è regolare', () => {
-  const list = [
-    tx('n1', '2026-06-10', -13.99, 'Netflix'), tx('n2', '2026-07-10', -13.99, 'Netflix'), tx('n3', '2026-08-10', -13.99, 'Netflix'), tx('n4', '2026-09-10', -13.99, 'Netflix'),
-    tx('l1', '2026-06-20', -40, 'Luce Spa'), tx('l2', '2026-07-21', -75, 'Luce Spa'), tx('l3', '2026-08-19', -52, 'Luce Spa'),
-    tx('b1', '2026-06-01', -3, 'Bar'), tx('b2', '2026-06-03', -4, 'Bar'), tx('b3', '2026-09-20', -5, 'Bar'),
-  ];
-  const found = recurring(list);
-  const netflix = found.find((r) => r.name === 'Netflix');
-  assert.equal(netflix.every, 'ogni mese');
-  assert.equal(netflix.count, 4);
-  assert.equal(netflix.variable, false);
-  assert.equal(netflix.next, '2026-10-10');
-  assert.equal(found.find((r) => r.name === 'Luce Spa').variable, true);
-  assert.equal(found.some((r) => r.name === 'Bar'), false);
 });
 
 test('balanceTrend: usa il saldo scritto dalla banca; altrimenti ricostruisce all\'indietro dal saldo attuale', () => {
@@ -113,7 +72,6 @@ test('la lettura per la scheda Banche tiene una copia a parte e non tocca i dati
   assert.equal(c.accounts[0].balances[0].label, 'Saldo contabile');
   assert.equal(c.transactions.length, 3);
   assert.equal(c.transactions.find((t) => t.status === 'PDNG').party, 'In attesa');
-  assert.ok(c.fields.some((f) => f.path === 'creditor.name'));
 });
 
 test('se la banca non fornisce saldi o movimenti in sospeso, la lettura prosegue e lo segnala', async () => {
@@ -248,8 +206,19 @@ test('buildBankWidget: saldo dei conti in euro e ultimi movimenti dalla copia, s
     a3: { booked: [], pending: [], balances: bal('999', 'USD'), details: null, unavailable: [] },
   } };
   const w = buildBankWidget(db, 'revolut', NOW);
-  assert.equal(w.total, 120.5); // il pocket in dollari non si somma
+  assert.equal(w.total, 116); // 100,50 − 4,50 in sospeso + 20: il pocket in dollari non si somma
+  assert.equal(w.pendingTotal, -4.5);
   assert.equal(w.pending, 1);
   assert.deepEqual(w.recent.map((r) => [r.status, r.amount, r.name]), [['PDNG', -4.5, 'Caffè'], ['BOOK', -3, 'Edicola'], ['BOOK', -10, 'Bar']]);
   assert.equal(w.fetchedAt, '2026-10-03T10:00:00.000Z');
+});
+
+test('totalBalance: saldo contabile più i sospesi; se la banca dà solo il disponibile si usa quello', () => {
+  const view = balanceView([{ balance_type: 'CLBD', balance_amount: { amount: '100', currency: 'EUR' } }, { balance_type: 'ITAV', balance_amount: { amount: '90', currency: 'EUR' } }]);
+  const pending = [tx('p1', '2026-10-01', -4.5, 'Bar'), tx('p2', '2026-10-01', 12, 'Rimborso')];
+  const t = totalBalance(view, pending);
+  assert.deepEqual([t.amount, t.pending, t.pendingCount, t.basis], [107.5, 7.5, 2, 'booked']);
+  const only = totalBalance(balanceView([{ balance_type: 'ITAV', balance_amount: { amount: '90', currency: 'EUR' } }]), pending);
+  assert.deepEqual([only.amount, only.pending, only.basis], [90, 0, 'available']);
+  assert.equal(totalBalance([], pending), null);
 });

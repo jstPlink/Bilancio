@@ -174,7 +174,7 @@ export async function finishLink({ client, db, code, state, now = Date.now() }) 
 // ------------------------------------------------------------------ movimenti
 
 // Un movimento dell'aggregatore diventa un movimento dell'app. Negativo = uscita.
-export function mapTransaction(tx, conn, account, rules, seen = new Map()) {
+export function mapTransaction(tx, conn, account, rules, seen = new Map(), pending = false) {
   const amount = Math.abs(Number(tx.transaction_amount?.amount));
   if (!Number.isFinite(amount)) return null;
   const credit = tx.credit_debit_indicator === 'CRDT';
@@ -195,6 +195,8 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map()) {
     seen.set(`bk:${base}`, n);
     key = n === 1 ? base : `${base}|${n}`;
   }
+  // Un movimento in sospeso non deve mai avere l'identificativo di quello registrato: quando la banca lo registra, il suo posto lo prende il registrato.
+  if (pending) key = `PDNG|${key}`;
   const id = `bk:${crypto.createHash('sha1').update(`${conn.bank}|${account.uid}|${key}`).digest('hex').slice(0, 24)}`;
   const after = tx.balance_after_transaction?.amount;
   const t = makeTransaction({
@@ -237,7 +239,7 @@ export async function syncConnection({ client, db, conn, now = Date.now() }) {
   }
 
   const since = conn.lastSync ? Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY : now - FIRST_SYNC_DAYS * DAY;
-  const report = { found: 0, added: 0, duplicates: 0 };
+  const report = { found: 0, added: 0, duplicates: 0, pending: 0 };
   const seen = new Map();
   for (const account of conn.accounts) {
     let list;
@@ -255,6 +257,20 @@ export async function syncConnection({ client, db, conn, now = Date.now() }) {
       if ((fromFiles.get(k) ?? 0) > 0) { fromFiles.set(k, fromFiles.get(k) - 1); report.duplicates++; continue; }
       all[t.id] = { ...t, file: `Collegamento ${label}` };
       report.added++;
+    }
+    // In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
+    // spariscono da soli e quelli che la banca ha registrato ricompaiono come registrati (sopra). Se la banca non dà i sospesi, si tengono quelli di prima.
+    let pendingList = null;
+    try { pendingList = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'); } catch { /* sospesi non disponibili */ }
+    if (pendingList) {
+      for (const id of Object.keys(all)) if (all[id].pendingAcct === account.uid) delete all[id];
+      const pseen = new Map();
+      for (const tx of pendingList) {
+        const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true);
+        if (!t) continue;
+        all[t.id] = { ...t, file: `Collegamento ${label}`, pending: true, pendingAcct: account.uid };
+        report.pending++;
+      }
     }
   }
   conn.lastSync = new Date(now).toISOString();

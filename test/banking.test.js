@@ -114,13 +114,14 @@ test('sincronizzazione: scorre le pagine, chiede solo i movimenti registrati e n
   const queries = [];
   const client = {
     transactions: async (uid, q) => {
+      if (q.transaction_status === 'PDNG') return { transactions: [] };
       queries.push(q);
       return q.continuation_key ? { transactions: [bookedTx('B', 20)] } : { transactions: [bookedTx('A', 10)], continuation_key: 'p2' };
     },
   };
   const c = makeConn();
   const r = await syncConnection({ client, db, conn: c, now: NOW });
-  assert.deepEqual(r, { found: 2, added: 2, duplicates: 0 });
+  assert.deepEqual(r, { found: 2, added: 2, duplicates: 0, pending: 0 });
   assert.ok(queries.every((q) => q.transaction_status === 'BOOK'));
   assert.equal(queries[0].date_from, '2025-10-02'); // primo collegamento: un anno di storico
   assert.equal(c.lastSync, new Date(NOW).toISOString());
@@ -134,7 +135,7 @@ test('sincronizzazione: scorre le pagine, chiede solo i movimenti registrati e n
 test('i movimenti già importati da CSV o PDF (stessa data e importo) non si duplicano', async () => {
   const db = freshDb();
   db.transactions.csv1 = { id: 'csv1', date: '2026-09-20', amount: -10, description: 'NEGOZIO ROMA 123', category: 'spesa' };
-  const client = { transactions: async () => ({ transactions: [bookedTx('A', 10), bookedTx('B', 10), bookedTx('C', 7)] }) };
+  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [] : [bookedTx('A', 10), bookedTx('B', 10), bookedTx('C', 7)] }) };
   const r = await syncConnection({ client, db, conn: makeConn(), now: NOW });
   assert.equal(r.duplicates, 1); // uno dei due da 10 € c'è già nel file
   assert.equal(r.added, 2);
@@ -143,7 +144,7 @@ test('i movimenti già importati da CSV o PDF (stessa data e importo) non si dup
 test('se la banca non concede un anno di storico si ripiega su 90 giorni', async () => {
   const db = freshDb();
   const from = [];
-  const client = { transactions: async (uid, q) => { from.push(q.date_from); if (from.length === 1) throw new Error('periodo troppo lungo'); return { transactions: [bookedTx('A', 5)] }; } };
+  const client = { transactions: async (uid, q) => { if (q.transaction_status === 'PDNG') return { transactions: [] }; from.push(q.date_from); if (from.length === 1) throw new Error('periodo troppo lungo'); return { transactions: [bookedTx('A', 5)] }; } };
   const r = await syncConnection({ client, db, conn: makeConn(), now: NOW });
   assert.equal(r.added, 1);
   assert.deepEqual(from, ['2025-10-02', '2026-07-04']);
@@ -200,4 +201,38 @@ test('letture a mano: le intestazioni PSU partono con i dati dei conti e, se la 
   seen.length = 0;
   await createClient({ appId: 'app', privateKey }, fake).details('u1'); // senza PSU: nessuna intestazione
   assert.deepEqual(seen.map((s) => s.psu), [undefined]);
+});
+
+test('movimenti in sospeso: contano subito, spariscono se rifiutati e lasciano il posto al registrato', async () => {
+  const db = freshDb();
+  const pend = (id, amount, name) => ({ transaction_id: id, value_date: '2026-10-02', credit_debit_indicator: 'DBIT', status: 'PDNG', transaction_amount: { amount: String(amount), currency: 'EUR' }, creditor: { name } });
+  let pending = [pend('p1', 4.5, 'Bar Centrale'), pend('p2', 30, 'Supermercato Coop')];
+  let booked = [];
+  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? pending : booked }) };
+  const c = makeConn();
+  let r = await syncConnection({ client, db, conn: c, now: NOW });
+  assert.equal(r.pending, 2);
+  const list = () => Object.values(db.transactions);
+  assert.equal(list().filter((t) => t.pending).length, 2);
+  assert.equal(list().reduce((s, t) => s + t.amount, 0), -34.5); // contano nelle somme come ogni movimento
+  // il bar viene registrato (stesso identificativo della banca), il supermercato rifiutato: sparisce
+  booked = [{ ...pend('p1', 4.5, 'Bar Centrale'), booking_date: '2026-10-03', status: 'BOOK' }];
+  pending = [];
+  r = await syncConnection({ client, db, conn: c, now: NOW + 3600000 });
+  assert.equal(r.pending, 0);
+  assert.equal(list().length, 1);
+  assert.equal(list()[0].pending, undefined);
+  assert.equal(list()[0].amount, -4.5);
+});
+
+test('movimenti in sospeso: se la banca non li dà, si tengono quelli di prima', async () => {
+  const db = freshDb();
+  const t0 = { transaction_id: 'p1', value_date: '2026-10-02', credit_debit_indicator: 'DBIT', transaction_amount: { amount: '4.50', currency: 'EUR' }, creditor: { name: 'Bar' } };
+  let broken = false;
+  const client = { transactions: async (uid, q) => { if (q.transaction_status === 'PDNG') { if (broken) throw new Error('non supportato'); return { transactions: [t0] }; } return { transactions: [] }; } };
+  const c = makeConn();
+  await syncConnection({ client, db, conn: c, now: NOW });
+  broken = true;
+  await syncConnection({ client, db, conn: c, now: NOW + 3600000 });
+  assert.equal(Object.values(db.transactions).filter((t) => t.pending).length, 1);
 });

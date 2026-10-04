@@ -27,21 +27,6 @@ export function flatten(value, prefix = '', out = new Map()) {
   return out;
 }
 
-// Quali campi la banca fornisce davvero e in quanti movimenti.
-export function fieldCoverage(txs) {
-  const stats = new Map();
-  for (const tx of txs) {
-    for (const [path, example] of flatten(tx)) {
-      const s = stats.get(path) ?? { path, count: 0, example };
-      s.count++;
-      stats.set(path, s);
-    }
-  }
-  return [...stats.values()]
-    .sort((a, b) => b.count - a.count || a.path.localeCompare(b.path))
-    .map((s) => ({ path: s.path, count: s.count, total: txs.length, example: s.example.length > 70 ? `${s.example.slice(0, 68)}…` : s.example }));
-}
-
 const dateOf = (tx) => String(tx.booking_date ?? tx.value_date ?? tx.transaction_date ?? '').slice(0, 10);
 const isCredit = (tx) => tx.credit_debit_indicator === 'CRDT';
 const amountOf = (tx) => Math.abs(Number(tx.transaction_amount?.amount));
@@ -53,69 +38,6 @@ const nameKey = (s) => String(s).toLowerCase().replace(/[0-9]+/g, ' ').replace(/
 
 // Un movimento senza identificativo si riconosce da data, importo e controparte.
 const rawKey = (tx) => tx.transaction_id ?? tx.entry_reference ?? tx.reference_number ?? `${dateOf(tx)}|${signedOf(tx)}|${partyOf(tx)}|${remittanceOf(tx).slice(0, 40)}`;
-
-// ------------------------------------------------------------------ interlocutori e pagamenti ricorrenti
-
-function groupByParty(txs) {
-  const groups = new Map();
-  for (const tx of txs.filter(usable)) {
-    const dir = isCredit(tx) ? 'in' : 'out';
-    const name = partyOf(tx) || remittanceOf(tx).slice(0, 50) || 'Senza controparte';
-    const key = `${dir}:${nameKey(name) || name}`;
-    const g = groups.get(key) ?? { dir, name, items: [] };
-    g.items.push({ date: dateOf(tx), amount: amountOf(tx) });
-    groups.set(key, g);
-  }
-  return [...groups.values()];
-}
-
-export function counterparties(txs, limit = 15) {
-  const out = { out: [], in: [] };
-  for (const g of groupByParty(txs)) {
-    const dates = g.items.map((i) => i.date).sort();
-    out[g.dir].push({ name: g.name, count: g.items.length, total: round(g.items.reduce((a, i) => a + i.amount, 0)), first: dates[0], last: dates.at(-1) });
-  }
-  for (const dir of ['out', 'in']) out[dir] = out[dir].sort((a, b) => b.total - a.total).slice(0, limit);
-  return out;
-}
-
-const CADENCES = [
-  { label: 'ogni settimana', min: 6, max: 8, days: 7 },
-  { label: 'ogni 2 settimane', min: 13, max: 16, days: 14 },
-  { label: 'ogni mese', min: 26, max: 35, months: 1 },
-  { label: 'ogni 2 mesi', min: 56, max: 66, months: 2 },
-  { label: 'ogni 3 mesi', min: 85, max: 96, months: 3 },
-  { label: 'ogni anno', min: 350, max: 380, months: 12 },
-];
-// Stesso giorno del mese dopo `n` mesi (a fine mese si ferma all'ultimo giorno).
-function addMonths(date, n) {
-  const [y, m, d] = date.split('-').map(Number);
-  const target = new Date(Date.UTC(y, m - 1 + n, 1));
-  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  return isoDay(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), Math.min(d, last)));
-}
-const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
-
-// Stesso interlocutore, a intervalli regolari, almeno tre volte. L'importo può variare (bollette): in quel caso lo si segnala.
-export function recurring(txs) {
-  const found = [];
-  for (const g of groupByParty(txs)) {
-    if (g.items.length < 3) continue;
-    const items = [...g.items].sort((a, b) => a.date.localeCompare(b.date));
-    const days = items.map((i) => Date.parse(`${i.date}T12:00:00Z`) / DAY);
-    const gaps = days.slice(1).map((d, i) => d - days[i]);
-    const typical = median(gaps);
-    const cadence = CADENCES.find((c) => typical >= c.min && typical <= c.max);
-    if (!cadence) continue;
-    const regular = gaps.filter((x) => Math.abs(x - typical) <= Math.max(3, typical * 0.15)).length;
-    if (regular / gaps.length < 0.6) continue;
-    const amount = median(items.map((i) => i.amount));
-    const variable = items.some((i) => Math.abs(i.amount - amount) > amount * 0.15);
-    const last = items.at(-1).date;
-    found.push({ name: g.name, direction: g.dir, every: cadence.label, count: items.length, amount: round(amount), variable, last, next: cadence.months ? addMonths(last, cadence.months) : isoDay(Date.parse(`${last}T12:00:00Z`) + cadence.days * DAY) });
-  }
-  return found.sort((a, b) => b.amount - a.amount);
-}
 
 // ------------------------------------------------------------------ nome dei pocket
 
@@ -158,6 +80,21 @@ export function balanceView(balances) {
     amount: Number(b.balance_amount?.amount), currency: b.balance_amount?.currency ?? '',
     date: String(b.last_change_date_time ?? b.reference_date ?? '').slice(0, 10),
   })).filter((b) => Number.isFinite(b.amount));
+}
+
+// Il saldo «totale» di un conto: il saldo contabile (che non conta i pagamenti in sospeso) più i pagamenti in sospeso, in uscita o in entrata.
+// Se la banca dà solo saldi «disponibili» (già al netto dei sospesi) si usa quello com'è. Un pagamento rifiutato sparisce dai sospesi alla lettura successiva.
+const BOOKED_TYPES = ['CLBD', 'ITBD', 'XPCD'];
+const AVAILABLE_TYPES = ['ITAV', 'CLAV', 'OTHR'];
+export function totalBalance(view, pending = []) {
+  const find = (types) => types.map((t) => view.find((b) => b.type === t)).find(Boolean);
+  const booked = find(BOOKED_TYPES);
+  if (booked) {
+    const sum = round(pending.filter((tx) => Number.isFinite(amountOf(tx))).reduce((s, tx) => s + signedOf(tx), 0));
+    return { amount: round(booked.amount + sum), pending: sum, pendingCount: pending.length, currency: booked.currency, date: booked.date, basis: 'booked' };
+  }
+  const avail = find(AVAILABLE_TYPES) ?? view[0];
+  return avail ? { amount: avail.amount, pending: 0, pendingCount: pending.length, currency: avail.currency, date: avail.date, basis: 'available' } : null;
 }
 
 const currentBalance = (balances) => {
@@ -210,10 +147,8 @@ export function buildExplore(db, now = Date.now()) {
     if (!snap) return { ...base, empty: true };
 
     const rows = [];
-    const everything = [];
     const accounts = conn.accounts.map((acc) => {
       const a = snap.accounts[acc.uid] ?? { booked: [], pending: [], balances: [], details: null, unavailable: [] };
-      everything.push(...a.booked, ...a.pending);
       const dates = a.booked.map(dateOf).filter(Boolean).sort();
       for (const [status, list] of [['BOOK', a.booked], ['PDNG', a.pending]]) {
         for (const tx of list) {
@@ -231,8 +166,8 @@ export function buildExplore(db, now = Date.now()) {
         nameHint: guess ? `Dai movimenti: «${guess.example}» (${guess.count} volte)` : '', main: isMain,
         iban, currency: acc.currency || a.details?.currency || '',
         type, product: a.details?.product ?? '', historyNote: a.historyNote ?? '',
-        details: Object.fromEntries(flatten(a.details ?? {})),
         balances: balanceView(a.balances),
+        total: totalBalance(balanceView(a.balances), a.pending),
         booked: a.booked.length, pending: a.pending.length, from: dates[0] ?? null, to: dates.at(-1) ?? null,
         trend: balanceTrend(a.booked, a.balances), unavailable: a.unavailable ?? [],
       };
@@ -240,9 +175,6 @@ export function buildExplore(db, now = Date.now()) {
     rows.sort((x, y) => y.date.localeCompare(x.date) || (x.status === 'PDNG' ? -1 : 1));
     return {
       ...base, accounts,
-      fields: fieldCoverage(everything),
-      counterparties: counterparties(everything),
-      recurring: recurring(conn.accounts.flatMap((acc) => snap.accounts[acc.uid]?.booked ?? [])),
       transactions: rows.slice(0, MAX_ROWS), transactionsTotal: rows.length,
     };
   });
@@ -257,12 +189,12 @@ export function buildBankWidget(db, bank = 'revolut', now = Date.now()) {
   if (!conn) return { connected: false, label };
   const base = { connected: true, label, readsToday: conn.readsToday, readsPerDay: conn.readsPerDay, expired: conn.expired, daysLeft: conn.daysLeft };
   if (conn.empty) return { ...base, empty: true };
-  const pick = (view) => { for (const t of BALANCE_PREFERENCE) { const hit = view.find((b) => b.type === t); if (hit) return hit; } return view[0]; };
-  // Solo conti e pocket in euro: sommare valute diverse non avrebbe senso.
-  const euro = conn.accounts.map((a) => pick(a.balances)).filter((b) => b && (!b.currency || b.currency === 'EUR'));
+  // Solo conti e pocket in euro: sommare valute diverse non avrebbe senso. Il totale comprende i pagamenti in sospeso.
+  const euro = conn.accounts.map((a) => a.total).filter((b) => b && (!b.currency || b.currency === 'EUR'));
   return {
     ...base, fetchedAt: conn.fetchedAt, accounts: conn.accounts.length,
     total: euro.length ? round(euro.reduce((s, b) => s + b.amount, 0)) : null,
+    pendingTotal: round(euro.reduce((s, b) => s + b.pending, 0)),
     pending: conn.transactions.filter((t) => t.status === 'PDNG').length,
     recent: conn.transactions.slice(0, 3).map((t) => ({ date: t.date, status: t.status, amount: t.amount, name: (t.party || t.remittance || 'Movimento').slice(0, 40) })),
   };

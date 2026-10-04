@@ -71,10 +71,6 @@ function drawTrend(host, trend) {
   wrap.className = 'chart-wrap';
   wrap.append(svg, tip);
   host.append(wrap);
-  const note = document.createElement('p');
-  note.className = 'muted';
-  note.textContent = trend.note;
-  host.append(note);
 }
 
 // ------------------------------------------------------------------ modulo
@@ -85,40 +81,31 @@ export function mountBanks(host, api, toast) {
   const stateOf = (id) => { if (!ui.has(id)) ui.set(id, { status: '', account: '', q: '', shown: PAGE, open: new Set() }); return ui.get(id); };
 
   let renaming = null; // conto/pocket di cui si sta scrivendo il nome
+  const openAccts = new Set(); // conti e pocket aperti (di norma sono tutti chiusi)
 
   // Il saldo da mostrare in grande: quello «disponibile» se c'è, altrimenti il contabile.
   const mainBalance = (a) => ['ITAV', 'CLAV', 'CLBD', 'ITBD', 'XPCD'].map((t) => a.balances.find((b) => b.type === t)).find(Boolean) ?? a.balances[0] ?? null;
 
-  const nameSource = (a) => {
-    if (a.nameSource === 'manuale') return `Nome dato da te · intestatario: ${esc(a.holder)}`;
-    if (a.nameSource === 'movimenti') return `<span title="${esc(a.nameHint)}">Nome ricavato dai movimenti</span> · intestatario: ${esc(a.holder)}`;
-    return a.main ? 'Conto principale' : 'La banca dà solo il nome dell\'intestatario: usa «Rinomina» per dare il nome a questo pocket';
-  };
-
+  // Ogni conto o pocket è una finestra che si apre e si chiude: chiusa mostra nome e saldo (con i pagamenti in sospeso già dentro),
+  // aperta aggiunge IBAN, quanti movimenti ci sono e in che periodo, e il grafico del saldo.
   const accountBlock = (a) => {
-    const big = mainBalance(a);
-    const others = a.balances.length
-      ? `<dl class="bk-bal">${a.balances.map((b) => `<div><dt>${esc(b.label)}</dt><dd>${money(b.amount, b.currency)}${b.date ? ` <small class="muted">${fmtDate(b.date)}</small>` : ''}</dd></div>`).join('')}</dl>`
-      : '<p class="muted">La banca non ha dato saldi.</p>';
-    const extra = Object.entries(a.details);
-    const gaps = a.unavailable.length
-      ? `<p class="bk-warn">Non disponibile: ${a.unavailable.map((u) => `<b>${esc(u.what)}</b> <span class="muted" title="${esc(u.why)}">(${esc(u.why.slice(0, 60))})</span>`).join(' · ')}</p>` : '';
-    const title = renaming === a.uid
+    const big = a.total ?? (() => { const b = mainBalance(a); return b ? { amount: b.amount, currency: b.currency, pending: 0 } : null; })();
+    const bigHtml = big
+      ? `<b>${money(big.amount, big.currency)}</b>${big.pending ? `<small class="muted" title="Pagamenti non ancora registrati dalla banca: se vengono rifiutati spariscono alla lettura successiva">di cui in sospeso ${signed(big.pending, big.currency)}</small>` : ''}`
+      : '<small class="muted">Saldo non fornito</small>';
+    const rename = renaming === a.uid
       ? `<form class="bk-rename" data-renameform="${esc(a.uid)}"><input name="n" value="${esc(a.nameSource === 'manuale' ? a.name : '')}" placeholder="${esc(a.nameSource === 'movimenti' ? a.name : 'Es. 01 Spesa')}" maxlength="60" autocomplete="off" aria-label="Nome del conto"><button class="primary">Salva</button><button type="button" class="ghost" data-cancel>Annulla</button></form>`
-      : `<h3>${esc(a.name)}</h3><button class="link bk-edit" data-rename="${esc(a.uid)}" title="Dai un nome a questo conto (vuoto = toglie il nome)">✎ Rinomina</button>`;
-    return `<article class="bk-acct" data-acct="${esc(a.uid)}">
-      <header class="bk-top">
-        <div class="bk-titlebox"><div class="bk-titleline">${title}</div><p class="muted bk-src">${nameSource(a)}</p></div>
-        <div class="bk-big">${big ? `<b>${money(big.amount, big.currency)}</b><small class="muted">${esc(big.label)}${big.date ? ` · ${fmtDate(big.date)}` : ''}</small>` : '<small class="muted">Saldo non fornito</small>'}</div>
-      </header>
-      ${a.iban ? `<p class="bk-iban">${esc(a.iban)}</p>` : '<p class="bk-iban muted">IBAN non fornito</p>'}
-      <p class="muted">${esc(a.currency)} · ${esc(ACCOUNT_TYPES[a.type] ?? (a.type || 'tipo non indicato'))}${a.product ? ` <span class="pill edit">${esc(a.product)}</span>` : ''}</p>
-      <p class="bk-counts"><b>${a.booked}</b> movimenti registrati · <b>${a.pending}</b> in sospeso${a.from ? ` · dal ${fmtDate(a.from)} al ${fmtDate(a.to)}` : ''}</p>
-      ${a.historyNote ? `<p class="bk-hist muted">${esc(a.historyNote)}</p>` : ''}
-      ${gaps}
-      <div class="chart bk-chart" data-trend="${esc(a.uid)}"></div>
-      <details class="bk-more"><summary class="muted">Saldi e tutti i dati del conto (${extra.length})</summary>${others}${extra.length ? `<dl class="bk-kv">${extra.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}</details>
-    </article>`;
+      : `<button class="link bk-edit" data-rename="${esc(a.uid)}" title="Dai un nome a questo conto (vuoto = toglie il nome)">✎ Rinomina</button>`;
+    const count = a.booked ? `<b>${a.booked}</b> movimenti${a.from ? ` dal ${fmtDate(a.from)} al ${fmtDate(a.to)}` : ''}` : 'Nessun movimento registrato';
+    return `<details class="bk-acct" data-acct="${esc(a.uid)}" ${openAccts.has(a.uid) ? 'open' : ''}>
+      <summary class="bk-top"><h3>${esc(a.name)}</h3><div class="bk-big">${bigHtml}</div></summary>
+      <div class="bk-body">
+        <p class="bk-iban${a.iban ? '' : ' muted'}">${a.iban ? esc(a.iban) : 'IBAN non fornito'}</p>
+        <p class="bk-counts">${count}${a.pending ? ` · <b>${a.pending}</b> in sospeso` : ''}</p>
+        <div class="chart bk-chart" data-trend="${esc(a.uid)}"></div>
+        <div class="bk-rn">${rename}</div>
+      </div>
+    </details>`;
   };
 
   const accountsHtml = (c) => {
@@ -129,10 +116,6 @@ export function mountBanks(host, api, toast) {
     return group('Conti', mains) + group('Pocket e risparmi', pockets);
   };
 
-  const partyTable = (title, list) => `<div><h4>${title}</h4>${list.length
-    ? `<table class="atable"><thead><tr><th>Interlocutore</th><th class="num">Volte</th><th class="num">Totale</th><th>Ultimo</th></tr></thead><tbody>${list.map((c) => `<tr><td class="fname" title="${esc(c.name)}">${esc(c.name)}</td><td class="num">${c.count}</td><td class="num">${money(c.total)}</td><td>${fmtDate(c.last)}</td></tr>`).join('')}</tbody></table>`
-    : '<p class="muted">Nessuno.</p>'}</div>`;
-
   const connectionHtml = (c) => {
     const reads = `Letture oggi ${c.readsToday}/${c.readsPerDay}`;
     const consent = c.expired ? '<span class="pill warn">Consenso scaduto</span>' : `<span class="pill ok">Consenso valido ancora ${c.daysLeft} giorni</span>`;
@@ -141,16 +124,6 @@ export function mountBanks(host, api, toast) {
       <span class="muted">${c.fetchedAt ? `Copia letta il ${fmtDateTime(c.fetchedAt)}` : 'Nessuna lettura ancora'} · ${reads}</span>
       <button class="primary" data-read="${esc(c.id)}" ${blocked ? 'disabled' : ''} title="Legge dalla banca e aggiorna la copia (conta come una delle ${c.readsPerDay} letture giornaliere)">Leggi dalla banca</button></header>`;
     if (c.empty) return `<section class="bankconn" data-conn="${esc(c.id)}">${head}<div class="empty"><p>Premi <b>Leggi dalla banca</b> per scaricare conti, saldi e movimenti con tutti i campi originali.</p></div></section>`;
-
-    const fields = `<details class="acat" ${phone ? '' : 'open'}><summary>Quali campi fornisce la banca <span class="muted">· ${c.fields.length} campi diversi nei ${c.fields[0]?.total ?? 0} movimenti letti</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr><th>Campo</th><th class="num">Movimenti che lo hanno</th><th>Quota</th><th>Esempio</th></tr></thead><tbody>${c.fields.map((f) => {
-        const pct = Math.round((f.count / f.total) * 100);
-        return `<tr><td><code>${esc(f.path)}</code></td><td class="num">${f.count} su ${f.total}</td><td><span class="bk-bar" title="${pct}%"><i style="width:${pct}%"></i></span> <small class="muted">${pct}%</small></td><td class="fname" title="${esc(f.example)}">${esc(f.example)}</td></tr>`;
-      }).join('')}</tbody></table></div></details>`;
-
-    const recurring = `<details class="acat" ${phone ? '' : 'open'}><summary>Pagamenti ricorrenti <span class="muted">· ${c.recurring.length} trovati (stesso interlocutore, a intervalli regolari, almeno 3 volte)</span></summary>${c.recurring.length
-      ? `<div class="tablewrap"><table class="atable"><thead><tr><th>Interlocutore</th><th>Verso</th><th>Frequenza</th><th class="num">Importo</th><th class="num">Volte</th><th>Ultimo</th><th>Prossimo</th></tr></thead><tbody>${c.recurring.map((r) => `<tr><td class="fname" title="${esc(r.name)}">${esc(r.name)}</td><td>${r.direction === 'in' ? 'Entrata' : 'Uscita'}</td><td>${esc(r.every)}</td><td class="num">${r.variable ? '~ ' : ''}${money(r.amount)}</td><td class="num">${r.count}</td><td>${fmtDate(r.last)}</td><td>${fmtDate(r.next)}</td></tr>`).join('')}</tbody></table></div><p class="muted">«~» = l'importo cambia da un pagamento all'altro (tipico delle bollette): è il valore mediano.</p>`
-      : '<p class="muted">Nessun pagamento ricorrente riconosciuto.</p>'}</details>`;
 
     const s = stateOf(c.id);
     const filters = `<div class="bankbar bk-filters">
@@ -161,9 +134,6 @@ export function mountBanks(host, api, toast) {
 
     return `<section class="bankconn" data-conn="${esc(c.id)}">${head}
       ${accountsHtml(c)}
-      ${fields}
-      <div class="bk-two">${partyTable('Principali interlocutori in uscita', c.counterparties.out)}${partyTable('Principali interlocutori in entrata', c.counterparties.in)}</div>
-      ${recurring}
       <details class="acat" open><summary>Movimenti con tutti i campi originali <span class="muted">· ${c.transactionsTotal} in tutto${c.transactionsTotal > c.transactions.length ? `, i ${c.transactions.length} più recenti` : ''}</span></summary>${filters}<div data-rows="${esc(c.id)}"></div></details>
     </section>`;
   };
@@ -204,7 +174,7 @@ export function mountBanks(host, api, toast) {
     host.innerHTML = note + data.connections.map(connectionHtml).join('');
     for (const c of data.connections) {
       if (c.empty) continue;
-      c.accounts.forEach((a) => drawTrend(host.querySelector(`[data-conn="${CSS.escape(c.id)}"] [data-trend="${CSS.escape(a.uid)}"]`), a.trend));
+      c.accounts.filter((a) => openAccts.has(a.uid)).forEach((a) => drawTrend(host.querySelector(`[data-conn="${CSS.escape(c.id)}"] [data-trend="${CSS.escape(a.uid)}"]`), a.trend));
       renderRows(c.id);
     }
   }
@@ -234,6 +204,16 @@ export function mountBanks(host, api, toast) {
     render();
   }
 
+  host.addEventListener('toggle', (e) => {
+    const box = e.target.closest?.('details.bk-acct');
+    if (!box || e.target !== box) return;
+    const uid = box.dataset.acct;
+    if (!box.open) { openAccts.delete(uid); return; }
+    openAccts.add(uid);
+    const a = data?.connections.flatMap((c) => c.accounts).find((x) => x.uid === uid);
+    if (a) drawTrend(box.querySelector('[data-trend]'), a.trend);
+  }, true);
+
   host.addEventListener('submit', (e) => {
     const form = e.target.closest('form[data-renameform]');
     if (!form) return;
@@ -247,6 +227,7 @@ export function mountBanks(host, api, toast) {
   host.addEventListener('click', (e) => {
     const rename = e.target.closest('[data-rename]');
     if (rename) {
+      e.preventDefault();
       renaming = rename.dataset.rename;
       render();
       host.querySelector(`[data-renameform="${CSS.escape(renaming)}"] input`)?.focus();
