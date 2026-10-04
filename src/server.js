@@ -13,8 +13,9 @@ import { parsePdfStatement } from './pdfstatements.js';
 import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
 import { learnIdentity } from './identity.js';
-import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
+import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, readAndMerge, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildBankWidget, buildExplore } from './bankexplorer.js';
+import { reconcileBankAndFiles } from './reconcile.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
 
@@ -27,7 +28,20 @@ setIdentity(store.data.settings);
 // Abbina gli addebiti delle utenze alle bollette già lette (una tantum all'avvio, poi a ogni aggiornamento).
 if (matchBillPayments(store.data)) store.save();
 // Nome del titolare e datore di lavoro si ricavano dai dati (buste paga e movimenti): non vanno scritti a mano.
-const learn = () => { try { return learnIdentity(store.data); } catch { return null; } };
+// Dopo ogni importazione o lettura dalla banca: riconosce nome e datore di lavoro e toglie i movimenti dei file che la banca ha già (vince la banca).
+const learn = () => {
+  try {
+    const r = learnIdentity(store.data);
+    const dup = reconcileBankAndFiles(store.data);
+    return { ...r, duplicates: dup, changed: r.changed || dup > 0 };
+  } catch { return null; }
+};
+// Una tantum: con una banca collegata gli estratti conto non si leggono più da un indirizzo (i dati già letti restano; i più vecchi si caricano a mano da
+// Impostazioni → Documenti → Carica documento). L'indirizzo tolto resta in `settings.statementsSourceOld`, fuori dall'interfaccia.
+{
+  const s = store.data.settings;
+  if (s.statementsSource?.trim() && bankingState(store.data).connections.length) { s.statementsSourceOld = s.statementsSource; s.statementsSource = ''; store.save(); }
+}
 if (learn()?.changed) store.save();
 
 const app = express();
@@ -56,7 +70,7 @@ app.get('/api/settings', (req, res) => res.json(db().settings));
 app.put('/api/settings', async (req, res) => {
   const b = req.body ?? {};
   const s = db().settings;
-  for (const key of ['payslipsSource', 'billsSource', 'statementsSource']) {
+  for (const key of ['payslipsSource', 'billsSource']) {
     if (typeof b[key] === 'string') {
       const src = classifySource(b[key]);
       if (src?.type === 'invalid') return bad(res, src.reason);
@@ -349,12 +363,12 @@ app.get('/api/banking/callback', async (req, res) => {
 app.post('/api/banking/sync', async (req, res) => {
   try {
     const client = bankClient(bankApp(), fetch, psuHeaders(req));
-    const total = { found: 0, added: 0, duplicates: 0 };
+    const total = { found: 0, added: 0, duplicates: 0, pending: 0 };
     const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
     if (!targets.length) return bad(res, 'Nessuna banca collegata.');
     for (const conn of targets) {
-      const r = await syncConnection({ client, db: db(), conn });
-      total.found += r.found; total.added += r.added; total.duplicates += r.duplicates;
+      const r = await readAndMerge({ client, db: db(), conn });
+      total.found += r.found; total.added += r.added; total.duplicates += r.duplicates; total.pending += r.pending;
     }
     learn();
     await store.save();
@@ -372,18 +386,20 @@ app.get('/api/banking/widget', (req, res) => {
   res.json(buildBankWidget(db(), bank));
 });
 
-// Legge dalla banca (una o tutte) e aggiorna la copia. Conta come una lettura del limite giornaliero.
+// Legge dalla banca (una o tutte): aggiorna la copia della scheda Banche e porta i movimenti nei dati dell'app. Conta come una lettura del limite giornaliero.
 app.post('/api/banking/explore/read', async (req, res) => {
   try {
     const client = bankClient(bankApp(), fetch, psuHeaders(req));
     const targets = bankingState(db()).connections.filter((c) => !req.body?.id || c.id === req.body.id);
     if (!targets.length) return bad(res, 'Nessuna banca collegata.');
     const errors = [];
+    const merged = { added: 0, pending: 0 };
     for (const conn of targets) {
-      try { await readBankData({ client, db: db(), conn }); } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
+      try { const r = await readAndMerge({ client, db: db(), conn }); merged.added += r.added; merged.pending += r.pending; } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
     }
+    learn();
     await store.save();
-    res.json({ ...buildExplore(db()), errors });
+    res.json({ ...buildExplore(db()), errors, merged });
   } catch (e) { bad(res, e.message); }
 });
 

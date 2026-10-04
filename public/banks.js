@@ -15,79 +15,23 @@ const ACCOUNT_TYPES = { CACC: 'Conto corrente', SVGS: 'Risparmio', CARD: 'Carta'
 const phone = window.matchMedia('(max-width: 720px)').matches;
 const PAGE = phone ? 50 : 200; // sul telefono ogni movimento è un riquadro: se ne mostrano meno alla volta
 
-// ------------------------------------------------------------------ grafico del saldo
-
-function drawTrend(host, trend) {
-  host.replaceChildren();
-  const pts = trend.points;
-  if (pts.length < 2) { host.textContent = trend.note; host.classList.add('muted'); return; }
-  const W = Math.max(280, Math.floor(host.clientWidth || 640));
-  const H = 190;
-  const m = { l: 70, r: 12, t: 12, b: 24 };
-  const NS = 'http://www.w3.org/2000/svg';
-  const el = (name, attrs, parent) => { const n = document.createElementNS(NS, name); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); parent?.appendChild(n); return n; };
-
-  const values = pts.map((p) => p.balance);
-  let lo = Math.min(...values);
-  let hi = Math.max(...values);
-  if (lo === hi) { lo -= 1; hi += 1; }
-  const pad = (hi - lo) * 0.08;
-  lo -= pad; hi += pad;
-  const t0 = Date.parse(pts[0].date);
-  const t1 = Date.parse(pts.at(-1).date);
-  const x = (d) => m.l + ((Date.parse(d) - t0) / Math.max(1, t1 - t0)) * (W - m.l - m.r);
-  const y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
-
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Andamento del saldo' });
-  for (let i = 0; i <= 4; i++) {
-    const v = lo + ((hi - lo) * i) / 4;
-    el('line', { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: 'grid' }, svg);
-    const label = el('text', { x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'axis' }, svg);
-    label.textContent = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(v);
-  }
-  for (const p of [pts[0], pts[Math.floor(pts.length / 2)], pts.at(-1)]) {
-    const label = el('text', { x: x(p.date), y: H - 6, 'text-anchor': p === pts[0] ? 'start' : p === pts.at(-1) ? 'end' : 'middle', class: 'axis' }, svg);
-    label.textContent = fmtDate(p.date);
-  }
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)},${y(p.balance).toFixed(1)}`).join(' ');
-  el('path', { d: `${line} L${x(pts.at(-1).date).toFixed(1)},${H - m.b} L${x(pts[0].date).toFixed(1)},${H - m.b} Z`, class: 'bk-area' }, svg);
-  el('path', { d: line, class: 'bk-line', fill: 'none' }, svg);
-  const dot = el('circle', { r: 4, class: 'bk-dot', cx: -10, cy: -10 }, svg);
-  const tip = document.createElement('div');
-  tip.className = 'tip';
-  tip.hidden = true;
-  svg.addEventListener('mousemove', (e) => {
-    const box = svg.getBoundingClientRect();
-    const px = ((e.clientX - box.left) / box.width) * W;
-    const near = pts.reduce((best, p) => (Math.abs(x(p.date) - px) < Math.abs(x(best.date) - px) ? p : best));
-    dot.setAttribute('cx', x(near.date)); dot.setAttribute('cy', y(near.balance));
-    tip.hidden = false;
-    tip.innerHTML = `<div class="tip-h">${fmtDate(near.date)}</div><div class="tip-r"><span class="tip-l">Saldo</span><span class="tip-v">${money(near.balance)}</span></div>`;
-    tip.style.left = `${Math.min(Math.max(8, (x(near.date) / W) * box.width - 80), box.width - 190)}px`;
-    tip.style.top = '4px';
-  });
-  svg.addEventListener('mouseleave', () => { tip.hidden = true; dot.setAttribute('cx', -10); });
-  const wrap = document.createElement('div');
-  wrap.className = 'chart-wrap';
-  wrap.append(svg, tip);
-  host.append(wrap);
-}
-
 // ------------------------------------------------------------------ modulo
 
-export function mountBanks(host, api, toast) {
+export function mountBanks(host, api, toast, onMerged = () => {}) {
   let data = null;
   const ui = new Map(); // per collegamento: filtri e righe aperte della tabella dei movimenti
   const stateOf = (id) => { if (!ui.has(id)) ui.set(id, { status: '', account: '', q: '', shown: PAGE, open: new Set() }); return ui.get(id); };
 
   let renaming = null; // conto/pocket di cui si sta scrivendo il nome
   const openAccts = new Set(); // conti e pocket aperti (di norma sono tutti chiusi)
+  const closedConns = new Set(); // banche chiuse (di norma sono aperte)
+  const openFilters = new Set(); // banche con il pannello «Filtra» aperto
 
   // Il saldo da mostrare in grande: quello «disponibile» se c'è, altrimenti il contabile.
   const mainBalance = (a) => ['ITAV', 'CLAV', 'CLBD', 'ITBD', 'XPCD'].map((t) => a.balances.find((b) => b.type === t)).find(Boolean) ?? a.balances[0] ?? null;
 
   // Ogni conto o pocket è una finestra che si apre e si chiude: chiusa mostra nome e saldo (con i pagamenti in sospeso già dentro),
-  // aperta aggiunge IBAN, quanti movimenti ci sono e in che periodo, e il grafico del saldo.
+  // aperta aggiunge IBAN, quanti movimenti ci sono e in che periodo, e Rinomina.
   const accountBlock = (a) => {
     const big = a.total ?? (() => { const b = mainBalance(a); return b ? { amount: b.amount, currency: b.currency, pending: 0 } : null; })();
     const bigHtml = big
@@ -102,7 +46,6 @@ export function mountBanks(host, api, toast) {
       <div class="bk-body">
         <p class="bk-iban${a.iban ? '' : ' muted'}">${a.iban ? esc(a.iban) : 'IBAN non fornito'}</p>
         <p class="bk-counts">${count}${a.pending ? ` · <b>${a.pending}</b> in sospeso` : ''}</p>
-        <div class="chart bk-chart" data-trend="${esc(a.uid)}"></div>
         <div class="bk-rn">${rename}</div>
       </div>
     </details>`;
@@ -120,22 +63,24 @@ export function mountBanks(host, api, toast) {
     const reads = `Letture oggi ${c.readsToday}/${c.readsPerDay}`;
     const consent = c.expired ? '<span class="pill warn">Consenso scaduto</span>' : `<span class="pill ok">Consenso valido ancora ${c.daysLeft} giorni</span>`;
     const blocked = c.expired || c.readsToday >= c.readsPerDay;
-    const head = `<header class="bk-head"><h2>${esc(c.label)}</h2>${consent}
+    const head = `<summary class="bk-head"><h2>${esc(c.label)}</h2>${consent}
       <span class="muted">${c.fetchedAt ? `Copia letta il ${fmtDateTime(c.fetchedAt)}` : 'Nessuna lettura ancora'} · ${reads}</span>
-      <button class="primary" data-read="${esc(c.id)}" ${blocked ? 'disabled' : ''} title="Legge dalla banca e aggiorna la copia (conta come una delle ${c.readsPerDay} letture giornaliere)">Leggi dalla banca</button></header>`;
-    if (c.empty) return `<section class="bankconn" data-conn="${esc(c.id)}">${head}<div class="empty"><p>Premi <b>Leggi dalla banca</b> per scaricare conti, saldi e movimenti con tutti i campi originali.</p></div></section>`;
+      <button class="primary" data-read="${esc(c.id)}" ${blocked ? 'disabled' : ''} title="Legge saldi e movimenti dalla banca e li porta in tutta l'app (conta come una delle ${c.readsPerDay} letture giornaliere)">Leggi dalla banca</button></summary>`;
+    const wrap = (inner) => `<details class="bankconn" data-conn="${esc(c.id)}" ${closedConns.has(c.id) ? '' : 'open'}>${head}${inner}</details>`;
+    if (c.empty) return wrap(`<div class="empty"><p>Premi <b>Leggi dalla banca</b> per scaricare conti, saldi e movimenti.</p></div>`);
 
     const s = stateOf(c.id);
-    const filters = `<div class="bankbar bk-filters">
+    const active = [s.account, s.status, s.q.trim()].filter(Boolean).length;
+    // tutti i filtri in un solo pulsante «Filtra»
+    const filters = `<details class="filterbox" data-conn="${esc(c.id)}" ${openFilters.has(c.id) ? 'open' : ''}><summary class="btn">Filtra${active ? ` <span class="badge">${active}</span>` : ''}</summary><div class="bankbar bk-filters">
       ${c.accounts.length > 1 ? `<label>Conto <select data-f="account" data-conn="${esc(c.id)}"><option value="">Tutti</option>${c.accounts.map((a) => `<option value="${esc(a.uid)}" ${s.account === a.uid ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select></label>` : ''}
       <label>Stato <select data-f="status" data-conn="${esc(c.id)}"><option value="">Tutti</option><option value="BOOK" ${s.status === 'BOOK' ? 'selected' : ''}>Registrati</option><option value="PDNG" ${s.status === 'PDNG' ? 'selected' : ''}>In sospeso</option></select></label>
       <label class="grow">Cerca <input type="search" data-f="q" data-conn="${esc(c.id)}" value="${esc(s.q)}" placeholder="Interlocutore, causale, importo…" autocomplete="off"></label>
-    </div>`;
+    </div></details>`;
 
-    return `<section class="bankconn" data-conn="${esc(c.id)}">${head}
+    return wrap(`
       ${accountsHtml(c)}
-      <details class="acat" open><summary>Movimenti con tutti i campi originali <span class="muted">· ${c.transactionsTotal} in tutto${c.transactionsTotal > c.transactions.length ? `, i ${c.transactions.length} più recenti` : ''}</span></summary>${filters}<div data-rows="${esc(c.id)}"></div></details>
-    </section>`;
+      <div class="bk-moves"><div class="bk-movehead"><h3 class="bk-section">Movimenti <span class="muted">· ${c.transactionsTotal} in tutto${c.transactionsTotal > c.transactions.length ? `, i ${c.transactions.length} più recenti` : ''}</span></h3>${filters}</div><div data-rows="${esc(c.id)}"></div></div>`);
   };
 
   function rowsHtml(c) {
@@ -158,6 +103,13 @@ export function mountBanks(host, api, toast) {
     return `<p class="muted">${list.length} movimenti. Clicca una riga per vedere il record originale della banca.</p><div class="tablewrap"><table class="atable bk-tx"><thead><tr><th>Data</th><th>Stato</th><th>Conto</th><th>Interlocutore</th><th>Causale</th><th class="num">Importo</th></tr></thead><tbody>${body}</tbody></table></div>${list.length > s.shown ? `<p><button class="link" data-more="${esc(c.id)}">Mostra altri ${Math.min(PAGE, list.length - s.shown)}</button></p>` : ''}`;
   }
 
+  function filterBadge(id) {
+    const s = stateOf(id);
+    const n = [s.account, s.status, s.q.trim()].filter(Boolean).length;
+    const sum = host.querySelector(`details.filterbox[data-conn="${CSS.escape(id)}"] > summary`);
+    if (sum) sum.innerHTML = `Filtra${n ? ` <span class="badge">${n}</span>` : ''}`;
+  }
+
   function renderRows(id) {
     const c = data.connections.find((x) => x.id === id);
     const box = host.querySelector(`[data-rows="${CSS.escape(id)}"]`);
@@ -166,7 +118,7 @@ export function mountBanks(host, api, toast) {
 
   function render() {
     if (!data) return;
-    const note = '<p class="bk-note">Questa scheda mostra una <b>copia separata</b> dei dati che le banche rendono disponibili (tramite Enable Banking, in sola lettura). Non entra in Panoramica, Movimenti né Statistiche: serve a capire cosa si può ottenere.</p>';
+    const note = '';
     if (!data.configured || !data.connections.length) {
       host.innerHTML = `${note}<div class="empty"><h2>Nessuna banca collegata</h2><p>Inserisci le credenziali di Enable Banking e collega UniCredit o Revolut da <b>Impostazioni → Collega le banche</b>.</p></div>`;
       return;
@@ -174,7 +126,6 @@ export function mountBanks(host, api, toast) {
     host.innerHTML = note + data.connections.map(connectionHtml).join('');
     for (const c of data.connections) {
       if (c.empty) continue;
-      c.accounts.filter((a) => openAccts.has(a.uid)).forEach((a) => drawTrend(host.querySelector(`[data-conn="${CSS.escape(c.id)}"] [data-trend="${CSS.escape(a.uid)}"]`), a.trend));
       renderRows(c.id);
     }
   }
@@ -190,7 +141,9 @@ export function mountBanks(host, api, toast) {
     try {
       const r = await api('/api/banking/explore/read', { method: 'POST', body: { id } });
       data = r;
-      if (r.errors?.length) toast(r.errors.join(' · '), 9000); else toast('Copia dei dati aggiornata.');
+      if (r.errors?.length) toast(r.errors.join(' · '), 9000);
+      else toast(`Dati aggiornati: ${r.merged?.added ?? 0} nuovi movimenti${r.merged?.pending ? `, ${r.merged.pending} in sospeso` : ''}.`);
+      onMerged(); // i movimenti sono entrati anche in Panoramica, Movimenti e Statistiche
     } catch (err) { toast(err.message, 8000); }
     render();
   }
@@ -204,14 +157,12 @@ export function mountBanks(host, api, toast) {
     render();
   }
 
+  // Ricorda cosa è aperto: ogni banca (di norma sì), ogni conto (di norma no) e il pannello dei filtri (di norma no).
   host.addEventListener('toggle', (e) => {
-    const box = e.target.closest?.('details.bk-acct');
-    if (!box || e.target !== box) return;
-    const uid = box.dataset.acct;
-    if (!box.open) { openAccts.delete(uid); return; }
-    openAccts.add(uid);
-    const a = data?.connections.flatMap((c) => c.accounts).find((x) => x.uid === uid);
-    if (a) drawTrend(box.querySelector('[data-trend]'), a.trend);
+    const box = e.target;
+    if (box.matches?.('details.bk-acct')) { if (box.open) openAccts.add(box.dataset.acct); else openAccts.delete(box.dataset.acct); }
+    else if (box.matches?.('details.bankconn')) { if (box.open) closedConns.delete(box.dataset.conn); else closedConns.add(box.dataset.conn); }
+    else if (box.matches?.('details.filterbox')) { if (box.open) openFilters.add(box.dataset.conn); else openFilters.delete(box.dataset.conn); }
   }, true);
 
   host.addEventListener('submit', (e) => {
@@ -235,7 +186,7 @@ export function mountBanks(host, api, toast) {
     }
     if (e.target.closest('[data-cancel]')) { renaming = null; render(); return; }
     const readBtn = e.target.closest('[data-read]');
-    if (readBtn) return read(readBtn.dataset.read, readBtn);
+    if (readBtn) { e.preventDefault(); return read(readBtn.dataset.read, readBtn); }
     const more = e.target.closest('[data-more]');
     if (more) { stateOf(more.dataset.more).shown += PAGE; return renderRows(more.dataset.more); }
     const row = e.target.closest('tr[data-bkrow]');
@@ -251,7 +202,7 @@ export function mountBanks(host, api, toast) {
     const f = e.target.closest('[data-f="q"]');
     if (!f) return;
     clearTimeout(timer);
-    timer = setTimeout(() => { const s = stateOf(f.dataset.conn); s.q = f.value; s.shown = PAGE; renderRows(f.dataset.conn); }, 150);
+    timer = setTimeout(() => { const s = stateOf(f.dataset.conn); s.q = f.value; s.shown = PAGE; renderRows(f.dataset.conn); filterBadge(f.dataset.conn); }, 150);
   });
   host.addEventListener('change', (e) => {
     const f = e.target.closest('select[data-f]');
@@ -260,6 +211,7 @@ export function mountBanks(host, api, toast) {
     s[f.dataset.f] = f.value;
     s.shown = PAGE;
     renderRows(f.dataset.conn);
+    filterBadge(f.dataset.conn);
   });
 
   return { load, render };

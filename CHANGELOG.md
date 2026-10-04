@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.39.0
+- **I dati della banca sono i dati dell'app**: «Leggi dalla banca» e «Aggiorna ora» fanno la stessa cosa, una sola lettura nel limite giornaliero: aggiornano saldi e movimenti della scheda Banche e portano gli stessi movimenti (registrati e in sospeso) in Panoramica, Movimenti e Statistiche. Nuova `readAndMerge`.
+- **Niente doppioni tra estratto conto e banca**: un movimento visto da entrambi (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) si conta una volta, vince la banca; la categoria scelta a mano passa al movimento della banca; un estratto riletto non fa ricomparire il doppione. Nuovo `src/reconcile.js`.
+- **Estratti conto**: tolto l'indirizzo dalle Impostazioni; con una banca collegata, all'avvio il server lo toglie una volta sola (resta in `settings.statementsSourceOld`). I più vecchi si caricano a mano da Documenti.
+- **Movimenti**: ogni movimento è un riquadro — in alto data, importo e categoria a destra; sotto la descrizione — e il dettaglio aperto sta dentro lo stesso riquadro con la stessa estetica. Anno, mese, categoria, ricerca e «Ordina per» sono dietro un solo pulsante **Filtra**, col numero dei filtri attivi.
+- **Banche**: tutto il blocco di ogni banca è collassabile; la sezione dei movimenti non lo è più e ha il suo pulsante **Filtra**; tolti i grafici dei conti (nei conti aperti restano IBAN, numero di movimenti nel periodo e Rinomina); tolta la frase sulla copia separata.
+- **Panoramica**: più spazio tra la riga dell'anno, le schede e i blocchi sotto.
+
 ## 0.38.1
 - Documentazione e changelog della 0.38.0 (erano rimasti fuori dal rilascio).
 

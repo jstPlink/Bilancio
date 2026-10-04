@@ -47,6 +47,7 @@
     </section>
 
     <section id="moves" hidden>
+      <details class="filterbox" id="moveFilters"><summary class="btn">Filtra <span class="badge" id="moveFilterBadge" hidden></span></summary>
       <div class="bankbar">
         <label>Anno <select class="f-year"></select></label>
         <label>Mese <select class="f-month"></select></label>
@@ -54,10 +55,10 @@
         <label class="grow">Cerca <input id="moveSearch" type="search" placeholder="Descrizione, dettaglio, importo…" autocomplete="off"></label>
         <label>Categoria <select id="catSelect"></select></label>
         <label>Ordina per <select id="moveSort"></select></label>
-      </div>
+      </div></details>
       <div id="movesEmpty" class="empty" hidden>
         <h2>Nessun movimento nel periodo</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica l'estratto conto da Impostazioni → Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
+        <p>Collega la banca da Impostazioni → Collega le banche e premi <b>Aggiorna ora</b>, oppure carica l'estratto conto da Impostazioni → Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
       </div>
       <div id="movesBody"></div>
     </section>
@@ -70,7 +71,7 @@
       </div>
       <div id="analysisEmpty" class="empty" hidden>
         <h2>Nessun dato bancario</h2>
-        <p>Indica il link degli estratti conto nelle impostazioni e premi <b>Aggiorna</b>, oppure carica un estratto conto da Impostazioni → Documenti.</p>
+        <p>Collega la banca da Impostazioni → Collega le banche, oppure carica un estratto conto da Impostazioni → Documenti.</p>
       </div>
       <div id="analysisBody"></div>
     </section>

@@ -221,8 +221,34 @@ async function fetchAccount(client, uid, dateFrom, status = 'BOOK') {
   return out;
 }
 
-// Scarica i movimenti registrati dal collegamento e aggiunge quelli nuovi.
-// I movimenti già importati da CSV o PDF (stessa data e stesso importo) non si duplicano.
+// Porta nei dati dell'app i movimenti di un conto: registrati (nuovi) e in sospeso. Il dato della banca ha la precedenza su quello degli estratti conto:
+// i movimenti dei file con lo stesso importo e la stessa data vengono tolti da `reconcileBankAndFiles` (src/reconcile.js), quindi qui non si scarta nulla.
+// In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
+// spariscono da soli e quelli che la banca ha registrato ricompaiono come registrati. Con `pendingList` nullo (la banca non li dà) si tengono quelli di prima.
+function ingestAccount({ db, conn, account, booked, pendingList, seen, report }) {
+  const label = BANKS[conn.bank]?.label ?? conn.bank;
+  const all = (db.transactions ??= {});
+  const items = booked.map((tx) => mapTransaction(tx, conn, account, db.rules ?? {}, seen)).filter(Boolean);
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  for (const t of items) {
+    report.found++;
+    if (all[t.id]) { report.duplicates++; continue; }
+    all[t.id] = { ...t, file: `Collegamento ${label}` };
+    report.added++;
+  }
+  if (pendingList) {
+    for (const id of Object.keys(all)) if (all[id].pendingAcct === account.uid) delete all[id];
+    const pseen = new Map();
+    for (const tx of pendingList) {
+      const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true);
+      if (!t) continue;
+      all[t.id] = { ...t, file: `Collegamento ${label}`, pending: true, pendingAcct: account.uid };
+      report.pending++;
+    }
+  }
+}
+
+// Scarica i movimenti registrati (e in sospeso) dal collegamento e li porta nei dati dell'app.
 export async function syncConnection({ client, db, conn, now = Date.now() }) {
   const label = BANKS[conn.bank]?.label ?? conn.bank;
   if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca dalle Impostazioni.`);
@@ -230,48 +256,19 @@ export async function syncConnection({ client, db, conn, now = Date.now() }) {
   if (conn.calls.length >= SYNCS_PER_DAY) throw new Error(`${label}: massimo ${SYNCS_PER_DAY} aggiornamenti al giorno (limite delle banche). Riprova più tardi.`);
   conn.calls.push(now);
 
-  const all = (db.transactions ??= {});
-  const fromFiles = new Map();
-  for (const t of Object.values(all)) {
-    if (String(t.id).startsWith('bk:')) continue;
-    const k = `${t.date}|${t.amount}`;
-    fromFiles.set(k, (fromFiles.get(k) ?? 0) + 1);
-  }
-
   const since = conn.lastSync ? Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY : now - FIRST_SYNC_DAYS * DAY;
   const report = { found: 0, added: 0, duplicates: 0, pending: 0 };
   const seen = new Map();
   for (const account of conn.accounts) {
-    let list;
-    try { list = await fetchAccount(client, account.uid, isoDay(since)); }
+    let booked;
+    try { booked = await fetchAccount(client, account.uid, isoDay(since)); }
     catch (e) {
       if (conn.lastSync) throw e;
-      list = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)); // la banca non concede uno storico così lungo
+      booked = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)); // la banca non concede uno storico così lungo
     }
-    const items = list.map((tx) => mapTransaction(tx, conn, account, db.rules ?? {}, seen)).filter(Boolean);
-    items.sort((a, b) => a.date.localeCompare(b.date));
-    for (const t of items) {
-      report.found++;
-      if (all[t.id]) { report.duplicates++; continue; }
-      const k = `${t.date}|${t.amount}`;
-      if ((fromFiles.get(k) ?? 0) > 0) { fromFiles.set(k, fromFiles.get(k) - 1); report.duplicates++; continue; }
-      all[t.id] = { ...t, file: `Collegamento ${label}` };
-      report.added++;
-    }
-    // In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
-    // spariscono da soli e quelli che la banca ha registrato ricompaiono come registrati (sopra). Se la banca non dà i sospesi, si tengono quelli di prima.
     let pendingList = null;
     try { pendingList = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'); } catch { /* sospesi non disponibili */ }
-    if (pendingList) {
-      for (const id of Object.keys(all)) if (all[id].pendingAcct === account.uid) delete all[id];
-      const pseen = new Map();
-      for (const tx of pendingList) {
-        const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true);
-        if (!t) continue;
-        all[t.id] = { ...t, file: `Collegamento ${label}`, pending: true, pendingAcct: account.uid };
-        report.pending++;
-      }
-    }
+    ingestAccount({ db, conn, account, booked, pendingList, seen, report });
   }
   conn.lastSync = new Date(now).toISOString();
   return report;
@@ -330,4 +327,21 @@ export async function readBankData({ client, db, conn, now = Date.now() }) {
   }
   bankingState(db).snapshots[conn.id] = snap;
   return summary;
+}
+
+// Una sola lettura dalla banca (conta una volta nel limite giornaliero): aggiorna la copia della scheda Banche (saldi, movimenti originali)
+// e porta gli stessi movimenti, registrati e in sospeso, nei dati dell'app (Panoramica, Movimenti, Statistiche). Usata da «Aggiorna ora» e «Leggi dalla banca».
+export async function readAndMerge({ client, db, conn, now = Date.now() }) {
+  const summary = await readBankData({ client, db, conn, now });
+  const snap = bankingState(db).snapshots[conn.id];
+  const report = { found: 0, added: 0, duplicates: 0, pending: 0 };
+  const seen = new Map();
+  for (const account of conn.accounts) {
+    const a = snap?.accounts?.[account.uid];
+    if (!a) continue;
+    const pendingOk = !(a.unavailable ?? []).some((u) => u.what === 'movimenti in sospeso');
+    ingestAccount({ db, conn, account, booked: a.booked ?? [], pendingList: pendingOk ? (a.pending ?? []) : null, seen, report });
+  }
+  conn.lastSync = new Date(now).toISOString();
+  return { ...summary, ...report };
 }

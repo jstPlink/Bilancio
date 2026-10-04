@@ -2,7 +2,7 @@
 // passano dal codice nativo (oggetto Native), che le inoltra al server. Le letture (GET) le gestisce la WebView.
 (function () {
   // Feedback aptico: un tick a ogni tocco su un elemento cliccabile (non mentre si scorre: il click arriva solo a dito sollevato).
-  var CLICKABLE = 'button, a[href], select, summary, label, input[type=checkbox], input[type=file], [role=button], [role=tab], [role=checkbox], [data-go], [data-expand], .pcell, tr.mv';
+  var CLICKABLE = 'button, a[href], select, summary, label, input[type=checkbox], input[type=file], [role=button], [role=tab], [role=checkbox], [data-go], [data-expand], .pcell, tr.mv, .mvrow, .mvsub';
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest ? e.target.closest(CLICKABLE) : null;
     if (t && !t.disabled && window.Native && Native.haptic) Native.haptic();

@@ -395,6 +395,9 @@ function renderFilters() {
     catSelect.innerHTML = `<option value="">Tutte</option>${list.map((c) => `<option value="${c}" ${c === cat ? 'selected' : ''}>${esc(catName(c))}</option>`).join('')}`;
   }
   document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q && !state.bank.flow; });
+  const activeFilters = [year !== CURRENT_YEAR, Boolean(month), Boolean(cat), Boolean(q.trim()), Boolean(state.bank.flow), sortNow !== 'date:desc'].filter(Boolean).length;
+  const badge = $('#moveFilterBadge');
+  if (badge) { badge.hidden = !activeFilters; badge.textContent = activeFilters; }
 }
 
 function resetBank() {
@@ -460,7 +463,7 @@ function detailRow(t, similarByKey) {
   const fact = (k, v) => (v ? `<div><dt>${k}</dt><dd>${v}</dd></div>` : '');
   const when = `${esc(longDate(t.date))}${t.time ? `, ore ${t.time}` : ''}${t.started ? ` <small class="muted">(iniziato il ${fmtDate(t.started)})</small>` : ''}`;
   const origin = t.category === 'bollette' && t.matchedDoc ? `Bolletta già contata: ${esc(t.matchedDoc)}` : '';
-  return `<tr class="mvdetail"><td colspan="4"><div class="detailgrid">
+  return `<div class="mvdetail"><div class="detailgrid">
     <dl class="facts">
       ${fact('Quando', when)}
       ${fact('Come', esc(methodOf(t)) + (t.type && TYPE_LABELS[t.type] ? ` <small class="muted">(${esc(t.type)})</small>` : ''))}
@@ -481,7 +484,7 @@ function detailRow(t, similarByKey) {
       ${others.length ? `<ul>${others.map((x) => `<li>${fmtDate(x.date)}${x.time ? ` ${x.time}` : ''} <span class="num">${x.amount > 0 ? '+' : ''}${money(x.amount)}</span></li>`).join('')}</ul>` : ''}
       <p class="links"><a href="${searchUrl(t)}" target="_blank" rel="noopener noreferrer" title="Apre una ricerca web con questa descrizione">Cerca su Google</a> · <a href="${mapsUrl(t)}" target="_blank" rel="noopener noreferrer" title="Apre Google Maps con questa descrizione">Su Maps</a></p>
     </div>
-  </div></td></tr>`;
+  </div></div>`;
 }
 
 // ------------------------------------------------------------------ scheda Movimenti
@@ -565,7 +568,7 @@ function moveEntries(list) {
   });
 }
 
-function movesTable(list, tableId = 'moveTable') {
+function movesTable(list, listId = 'moveTable') {
   if (!list.length) return '<div class="empty"><p>Nessun movimento con questi filtri.</p></div>';
   const rows = sortList(moveEntries(list), 'moves', { date: (e) => e.date, description: (e) => e.title, amount: (e) => Math.abs(e.amount), count: (e) => e.items.length, category: (e) => e.category });
   const similar = new Map();
@@ -575,35 +578,36 @@ function movesTable(list, tableId = 'moveTable') {
     similar.get(k).push(t);
   }
   const expander = (id, open, label) => `<button class="expander" data-expand="${id}" aria-expanded="${open}" title="${open ? 'Nascondi' : 'Mostra'} i dettagli" aria-label="Dettagli di ${esc(label)}">${open ? '▾' : '▸'}</button>`;
-  const single = (t, cls = '') => {
+  const amountHtml = (v) => `<span class="mv-amt ${v > 0 ? 'pos-in' : ''}">${v > 0 ? '+' : ''}${money(v)}</span>`;
+  const pending = (t) => (t.pending ? ' <span class="pill warn" title="Non ancora registrato dalla banca: conta già nei totali; se viene rifiutato sparisce alla lettura successiva">in sospeso</span>' : '');
+  // un movimento: riga in alto (data, importo, categoria a destra) e sotto la descrizione; aperto, i dati completi restano dentro lo stesso riquadro
+  const single = (t) => {
     const open = state.bank.open.has(t.id);
-    return `<tr class="mv${cls}${open ? ' open' : ''}" data-mv="${t.id}">
-      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}</span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${t.pending ? ' <span class="pill warn" title="Non ancora registrato dalla banca: conta già nei totali; se viene rifiutato sparisce alla lettura successiva">in sospeso</span>' : ''}</td>
-      <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
-      <td>${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</td></tr>${open ? detailRow(t, similar) : ''}`;
+    return `<div class="mvitem${open ? ' open' : ''}">
+      <div class="mvrow" data-mv="${t.id}">
+        <div class="mv-l1">${expander(t.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}</span>${amountHtml(t.amount)}<span class="mv-cat">${categorySelect('data-move', t.id, t.category, t.description, t.amount > 0)}</span></div>
+        <div class="mv-l2"><span class="dtext" title="${esc(t.description)}">${esc(payerOf(t) ? `Stipendio · ${payerOf(t)}` : shortName(t.description))}</span>${pending(t)}</div>
+      </div>${open ? detailRow(t, similar) : ''}</div>`;
   };
-  // Riga di un singolo pagamento dentro un gruppo aperto: senza menu della categoria (vale per tutto il gruppo).
+  // un singolo pagamento dentro un gruppo aperto: senza menu della categoria (vale per tutto il gruppo)
   const part = (t) => {
     const open = state.bank.open.has(t.id);
-    return `<tr class="mv sub${open ? ' open' : ''}" data-mv="${t.id}">
-      <td class="dcol">${expander(t.id, open, t.description)}<span>${fmtDate(t.date)}${t.time ? `<small>${t.time}</small>` : ''}</span></td>
-      <td class="desc">${metaLine(t) || '<small class="meta">&nbsp;</small>'}</td>
-      <td class="num ${t.amount > 0 ? 'pos-in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</td>
-      <td class="nocat"></td></tr>${open ? detailRow(t, similar) : ''}`;
+    return `<div class="mvsub${open ? ' open' : ''}" data-mv="${t.id}">
+      <div class="mv-l1">${expander(t.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}${t.time ? ` · ${t.time}` : ''}</span>${amountHtml(t.amount)}</div>
+      ${metaLine(t) ? `<div class="mv-l2">${metaLine(t)}</div>` : ''}</div>${open ? detailRow(t, similar) : ''}`;
   };
   const body = rows.map((e) => {
     if (!e.group) return single(e.first);
     const open = state.bank.open.has(e.id);
     const n = e.items.length;
     const t = e.first;
-    return `<tr class="mv group${open ? ' open' : ''}" data-mv="${e.id}">
-      <td class="dcol">${expander(e.id, open, t.description)}<span>${fmtDate(t.date)}</span></td>
-      <td class="desc"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span> <span class="cnt" title="${n} pagamenti dal ${fmtDate(e.last.date)}, media ${money(Math.abs(e.amount) / n)}">×${n}</span></td>
-      <td class="num ${e.amount > 0 ? 'pos-in' : ''}">${e.amount > 0 ? '+' : ''}${money(e.amount)}</td>
-      <td>${categorySelect('data-moves', e.ids.join(','), t.category, e.title, t.amount > 0)}</td></tr>${open ? e.items.map(part).join('') : ''}`;
+    return `<div class="mvitem group${open ? ' open' : ''}">
+      <div class="mvrow" data-mv="${e.id}">
+        <div class="mv-l1">${expander(e.id, open, t.description)}<span class="mv-date">${fmtDate(t.date)}</span>${amountHtml(e.amount)}<span class="mv-cat">${categorySelect('data-moves', e.ids.join(','), t.category, e.title, t.amount > 0)}</span></div>
+        <div class="mv-l2"><span class="dtext" title="${esc(t.description)}">${esc(e.title)}</span> <span class="cnt" title="${n} pagamenti dal ${fmtDate(e.last.date)}, media ${money(Math.abs(e.amount) / n)}">×${n}</span></div>
+      </div>${open ? `<div class="mvsubs">${e.items.map(part).join('')}</div>` : ''}</div>`;
   }).join('');
-  return `<div class="tablewrap"><table id="${tableId}" class="movetable"><thead><tr>${sortHead('moves', 'date', 'Data')}${sortHead('moves', 'description', 'Descrizione')}${sortHead('moves', 'amount', 'Importo', 'num')}${sortHead('moves', 'category', 'Categoria')}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="mvlist" id="${listId}">${body}</div>`;
 }
 
 // ---------------------------------------------------------------- scheda Statistiche
@@ -839,8 +843,7 @@ async function openSettings() {
     <details class="fs"><summary>Dove si trovano i documenti</summary><div class="fsbody">
       <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
       <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
-      <label>Estratti conto (CSV)<input name="statementsSource" value="${esc(s.statementsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale con i CSV" autocomplete="off"></label>
-      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password. Gli estratti conto si leggono dai file CSV della banca.</small>
+      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password. I movimenti arrivano dalla banca collegata (Collega le banche); gli estratti conto più vecchi si caricano a mano da Documenti → Carica documento.</small>
     </div></details>
     <details class="fs"><summary>Affitto</summary><div class="fsbody">
       <div class="row">
@@ -873,7 +876,7 @@ async function openSettings() {
   loadDocs().catch(() => {});
   dlg.addEventListener('close', () => { docs.hidden = true; $('main').appendChild(docs); }, { once: true });
   // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
-  const watched = ['payslipsSource', 'billsSource', 'statementsSource', 'rentAmount', 'rentFrom', 'billShare'];
+  const watched = ['payslipsSource', 'billsSource', 'rentAmount', 'rentFrom', 'billShare'];
   const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
   const initial = snapshot();
   const dirty = () => snapshot() !== initial;
@@ -900,7 +903,6 @@ async function openSettings() {
         body: {
           payslipsSource: form.payslipsSource.value,
           billsSource: form.billsSource.value,
-          statementsSource: form.statementsSource.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
           billShare: parseInput(form.billShare.value) ?? 50,
@@ -1354,7 +1356,7 @@ function openMovesOf(kind, month) {
 }
 
 // Scheda «Banche» (solo schermo largo): copia separata dei dati delle banche collegate.
-const banks = mountBanks($('#banksBody'), api, toast);
+const banks = mountBanks($('#banksBody'), api, toast, () => Promise.all([loadGrid(), loadBank()]).catch(() => {}));
 
 function showTab(name) {
   document.querySelectorAll('[role=tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
@@ -1424,7 +1426,7 @@ $('#moveSearch').addEventListener('input', (e) => {
 // Clic su una riga dei movimenti: mostra o nasconde i dettagli (non quando si usa il menu o un link).
 $('#movesBody').addEventListener('toggle', (e) => { if (e.target.classList?.contains('transfers')) state.bank.transfersOpen = e.target.open; }, true);
 $('#movesBody').addEventListener('click', (e) => {
-  const row = e.target.closest('tr.mv');
+  const row = e.target.closest('.mvrow, .mvsub');
   if (!row || e.target.closest('select, a, button')) return;
   toggleExpand(row.dataset.mv);
 });

@@ -27,21 +27,22 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
     passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
   - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
     *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
-- **Movimenti.** I movimenti dell'estratto conto in un solo elenco, con filtri per anno e mese e ricerca. Ogni riga mostra solo **nome, data, importo e categoria**; i pagamenti
-  allo stesso ente (stessa descrizione) sono accorpati in una riga con «×n» e la somma: un tocco la apre sui singoli pagamenti. Toccando un pagamento si apre il **dettaglio completo**:
+- **Movimenti.** I movimenti della banca collegata e degli estratti conto caricati, in un solo elenco. Un solo pulsante **Filtra** (col numero dei filtri attivi) apre anno, mese, categoria, ricerca e «Ordina per». Ogni movimento è un riquadro: in alto **data, importo
+  e, a destra, il menu della categoria**; sotto la **descrizione**. I pagamenti allo stesso ente (stessa descrizione) sono accorpati in un riquadro con «×n» e la somma: un tocco lo apre sui singoli pagamenti. Toccando un movimento si apre il **dettaglio completo** dentro lo stesso riquadro:
   giorno della settimana e ora, metodo (carta, bonifico, prelievo…), commissione e valuta, saldo dopo il pagamento, testo completo della banca, gli altri pagamenti con la stessa
-  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali.
+  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. I pagamenti ancora in sospeso hanno l'etichetta «in sospeso».
   **Giroconti:** i giri di denaro tra i tuoi conti e pocket non sono nell'elenco: stanno nella sezione «Giroconti tra i tuoi conti» in fondo alla scheda, e non entrano in nessun
   totale né in Panoramica e Statistiche (vedi «Riconoscimento automatico»).
 - **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…; i giroconti non ci sono): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
   e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
-- **Banche** (anche sul telefono e nell'app Android: i movimenti diventano riquadri). I dati che UniCredit e Revolut mettono a disposizione, in una **copia separata**: non entra in Panoramica, Movimenti né Statistiche.
-  Per ogni banca collegata: consenso e letture di oggi, poi **una finestra per ogni conto e per ogni pocket**, **chiusa** di norma: da chiusa mostra **nome e saldo**; aperta aggiunge l'**IBAN**, **quanti movimenti ci sono e in che periodo** e il **grafico dell'andamento
-  del saldo** (quello scritto dalla banca nei movimenti, oppure ricostruito dal saldo attuale), più **Rinomina**. Il saldo **comprende i pagamenti in sospeso** (saldo contabile + sospesi, con scritto «di cui in sospeso»); se la banca dà solo saldi «disponibili», che di norma
-  li contengono già, si usa quello. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario; l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
-  In fondo l'elenco di tutti i movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga). **Leggi dalla banca** aggiorna la copia; conta come una delle 10 letture giornaliere (vedi «Limiti»).
-  **In sospeso:** un pagamento in sospeso conta subito, anche in Movimenti e nelle somme di Panoramica (con l'etichetta «in sospeso»). A ogni lettura da **Aggiorna ora** i sospesi di prima si tolgono e si rimettono quelli di adesso: se la banca **rifiuta** il pagamento sparisce da solo,
+- **Banche** (anche sul telefono e nell'app Android). Tutto il blocco di ogni banca è **collassabile** (clic sul nome). Dentro: consenso, letture di oggi e **Leggi dalla banca**, poi **una finestra per ogni conto e per ogni pocket**, **chiusa** di norma:
+  da chiusa mostra **nome e saldo**; aperta aggiunge l'**IBAN**, **quanti movimenti ci sono e in che periodo** e **Rinomina** (niente grafici). Il saldo **comprende i pagamenti in sospeso** (saldo contabile + sospesi, con scritto «di cui in sospeso»); se la banca dà solo saldi «disponibili»,
+  che di norma li contengono già, si usa quello. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario; l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
+  In fondo l'elenco dei movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga) e un pulsante **Filtra** (conto, stato, ricerca).
+  **I dati della banca sono i dati dell'app.** **Leggi dalla banca** (come **Aggiorna ora** in Impostazioni → Collega le banche) fa **una sola lettura**: aggiorna saldi e movimenti qui e li porta anche in Panoramica, Movimenti e Statistiche, con le categorie di sempre.
+  **In sospeso:** un pagamento in sospeso conta subito, anche in Movimenti e nelle somme di Panoramica (con l'etichetta «in sospeso»). A ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso: se la banca **rifiuta** il pagamento sparisce da solo,
   se lo **registra** ricompare come registrato (senza doppioni). Se la banca non dà i sospesi, restano quelli letti l'ultima volta.
+  **Estratti conto e banca insieme:** un movimento visto da tutte e due le parti (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) **si conta una volta sola e vince quello della banca**; la categoria scelta a mano sul movimento dell'estratto passa a quello della banca.
   **Storico:** le banche concedono pochi mesi (Revolut, di norma, solo 90 giorni; l'app ne chiede 12 e, se la banca rifiuta, lo scrive sotto al conto con il motivo).
   Ad ogni lettura i movimenti già letti restano nella copia e si aggiungono i nuovi, quindi lo storico cresce nel tempo; quello precedente alla prima lettura
   non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
@@ -106,7 +107,7 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
 ## Uso
 
 1. Apri **Impostazioni** (ingranaggio) e indica dove si trovano i documenti:
-   - **Buste paga**, **Bollette** ed **Estratti conto**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`, senza password)
+   - **Buste paga** e **Bollette**: un link di condivisione Seafile pubblico (`https://…/d/xxxx/`, senza password)
      oppure un percorso locale. Le sottocartelle vengono lette in automatico.
    - **Affitto**: importo mensile e mese di inizio, aggiunto in automatico ogni mese.
    - **Riconoscimento automatico** (sola lettura): il tuo nome e chi ti paga lo stipendio si ricavano da soli (vedi sotto), per non contare due volte lo
@@ -130,10 +131,9 @@ I nomi si aggiungono a quelli già salvati e le categorie scelte a mano non si t
 
 ## Estratti conto (spese)
 
-Indica il link (Seafile pubblico o cartella locale) degli estratti conto nelle impostazioni, campo **Estratti conto**, e premi **Aggiorna**;
-oppure caricalo a mano da **Impostazioni → Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV). Gli estratti in PDF (UniCredit e Revolut) si
-leggono dallo stesso link: per UniCredit l'app confronta le uscite lette con il riepilogo della banca. Per un'altra banca serve un nuovo
-lettore in `src/pdfstatements.js`. Ricaricare lo stesso file non duplica nulla.
+Le spese arrivano dalla **banca collegata** (vedi sotto). Per i mesi **precedenti al collegamento** si caricano a mano gli estratti da **Impostazioni → Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV; gli estratti in PDF di UniCredit e Revolut si leggono
+anche loro; per UniCredit l'app confronta le uscite lette con il riepilogo della banca; per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`). Ricaricare lo stesso file non duplica nulla, e i movimenti che la banca ha già non si contano due volte (vedi «Banche»).
+**Non c'è più l'indirizzo degli estratti conto nelle Impostazioni**: quando c'è una banca collegata, l'indirizzo eventuale si toglie una volta sola all'avvio del server (resta in `settings.statementsSourceOld`, fuori dall'interfaccia) e i movimenti già letti restano.
 
 Del CSV Revolut l'app conserva anche orario, tipo di operazione, conto, commissione, valuta e saldo dopo il pagamento: servono a capire
 di che pagamento si tratta. I movimenti già salvati si completano da soli alla lettura successiva, senza toccare le categorie.
@@ -163,19 +163,18 @@ estratti. Usa [Enable Banking](https://enablebanking.com), gratuito per uso pers
 se la banca lo dà, il saldo dopo il movimento). Non le carte di credito UniCredit, né investimenti o pagamenti ricorrenti. Lo storico dipende dalla
 banca: al primo collegamento si chiede un anno, se non è concesso ripiega su 90 giorni.
 
-**Quando si legge dalle banche:** solo quando premi un pulsante apposta: **Aggiorna ora** in Impostazioni → Collega le banche (porta i movimenti in Panoramica e
-Movimenti) o **Leggi dalla banca** nella scheda Banche (aggiorna la copia). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
+**Quando si legge dalle banche:** solo quando premi un pulsante apposta: **Aggiorna ora** in Impostazioni → Collega le banche o **Leggi dalla banca** nella scheda Banche (fanno la stessa cosa: una lettura che aggiorna tutto). **Aggiorna** e l'apertura dell'app non toccano mai le banche. L'unica altra lettura è quella
 subito dopo aver collegato una banca, perché è il solo momento in cui alcune banche concedono più storico.
 
 **Limiti:** da **Aggiorna ora** e **Leggi dalla banca** (e dalla lettura dopo il collegamento) puoi leggere a mano **fino a 10 volte al giorno per banca** (finestra mobile di 24 ore; il contatore è unico per tutte queste letture).
 Alla undicesima l'app rifiuta con «massimo 10 letture al giorno» senza chiamare la banca. Il tetto normale delle banche è 4 al giorno (PSD2, art. 36 delle norme tecniche RTS) e vale per gli accessi **senza l'utente presente**; per le letture fatte a mano l'app invia
 le intestazioni «PSU» (`Psu-Ip-Address`, `Psu-User-Agent`, `Psu-Accept-Language`… ricavate dalla richiesta del browser o dell'app) che dichiarano alla banca che la lettura l'ha chiesta una persona in quel momento. Se la banca le rifiuta, l'app riprova subito senza.
 **Non è garantito che ogni banca accetti più di 4 letture**: se Revolut o UniCredit rispondono con un errore di limite, il messaggio compare nell'app e vale il tetto della banca. Il consenso dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco.
-I movimenti già importati da CSV/PDF (stessa data e importo) non si duplicano; se importi un CSV *dopo* aver collegato la banca, gli stessi pagamenti possono comparire due volte.
+I movimenti degli estratti CSV/PDF che la banca ha già si contano una volta sola (vince la banca), anche se importi un estratto *dopo* aver collegato la banca.
 
-**Movimenti Revolut che «mancano» dopo la lettura.** Cause possibili, in ordine di probabilità: (1) **«Leggi dalla banca»** aggiorna solo la scheda Banche; per portarli in Panoramica e Movimenti serve **Aggiorna ora** (Impostazioni → Collega le banche);
+**Movimenti Revolut che «mancano» dopo la lettura.** Cause possibili, in ordine di probabilità: (1) fino alla 0.38 «Leggi dalla banca» aggiornava solo la scheda Banche; dalla 0.39.0 aggiorna tutta l'app;
 (2) i pagamenti con la carta restano **in sospeso** per uno o due giorni: dalla 0.38.0 contano subito (in Movimenti con l'etichetta «in sospeso», nel saldo di Banche e nel widget Saldo) e spariscono se la banca li rifiuta; (3) sono stati riconosciuti come **giroconti** (soldi tra i tuoi conti o pocket) e stanno nella sezione
-«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data era già stato importato da un CSV o PDF e non si duplica; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0).
+«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data è in un estratto CSV/PDF: si conta una volta sola, vince la banca; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0).
 
 **Demo della scheda Banche.** `npm run demo:banche` avvia la banca finta e un'app di prova su `http://localhost:4871` (password `demo-banche`) con dati inventati,
 in un database a parte (`data/demo-banche`): serve a provare la scheda anche quando il server vero non ha ancora la versione nuova. UniCredit parte già
@@ -194,8 +193,7 @@ tramite Enable Banking, in quattro fasi, ognuna da confermare prima della succes
    sul server (`db.banking.snapshots`), che nessun'altra parte dell'app legge, e si aggiornano solo premendo **Leggi dalla banca**.
    Per provarla con i dati veri: aggiorna il server, poi **Banche → Leggi dalla banca** per ogni banca. Per provarla senza toccare le banche vere
    c'è `npm run demo:banche` (vedi sopra).
-2. **Decidere** insieme come gestire le informazioni (quali tenere, come abbinarle ai movimenti e alla Panoramica). Finché non si decide, i dati
-   letti dalle banche per questa scheda **non si mescolano** a quelli dell'app.
+2. **Decidere** — *fatto (0.39.0)*: i dati letti dalle banche **sono** i dati dell'app (Panoramica, Movimenti, Statistiche), senza doppioni con gli estratti conto; la scheda Banche resta per saldi, conti e movimenti con il record originale.
 3. **Telefono** — *fatto (0.31.0)*: la scheda Banche c'è anche nel browser del telefono e nell'app Android, con i movimenti in riquadri.
 4. **Rilascio** — *fatto con la 0.31.0*; ogni fase successiva avrà il suo.
 

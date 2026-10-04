@@ -222,3 +222,29 @@ test('totalBalance: saldo contabile più i sospesi; se la banca dà solo il disp
   assert.deepEqual([only.amount, only.pending, only.basis], [90, 0, 'available']);
   assert.equal(totalBalance([], pending), null);
 });
+
+test('readAndMerge: una sola lettura aggiorna la copia della scheda Banche e porta i movimenti nei dati dell\'app', async () => {
+  const { readAndMerge } = await import('../src/banking.js');
+  const db = makeDb();
+  const conn = makeConn();
+  db.banking.connections.push(conn);
+  let pending = [{ ...tx('p1', '2026-10-01', -4.5, 'In attesa'), booking_date: undefined, value_date: '2026-10-01', status: 'PDNG' }];
+  const asked = [];
+  const client = {
+    transactions: async (uid, q) => { asked.push(q.transaction_status); return { transactions: q.transaction_status === 'PDNG' ? pending : [tx('a', '2026-09-20', -10, 'Negozio'), tx('b', '2026-09-21', 50, 'Mario')] }; },
+    balances: async () => ({ balances: [] }),
+    details: async () => ({}),
+  };
+  const r = await readAndMerge({ client, db, conn, now: NOW });
+  assert.deepEqual([r.added, r.pending], [2, 1]);
+  assert.equal(conn.calls.length, 1); // una sola lettura nel limite giornaliero
+  assert.deepEqual(asked, ['BOOK', 'PDNG']); // senza richieste in più
+  const mine = Object.values(db.transactions).filter((t) => t.id.startsWith('bk:'));
+  assert.equal(mine.length, 3);
+  assert.equal(mine.filter((t) => t.pending).length, 1);
+  assert.equal(buildExplore(db, NOW).connections[0].accounts[0].booked, 2); // e la copia della scheda è aggiornata
+  // il sospeso viene rifiutato: alla lettura dopo non c'è più
+  pending = [];
+  await readAndMerge({ client, db, conn, now: NOW + 3600000 });
+  assert.equal(Object.values(db.transactions).filter((t) => t.pending).length, 0);
+});

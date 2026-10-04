@@ -132,13 +132,16 @@ test('sincronizzazione: scorre le pagine, chiede solo i movimenti registrati e n
   assert.equal(queries.at(-1).date_from, '2026-09-25');
 });
 
-test('i movimenti già importati da CSV o PDF (stessa data e importo) non si duplicano', async () => {
+test('i movimenti già importati da CSV o PDF (stessa data e importo) si contano una volta sola, e vince la banca', async () => {
   const db = freshDb();
   db.transactions.csv1 = { id: 'csv1', date: '2026-09-20', amount: -10, description: 'NEGOZIO ROMA 123', category: 'spesa' };
   const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [] : [bookedTx('A', 10), bookedTx('B', 10), bookedTx('C', 7)] }) };
   const r = await syncConnection({ client, db, conn: makeConn(), now: NOW });
-  assert.equal(r.duplicates, 1); // uno dei due da 10 € c'è già nel file
-  assert.equal(r.added, 2);
+  assert.equal(r.added, 3); // la banca porta tutto
+  const { reconcileBankAndFiles } = await import('../src/reconcile.js');
+  assert.equal(reconcileBankAndFiles(db), 1); // e quello del file con lo stesso importo e giorno sparisce
+  assert.equal(db.transactions.csv1, undefined);
+  assert.equal(Object.keys(db.transactions).length, 3);
 });
 
 test('se la banca non concede un anno di storico si ripiega su 90 giorni', async () => {
