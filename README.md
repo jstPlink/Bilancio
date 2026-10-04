@@ -41,7 +41,10 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
   In fondo l'elenco dei movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga) e un pulsante **Filtra** (conto, stato, ricerca).
   **I dati della banca sono i dati dell'app.** **Aggiorna** (come **Aggiorna ora** in Impostazioni → Collega le banche) fa **una sola lettura**: aggiorna saldi e movimenti qui e li porta anche in Panoramica, Movimenti e Statistiche, con le categorie di sempre.
   **In sospeso:** un pagamento in sospeso conta subito, anche in Movimenti e nelle somme di Panoramica (con l'etichetta «in sospeso»). A ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso: se la banca **rifiuta** il pagamento sparisce da solo,
-  se lo **registra** ricompare come registrato (senza doppioni). Se la banca non dà i sospesi, restano quelli letti l'ultima volta.
+  se lo **registra** ricompare come registrato (senza doppioni). Se la banca non dà i sospesi, restano quelli letti l'ultima volta. Un sospeso senza nessuna data conta dal giorno in cui lo si legge.
+  **Perché un sospeso non conta?** Nell'elenco dei movimenti della scheda Banche, accanto a ogni pagamento in sospeso c'è un'etichetta (calcolata dal server sui dati dell'app, quindi serve il server alla 0.40.4 o successivo):
+  **«contato · Spesa»** (è nei dati dell'app e conta nelle somme), **«non contato · Altro»** (è in Movimenti ma la categoria non conta: contano solo Spesa, Svago, Carburante, Prestito, Donazioni, Tasse ed Entrate; «Altro», «Bollette», «Giroconto»
+  e «Da suddividere» no — cambia la categoria in Movimenti e l'app se la ricorda), **«non ancora nell'app»** (la copia della scheda Banche non è ancora passata nei dati dell'app: premi **Aggiorna**) e **«non leggibile»** (la banca non ha dato un importo che l'app riesce a leggere).
   **Estratti conto e banca insieme:** un movimento visto da tutte e due le parti (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) **si conta una volta sola e vince quello della banca**; la categoria scelta a mano sul movimento dell'estratto passa a quello della banca.
   **Storico:** le banche concedono pochi mesi (Revolut, di norma, solo 90 giorni; l'app ne chiede 12 e, se la banca rifiuta, lo scrive sotto al conto con il motivo).
   Ad ogni lettura i movimenti già letti restano nella copia e si aggiungono i nuovi, quindi lo storico cresce nel tempo; quello precedente alla prima lettura
@@ -298,7 +301,7 @@ BILANCIO_SERVER=https://indirizzo-del-tuo-server
 ```
 
 Con `npm start` (o `npm run dev`) `http://localhost:4870` mostra allora le pagine locali con i dati, il login e la password del server; in locale non si
-legge né si scrive nessun dato. Accanto al nome compare la versione locale e «locale» (passando il mouse, anche quella del server).
+legge né si scrive nessun dato. Accanto al nome compare la versione delle pagine locali; passando il mouse si vede anche quella del server (non c'è più la scritta «locale»).
 Il file `.env` resta sul tuo computer (è escluso da Git): l'indirizzo del server non va scritto nel codice né in questa documentazione.
 Per tornare a un'app locale con database proprio (solo per provare), togli la riga.
 
