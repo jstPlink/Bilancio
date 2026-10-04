@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.38.1
+- Documentazione e changelog della 0.38.0 (erano rimasti fuori dal rilascio).
+
+## 0.38.0
+- **Pagamenti in sospeso**: «Aggiorna ora» porta in Movimenti anche i movimenti in sospeso (etichetta «in sospeso»), che contano subito nelle somme di Panoramica. A ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso: un pagamento rifiutato sparisce da solo, uno registrato dalla banca ricompare come registrato, senza doppioni. Se la banca non dà i sospesi si tengono quelli di prima.
+- **Saldo con i sospesi**: nella scheda Banche e nel widget «Saldo» il totale è il saldo contabile più i pagamenti in sospeso («di cui in sospeso»); se la banca dà solo saldi «disponibili» si usa quello com'è.
+- **Scheda Banche semplificata**: ogni conto e pocket è una finestra chiusa (nome e saldo) che aperta mostra IBAN, numero di movimenti nel periodo e grafico, più Rinomina. Tolti: descrizioni sotto il grafico, saldi e dati aggiuntivi, tipo e prodotto, note sulla fonte del nome. Tolte le sezioni «Quali campi fornisce la banca», «Principali interlocutori» in uscita e in entrata e «Pagamenti ricorrenti» (anche dal server). Nuovi test (92 in tutto).
+
 ## 0.37.0
 - **Bollette divise in due**: acqua, luce, gas e wifi contano per la **tua quota** (Impostazioni → Bollette, di norma 50%) nelle uscite, nel «Da pagare», nel widget, nella notifica del primo del mese e nel budget. I PDF restano interi; l'affitto non è diviso. Nuovo `billShare` nelle impostazioni.
 - **Letture a mano fino a 10 al giorno** per banca (prima 4). Le letture a mano inviano alla banca le intestazioni «PSU» (l'utente è presente) e, se la banca le rifiuta, riprovano senza; non è garantito che ogni banca accetti più di 4 letture: se rifiuta, l'errore si vede nell'app.
