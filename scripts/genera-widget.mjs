@@ -1,4 +1,4 @@
-// Genera il layout del widget «Questo mese» (widget_month2.xml) e la sua anteprima statica per la lista dei widget.
+// Genera i layout dei widget «Questo mese» (widget_month2.xml) e «Questo mese 2» (widget_month3.xml) e le loro anteprime statiche per la lista dei widget.
 // Uso: node scripts/genera-widget.mjs  (dalla cartella del progetto). Qui si cambiano anche il numero di fotogrammi dell'onda
 // (devono coincidere con FRAMES in MonthWidget.java) e il tempo di cambio fotogramma.
 import fs from 'node:fs';
@@ -10,12 +10,21 @@ const FLIP_MS = 285;
 const SIZE = {
   plain: { since: 14.3, sinceLabel: 11, dueLabel: 11, due: 16.5, title: 11, amount: 15.4, padCell: 6, padRoot: 6 },
   detail: { since: 15, sinceLabel: 12, dueLabel: 12.5, due: 17.5, title: 12.5, amount: 16.5, padCell: 2, padRoot: 4, day: 11 },
+  // «Questo mese 2»: come il dettagliato, ma stima e reale una sotto l'altra (anche se lo spazio è poco)
+  stacked: { since: 15, sinceLabel: 12, dueLabel: 12.5, due: 17.5, title: 12.5, amount: 16.5, padCell: 2, padRoot: 4, day: 10.5 },
 };
 
-const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '312,40 €', carburante: '86,00 €', svago: '41,20 €', day: '13,3→15,1/g' };
+// larghezza relativa di «Da pagare» e dei tre riquadri di spesa: in «Questo mese 2» «Da pagare» è la metà e lo spazio liberato va agli altri tre
+const WEIGHT = {
+  plain: { due: 1.15, cell: 1 },
+  detail: { due: 1.15, cell: 1 },
+  stacked: { col: 1, cell: 1 }, // «Da pagare» e i tre riquadri di spesa hanno la stessa larghezza
+};
+
+const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '312,40 €', carburante: '86,00 €', svago: '41,20 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10' };
 // anteprima: altezza fissa del liquido (dp) invece delle immagini a onde, e il colore del «reale» al giorno
 const PREVIEW_FILL = { spese: ['a', 30], carburante: ['b', 45], svago: ['c', 15] };
-const PREVIEW_DAY_COLOR = { spese: '#FF4ADE80', carburante: '#FFFF6B6B', svago: '#FF4ADE80' };
+const PREVIEW_DAY_COLOR = { spese: '#FF4ADE80', carburante: '#FFFF8585', svago: '#FF4ADE80' };
 
 const text = (id, extra) => `            <TextView${id ? `\n                android:id="@+id/${id}"` : ''}
                 android:layout_width="wrap_content"
@@ -26,6 +35,7 @@ ${extra}
 const cell = (key, title, mode, preview) => {
   const z = SIZE[mode];
   const detailed = mode === 'detail';
+  const stacked = mode === 'stacked';
   const fill = preview
     ? `        <ImageView
             android:layout_width="match_parent"
@@ -46,7 +56,7 @@ ${Array.from({ length: FRAMES }, (_, i) => `            <ImageView android:id="@
         ${preview ? '' : `android:id="@+id/widget_month_${key}_cell"
         `}android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_weight="${WEIGHT[mode].cell}"
         android:layout_marginLeft="2dp"
         android:layout_marginRight="2dp"
         android:background="@drawable/widget_cell"
@@ -65,21 +75,44 @@ ${text(null, `                android:text="${title}"
 ${text(preview ? null : `widget_month_${key}`, `${preview ? `                android:text="${PREVIEW[key]}"\n` : ''}                android:textColor="#FFFFFF"
                 android:textSize="${z.amount}sp"
                 android:textStyle="bold"`)}${detailed ? `
-${text(preview ? null : `widget_month_${key}_day`, `${preview ? `                android:text="${PREVIEW.day}"\n` : ''}                android:layout_marginTop="1dp"
+${text(preview ? null : `widget_month_${key}_day`, `${preview ? `                android:text="${PREVIEW.day}"
+` : ''}                android:layout_marginTop="1dp"
                 android:textColor="${preview ? PREVIEW_DAY_COLOR[key] : '#FFFFFFFF'}"
                 android:textSize="${z.day}sp"
                 android:textStyle="bold"
                 android:shadowColor="#99000000"
-                android:shadowRadius="2"`)}` : ''}
+                android:shadowRadius="2"`)}` : ''}${stacked ? `
+            <!-- stima e reale in un solo sfondo tondo, una riga sotto l'altra -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:background="@drawable/widget_pill">
+${text(preview ? null : `widget_month_${key}_est`, `${preview ? `                android:text="${PREVIEW.est}"
+` : ''}                android:textColor="#FFFFFFFF"
+                android:textSize="${z.day}sp"
+                android:textStyle="bold"`)}
+${text(preview ? null : `widget_month_${key}_act`, `${preview ? `                android:text="${PREVIEW.act}"
+` : ''}                android:textColor="${preview ? PREVIEW_DAY_COLOR[key] : '#FFFFFFFF'}"
+                android:textSize="${z.day}sp"
+                android:textStyle="bold"`)}
+            </LinearLayout>` : ''}
         </LinearLayout>
     </FrameLayout>`;
 };
 
 const layout = (mode, preview) => {
   const z = SIZE[mode];
-  const detailed = mode === 'detail';
+  const detailed = mode !== 'plain';
+  const stacked = mode === 'stacked';
   return `<?xml version="1.0" encoding="utf-8"?>
-<!-- ${preview ? 'Anteprima statica (dati di esempio) per la lista dei widget' : detailed ? 'Copia di «Questo mese» (5×1) con, in ogni riquadro di spesa, «stima → reale» al giorno: verde se la reale è migliore, rossa se peggiore' : 'Widget «Questo mese»'}. File generato da scripts/genera-widget.mjs -->
+<!-- ${preview ? 'Anteprima statica (dati di esempio) per la lista dei widget' : stacked ? 'Copia di «Questo mese» (5×1) senza «dal 1° OTT», con Spese, Svago e Carburante più larghi e, in ogni riquadro di spesa, la stima al giorno e sotto la reale (verde se è migliore, rossa se peggiore)' : detailed ? 'Copia di «Questo mese» (5×1) con, in ogni riquadro di spesa, «stima → reale» al giorno: verde se la reale è migliore, rossa se peggiore' : 'Widget «Questo mese»'}. File generato da scripts/genera-widget.mjs -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     ${preview ? '' : 'android:id="@+id/widget_month_root"\n    '}android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -91,7 +124,40 @@ const layout = (mode, preview) => {
     android:paddingBottom="${z.padRoot}dp"
     android:background="@drawable/widget_bg">
 
-    <!-- «dal 1° OTT»: da quando partono le cifre; un tocco apre la scheda Budget -->
+${stacked ? `    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="${WEIGHT.stacked.col}"
+        android:layout_marginRight="2dp"
+        android:orientation="vertical">
+
+        <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
+        <LinearLayout
+            ${preview ? '' : 'android:id="@+id/widget_month_due_cell"\n            '}android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:background="@drawable/widget_cell_due">
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_topay_label"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="${preview ? PREVIEW.label : 'Da pagare'}"
+                android:textColor="#E6FFFFFF"
+                android:textSize="${z.dueLabel}sp"
+                android:singleLine="true" />
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_topay"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.toPay}"` : ''}
+                android:textColor="#FFFFFF"
+                android:textSize="${z.due}sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+        </LinearLayout>
+    </LinearLayout>
+` : `    <!-- «dal 1° OTT»: da quando partono le cifre; un tocco apre la scheda Budget -->
     <LinearLayout
         ${preview ? '' : 'android:id="@+id/widget_month_since_cell"\n        '}android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -122,7 +188,7 @@ const layout = (mode, preview) => {
     <LinearLayout
         ${preview ? '' : 'android:id="@+id/widget_month_due_cell"\n        '}android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.15"
+        android:layout_weight="${WEIGHT[mode].due}"
         android:layout_marginLeft="2dp"
         android:layout_marginRight="2dp"
         android:orientation="vertical"
@@ -145,9 +211,10 @@ const layout = (mode, preview) => {
             android:textStyle="bold"
             android:singleLine="true" />
     </LinearLayout>
+`}
 ${cell('spese', 'Spese', mode, preview)}
-${cell('carburante', 'Carburante', mode, preview)}
-${cell('svago', 'Svago', mode, preview)}
+${stacked ? cell('svago', 'Svago', mode, preview) : cell('carburante', 'Carburante', mode, preview)}
+${stacked ? cell('carburante', 'Carburante', mode, preview) : cell('svago', 'Svago', mode, preview)}
 </LinearLayout>
 `;
 };
@@ -166,6 +233,8 @@ const fill = (name, color, dp) => `<?xml version="1.0" encoding="utf-8"?>
 
 fs.writeFileSync('android/res/layout/widget_month2.xml', layout('detail', false));
 fs.writeFileSync('android/res/layout/widget_month2_preview.xml', layout('detail', true));
+fs.writeFileSync('android/res/layout/widget_month3.xml', layout('stacked', false));
+fs.writeFileSync('android/res/layout/widget_month3_preview.xml', layout('stacked', true));
 fs.writeFileSync('android/res/drawable/preview_fill_a.xml', fill('a', '#66FFFFFF', PREVIEW_FILL.spese[1]));
 fs.writeFileSync('android/res/drawable/preview_fill_b.xml', fill('b', '#CCF59E0B', PREVIEW_FILL.carburante[1]));
 fs.writeFileSync('android/res/drawable/preview_fill_c.xml', fill('c', '#66FFFFFF', PREVIEW_FILL.svago[1]));

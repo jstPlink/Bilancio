@@ -24,6 +24,12 @@
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_month2_info" />
         </receiver>
+        <receiver android:name=".MonthWidgetStacked" android:label="Questo mese 2" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_month3_info" />
+        </receiver>
         <receiver android:name=".BankWidget" android:label="Saldo" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

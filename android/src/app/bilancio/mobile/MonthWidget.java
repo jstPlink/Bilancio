@@ -28,13 +28,17 @@ import java.util.Locale;
 public class MonthWidget extends AppWidgetProvider {
     boolean detailed() { return true; }
 
+    /** «Questo mese 2»: «Da pagare» più stretto e, in ogni riquadro di spesa, stima e reale una sotto l'altra. */
+    boolean stacked() { return false; }
+
     @Override public void onUpdate(final Context c, final AppWidgetManager m, final int[] ids) {
         final boolean detailed = detailed();
-        paint(c, m, ids, Month.cached(c), detailed); // subito l'ultimo dato noto, poi si aggiorna
+        final boolean stacked = stacked();
+        paint(c, m, ids, Month.cached(c), detailed, stacked); // subito l'ultimo dato noto, poi si aggiorna
         final PendingResult pending = goAsync();
         new Thread(new Runnable() {
             @Override public void run() {
-                try { paint(c, m, ids, load(c), detailed); } finally { pending.finish(); }
+                try { paint(c, m, ids, load(c), detailed, stacked); } finally { pending.finish(); }
             }
         }).start();
     }
@@ -44,9 +48,14 @@ public class MonthWidget extends AppWidgetProvider {
         final Context c = context.getApplicationContext();
         final AppWidgetManager m = AppWidgetManager.getInstance(c);
         final int[] ids = m.getAppWidgetIds(new ComponentName(c, MonthWidgetDetail.class));
-        if (ids.length == 0) return;
+        final int[] ids2 = m.getAppWidgetIds(new ComponentName(c, MonthWidgetStacked.class));
+        if (ids.length == 0 && ids2.length == 0) return;
         new Thread(new Runnable() {
-            @Override public void run() { paint(c, m, ids, load(c), true); }
+            @Override public void run() {
+                Month d = load(c);
+                if (ids.length > 0) paint(c, m, ids, d, true, false);
+                if (ids2.length > 0) paint(c, m, ids2, d, true, true);
+            }
         }).start();
     }
 
@@ -136,17 +145,33 @@ public class MonthWidget extends AppWidgetProvider {
         v.setTextViewText(dayId, s);
     }
 
-    private static PendingIntent tap(Context c, int code, String open, String cat, boolean detailed) {
+    /** Stima e reale una sotto l'altra (solo «Questo mese 2»): «stima 13,3/g» e sotto «reale 15,1/g», questa verde se è pari o migliore, rossa se peggiore. */
+    /** «€9,40»: valuta davanti e due decimali sempre. */
+    private static String euro(double v) { return "€" + String.format(Locale.ITALY, "%.2f", v); }
+
+    private static void dailyStacked(RemoteViews v, boolean ok, double spent, double budget, int estId, int actId) {
+        Calendar now = Calendar.getInstance();
+        int day = now.get(Calendar.DAY_OF_MONTH);
+        int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
+        boolean hasBudget = ok && budget > 0;
+        double r = spent / day;
+        // con la valuta davanti e i centesimi per intero: «stima €9,40», «reale €12,35»
+        v.setTextViewText(estId, "stima " + (hasBudget ? euro(budget / days) : "—"));
+        v.setTextViewText(actId, "reale " + (ok ? euro(r) : "—"));
+        v.setTextColor(actId, !hasBudget ? 0xFFFFFFFF : r <= budget / days ? 0xFF4ADE80 : 0xFFFF8585); // su sfondo scuro (widget_pill): il rosso si legge
+    }
+
+    private static PendingIntent tap(Context c, int code, String open, String cat, boolean detailed, boolean stacked) {
         Intent i = new Intent(c, MainActivity.class).putExtra("open", open);
         if (cat != null) i.putExtra("cat", cat);
         // la copia usa altri codici: i due widget non devono scambiarsi le azioni
-        return PendingIntent.getActivity(c, code + (detailed ? 10 : 0), i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        return PendingIntent.getActivity(c, code + (stacked ? 20 : detailed ? 10 : 0), i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    static void paint(Context c, AppWidgetManager m, int[] ids, Month d, boolean detailed) {
-        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_month2);
+    static void paint(Context c, AppWidgetManager m, int[] ids, Month d, boolean detailed, boolean stacked) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), stacked ? R.layout.widget_month3 : R.layout.widget_month2);
         Month shown = d.ok || d.needLogin ? d : Month.cached(c); // server non raggiungibile: ultimo dato noto del mese
-        v.setTextViewText(R.id.widget_month_since, Month.NAMES[Month.currentMonth() - 1].substring(0, 3).toUpperCase(Locale.ITALY));
+        if (!stacked) v.setTextViewText(R.id.widget_month_since, Month.NAMES[Month.currentMonth() - 1].substring(0, 3).toUpperCase(Locale.ITALY)); // «Questo mese 2» non ha «dal 1° OTT»
 
         String label = "Da pagare";
         String toPay = "—";
@@ -174,7 +199,11 @@ public class MonthWidget extends AppWidgetProvider {
         fill(c, v, "carburante", shown.ok, shown.carburante, shown.budgetCarburante);
         fill(c, v, "svago", shown.ok, shown.svago, shown.budgetSvago);
 
-        if (detailed) {
+        if (stacked) {
+            dailyStacked(v, shown.ok, shown.spese, shown.budgetSpese, R.id.widget_month_spese_est, R.id.widget_month_spese_act);
+            dailyStacked(v, shown.ok, shown.carburante, shown.budgetCarburante, R.id.widget_month_carburante_est, R.id.widget_month_carburante_act);
+            dailyStacked(v, shown.ok, shown.svago, shown.budgetSvago, R.id.widget_month_svago_est, R.id.widget_month_svago_act);
+        } else if (detailed) {
             daily(v, shown.ok, shown.spese, shown.budgetSpese, R.id.widget_month_spese_day);
             daily(v, shown.ok, shown.carburante, shown.budgetCarburante, R.id.widget_month_carburante_day);
             daily(v, shown.ok, shown.svago, shown.budgetSvago, R.id.widget_month_svago_day);
@@ -186,28 +215,28 @@ public class MonthWidget extends AppWidgetProvider {
         v.setTextColor(R.id.widget_month_topay_label, good ? 0xFF14663A : 0xE6FFFFFF);
         v.setTextColor(R.id.widget_month_topay, good ? 0xFF14663A : 0xFFFFFFFF);
 
-        v.setOnClickPendingIntent(R.id.widget_month_root, tap(c, 1, "overview", null, detailed));
-        v.setOnClickPendingIntent(R.id.widget_month_since_cell, tap(c, 6, "budget", null, detailed));
-        v.setOnClickPendingIntent(R.id.widget_month_due_cell, tap(c, 2, "overview", null, detailed));
-        v.setOnClickPendingIntent(R.id.widget_month_spese_cell, tap(c, 3, "moves", "spesa", detailed));
-        v.setOnClickPendingIntent(R.id.widget_month_carburante_cell, tap(c, 4, "moves", "carburante", detailed));
-        v.setOnClickPendingIntent(R.id.widget_month_svago_cell, tap(c, 5, "moves", "svago", detailed));
+        v.setOnClickPendingIntent(R.id.widget_month_root, tap(c, 1, "overview", null, detailed, stacked));
+        if (!stacked) v.setOnClickPendingIntent(R.id.widget_month_since_cell, tap(c, 6, "budget", null, detailed, stacked));
+        v.setOnClickPendingIntent(R.id.widget_month_due_cell, tap(c, 2, "overview", null, detailed, stacked));
+        v.setOnClickPendingIntent(R.id.widget_month_spese_cell, tap(c, 3, "moves", "spesa", detailed, stacked));
+        v.setOnClickPendingIntent(R.id.widget_month_carburante_cell, tap(c, 4, "moves", "carburante", detailed, stacked));
+        v.setOnClickPendingIntent(R.id.widget_month_svago_cell, tap(c, 5, "moves", "svago", detailed, stacked));
         m.updateAppWidget(ids, v);
-        if (shown.ok) updatePreview(c, m, detailed, v);
+        if (shown.ok) updatePreview(c, m, detailed, stacked, v);
     }
 
     /**
      * Anteprima «vera» nella lista dei widget (Android 15 e successivi): l'ultimo aspetto con i dati reali. Prima di Android 15 vale
      * l'anteprima statica con dati di esempio (previewLayout). Il sistema limita le richieste: al massimo una l'ora e senza errori.
      */
-    private static void updatePreview(Context c, AppWidgetManager m, boolean detailed, RemoteViews v) {
+    private static void updatePreview(Context c, AppWidgetManager m, boolean detailed, boolean stacked, RemoteViews v) {
         if (android.os.Build.VERSION.SDK_INT < 35) return;
         android.content.SharedPreferences p = c.getSharedPreferences("anteprima", Context.MODE_PRIVATE);
-        String key = detailed ? "mese2" : "mese";
+        String key = stacked ? "mese3" : detailed ? "mese2" : "mese";
         long now = System.currentTimeMillis();
         if (now - p.getLong(key, 0) < 3600000L) return;
         try {
-            m.setWidgetPreview(new ComponentName(c, detailed ? MonthWidgetDetail.class : MonthWidget.class), android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN, v);
+            m.setWidgetPreview(new ComponentName(c, stacked ? MonthWidgetStacked.class : detailed ? MonthWidgetDetail.class : MonthWidget.class), android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN, v);
             p.edit().putLong(key, now).apply();
         } catch (Throwable e) { /* limite di richieste o non supportato: resta l'anteprima statica */ }
     }

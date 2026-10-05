@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copia di «Questo mese» (5×1) senza «dal 1° OTT», con Spese, Svago e Carburante più larghi e, in ogni riquadro di spesa, la stima al giorno e sotto la reale (verde se è migliore, rossa se peggiore). File generato da scripts/genera-widget.mjs -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_month_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
+    android:background="@drawable/widget_bg">
+
+    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginRight="2dp"
+        android:orientation="vertical">
+
+        <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
+        <LinearLayout
+            android:id="@+id/widget_month_due_cell"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:background="@drawable/widget_cell_due">
+            <TextView
+                android:id="@+id/widget_month_topay_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Da pagare"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12.5sp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_topay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="17.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+
+    <!-- Spese: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <FrameLayout
+        android:id="@+id/widget_month_spese_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp"
+        android:background="@drawable/widget_cell"
+        android:clipToOutline="true">
+        <ViewFlipper
+            android:id="@+id/widget_month_spese_fill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:autoStart="true"
+            android:flipInterval="285">
+            <ImageView android:id="@+id/fl_spese_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_spese_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+        </ViewFlipper>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="2dp"
+            android:paddingRight="2dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Spese"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12.5sp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_spese"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="16.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <!-- stima e reale in un solo sfondo tondo, una riga sotto l'altra -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:background="@drawable/widget_pill">
+            <TextView
+                android:id="@+id/widget_month_spese_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_spese_act"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Svago: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <FrameLayout
+        android:id="@+id/widget_month_svago_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp"
+        android:background="@drawable/widget_cell"
+        android:clipToOutline="true">
+        <ViewFlipper
+            android:id="@+id/widget_month_svago_fill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:autoStart="true"
+            android:flipInterval="285">
+            <ImageView android:id="@+id/fl_svago_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_svago_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+        </ViewFlipper>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="2dp"
+            android:paddingRight="2dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Svago"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12.5sp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_svago"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="16.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <!-- stima e reale in un solo sfondo tondo, una riga sotto l'altra -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:background="@drawable/widget_pill">
+            <TextView
+                android:id="@+id/widget_month_svago_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_svago_act"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Carburante: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <FrameLayout
+        android:id="@+id/widget_month_carburante_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="2dp"
+        android:layout_marginRight="2dp"
+        android:background="@drawable/widget_cell"
+        android:clipToOutline="true">
+        <ViewFlipper
+            android:id="@+id/widget_month_carburante_fill"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:autoStart="true"
+            android:flipInterval="285">
+            <ImageView android:id="@+id/fl_carburante_0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_1" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_2" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_3" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_4" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_5" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_6" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_7" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_8" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_9" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_10" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_11" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_12" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_13" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_14" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+            <ImageView android:id="@+id/fl_carburante_15" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />
+        </ViewFlipper>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="2dp"
+            android:paddingRight="2dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Carburante"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12.5sp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_carburante"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="16.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <!-- stima e reale in un solo sfondo tondo, una riga sotto l'altra -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="1dp"
+                android:paddingBottom="1dp"
+                android:background="@drawable/widget_pill">
+            <TextView
+                android:id="@+id/widget_month_carburante_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_month_carburante_act"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>
