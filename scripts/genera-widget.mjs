@@ -21,7 +21,7 @@ const WEIGHT = {
   stacked: { col: 1, cell: 1 }, // «Da pagare» e i tre riquadri di spesa hanno la stessa larghezza
 };
 
-const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '312,40 €', carburante: '86,00 €', svago: '41,20 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10' };
+const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '187,60 €', carburante: '14,00 €', svago: '58,80 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10' };
 // anteprima: altezza fissa del liquido (dp) invece delle immagini a onde, e il colore del «reale» al giorno
 const PREVIEW_FILL = { spese: ['a', 30], carburante: ['b', 45], svago: ['c', 15] };
 const PREVIEW_DAY_COLOR = { spese: '#FF4ADE80', carburante: '#FFFF8585', svago: '#FF4ADE80' };
@@ -51,7 +51,7 @@ const cell = (key, title, mode, preview) => {
 ${Array.from({ length: FRAMES }, (_, i) => `            <ImageView android:id="@+id/fl_${key}_${i}" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" />`).join('\n')}
         </ViewFlipper>`;
   return `
-    <!-- ${title}: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- ${title}: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         ${preview ? '' : `android:id="@+id/widget_month_${key}_cell"
         `}android:layout_width="0dp"
@@ -69,7 +69,7 @@ ${fill}
             android:gravity="center"
             android:paddingLeft="${z.padCell}dp"
             android:paddingRight="${z.padCell}dp">
-${text(null, `                android:text="${title}"
+${text(preview ? null : `widget_month_${key}_title`, `                android:text="${title}"
                 android:textColor="#E6FFFFFF"
                 android:textSize="${z.title}sp"`)}
 ${text(preview ? null : `widget_month_${key}`, `${preview ? `                android:text="${PREVIEW[key]}"\n` : ''}                android:textColor="#FFFFFF"
@@ -212,9 +212,9 @@ ${stacked ? `    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
             android:singleLine="true" />
     </LinearLayout>
 `}
-${cell('spese', 'Spese', mode, preview)}
-${stacked ? cell('svago', 'Svago', mode, preview) : cell('carburante', 'Carburante', mode, preview)}
-${stacked ? cell('carburante', 'Carburante', mode, preview) : cell('svago', 'Svago', mode, preview)}
+${cell('spese', 'Spese resta', mode, preview)}
+${stacked ? cell('svago', 'Svago resta', mode, preview) : cell('carburante', 'Carburante resta', mode, preview)}
+${stacked ? cell('carburante', 'Carburante resta', mode, preview) : cell('svago', 'Svago resta', mode, preview)}
 </LinearLayout>
 `;
 };

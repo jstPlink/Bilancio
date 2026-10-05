@@ -20,7 +20,7 @@ import java.util.Locale;
 /**
  * Widget «Questo mese» (5×1, testi grandi; è l'unico widget del mese, registrato come {@link MonthWidgetDetail}): a sinistra «dal 1° OTT» (apre la scheda Budget), poi quattro riquadri affiancati, tutti dal primo del mese.
  * «Da pagare» ha un colore tutto suo (rosso se resta qualcosa, verde se è tutto pagato); spese, carburante e svago sono già pagati
- * e, se c'è un budget, il loro riquadro è un contenitore che si riempie dal basso in proporzione alla spesa, con la superficie ad
+ * e, se c'è un budget, il loro riquadro è un contenitore col residuo del budget, che scende in proporzione alla spesa, con la superficie ad
  * onda sinusoidale che scorre verso destra. Ogni riquadro apre l'app: «Da pagare» sulla Panoramica, gli altri sui Movimenti del mese
  * filtrati per la loro categoria; il resto del widget apre l'app dall'inizio.
  * In ogni riquadro di spesa c'è anche la spesa stimata al giorno e quella reale.
@@ -66,6 +66,12 @@ public class MonthWidget extends AppWidgetProvider {
     }
 
     /** Importo corto, per far stare quattro cifre in una riga: 1.234 € da mille in su, con i centesimi sotto. */
+    /** Il valore del riquadro: il residuo del budget se c'è, altrimenti la spesa del mese. */
+    private static String left(double spent, double budget) { return short_(budget > 0 ? budget - spent : spent); }
+
+    /** Il titolo del riquadro: «resta» dice che la cifra è il residuo del budget. */
+    private static String title(String name, boolean ok, double budget) { return ok && budget > 0 ? name + " resta" : name; }
+
     static String short_(double v) {
         if (Math.abs(v) >= 1000) return java.text.NumberFormat.getIntegerInstance(Locale.ITALY).format(Math.round(v)) + " €";
         return Due.money(v);
@@ -83,14 +89,14 @@ public class MonthWidget extends AppWidgetProvider {
         return ratio >= 1 ? 0xCCE5484D : ratio >= 0.8 ? 0xCCF59E0B : 0x66FFFFFF; // rosso oltre il budget, arancione da 80%, bianco
     }
 
-    /** Un fotogramma: il liquido alto quanto il rapporto spesa/budget, con la superficie a onda sinusoidale in fase {@code phase}. */
+    /** Un fotogramma: il liquido alto quanto il residuo del budget (1 − spesa/budget), con la superficie a onda sinusoidale in fase {@code phase}. */
     private static Bitmap frame(double ratio, double phase) {
         Bitmap b = Bitmap.createBitmap(WAVE_W, WAVE_H, Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(b);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(colorFor(ratio));
-        double level = Math.max(0.06, Math.min(1, ratio));
-        if (ratio >= 1) { g.drawRect(0, 0, WAVE_W, WAVE_H, p); return b; } // pieno: nessuna superficie
+        double level = Math.max(0.06, Math.min(1, 1 - ratio));
+        if (ratio <= 0) { g.drawRect(0, 0, WAVE_W, WAVE_H, p); return b; } // nulla speso: pieno, nessuna superficie
         double base = Math.max(AMPLITUDE + 1, WAVE_H * (1 - level));
         Path wave = new Path();
         wave.moveTo(0, WAVE_H);
@@ -106,12 +112,14 @@ public class MonthWidget extends AppWidgetProvider {
     }
 
     /**
-     * Riempie il riquadro: i fotogrammi dell'onda vanno nel ViewFlipper che li alterna da solo. Senza budget o senza spesa c'è un solo
-     * fotogramma vuoto (ripetuto); a budget superato, uno solo pieno. Lo sfondo tondo (14dp, come «Da pagare») ritaglia i bordi.
+     * Riempie il riquadro: i fotogrammi dell'onda vanno nel ViewFlipper che li alterna da solo. Il liquido è il residuo del budget e
+     * scende man mano che si spende: pieno a spesa zero (un solo fotogramma), vuoto a budget finito o superato e senza budget.
+     * Lo sfondo tondo (14dp, come «Da pagare») ritaglia i bordi.
      */
     private static void fill(Context c, RemoteViews v, String key, boolean show, double spent, double budget) {
-        double ratio = show && budget > 0 ? spent / budget : 0;
-        Bitmap still = ratio <= 0 ? Bitmap.createBitmap(WAVE_W, WAVE_H, Bitmap.Config.ARGB_8888) : ratio >= 1 ? frame(ratio, 0) : null;
+        boolean has = show && budget > 0;
+        double ratio = has ? Math.max(0, spent / budget) : 1;
+        Bitmap still = !has || ratio >= 1 ? Bitmap.createBitmap(WAVE_W, WAVE_H, Bitmap.Config.ARGB_8888) : ratio <= 0 ? frame(0, 0) : null;
         for (int i = 0; i < FRAMES; i++) {
             int id = c.getResources().getIdentifier("fl_" + key + "_" + i, "id", c.getPackageName());
             v.setImageViewBitmap(id, still != null ? still : frame(ratio, 2 * Math.PI * i / FRAMES));
@@ -184,17 +192,21 @@ public class MonthWidget extends AppWidgetProvider {
             good = shown.toPayCount == 0;
             toPay = short_(shown.toPay);
             if (shown.toPayCount > 0) label = "Da pagare (" + shown.toPayCount + ")";
-            spese = short_(shown.spese);
-            carburante = short_(shown.carburante);
-            svago = short_(shown.svago);
+            // con il budget impostato si vede il residuo (budget − speso, negativo se superato); senza budget, quanto speso
+            spese = left(shown.spese, shown.budgetSpese);
+            carburante = left(shown.carburante, shown.budgetCarburante);
+            svago = left(shown.svago, shown.budgetSvago);
         }
         v.setTextViewText(R.id.widget_month_topay_label, label);
         v.setTextViewText(R.id.widget_month_topay, toPay);
+        v.setTextViewText(R.id.widget_month_spese_title, title("Spese", shown.ok, shown.budgetSpese));
+        v.setTextViewText(R.id.widget_month_carburante_title, title("Carburante", shown.ok, shown.budgetCarburante));
+        v.setTextViewText(R.id.widget_month_svago_title, title("Svago", shown.ok, shown.budgetSvago));
         v.setTextViewText(R.id.widget_month_spese, spese);
         v.setTextViewText(R.id.widget_month_carburante, carburante);
         v.setTextViewText(R.id.widget_month_svago, svago);
 
-        // Contenitori del budget (si riempiono solo se la lettura c'è e il budget è impostato).
+        // Contenitori del budget (mostrano il residuo solo se la lettura c'è e il budget è impostato).
         fill(c, v, "spese", shown.ok, shown.spese, shown.budgetSpese);
         fill(c, v, "carburante", shown.ok, shown.carburante, shown.budgetCarburante);
         fill(c, v, "svago", shown.ok, shown.svago, shown.budgetSvago);

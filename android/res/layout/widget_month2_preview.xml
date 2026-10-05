@@ -68,7 +68,8 @@
             android:singleLine="true" />
     </LinearLayout>
 
-    <!-- Spese: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+
+    <!-- Spese resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -92,14 +93,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Spese"
+                android:text="Spese resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="312,40 €"
+                android:text="187,60 €"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -118,7 +119,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Carburante: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Carburante resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -142,14 +143,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Carburante"
+                android:text="Carburante resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="86,00 €"
+                android:text="14,00 €"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -159,7 +160,7 @@
                 android:layout_height="wrap_content"
                 android:text="13,3→15,1/g"
                 android:layout_marginTop="1dp"
-                android:textColor="#FFFF6B6B"
+                android:textColor="#FFFF8585"
                 android:textSize="11sp"
                 android:textStyle="bold"
                 android:shadowColor="#99000000"
@@ -168,7 +169,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Svago: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Svago resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -192,14 +193,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Svago"
+                android:text="Svago resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="41,20 €"
+                android:text="58,80 €"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"

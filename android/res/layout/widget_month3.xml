@@ -50,7 +50,7 @@
     </LinearLayout>
 
 
-    <!-- Spese: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Spese resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_spese_cell"
         android:layout_width="0dp"
@@ -91,9 +91,10 @@
             android:paddingLeft="2dp"
             android:paddingRight="2dp">
             <TextView
+                android:id="@+id/widget_month_spese_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Spese"
+                android:text="Spese resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
@@ -137,7 +138,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Svago: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Svago resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_svago_cell"
         android:layout_width="0dp"
@@ -178,9 +179,10 @@
             android:paddingLeft="2dp"
             android:paddingRight="2dp">
             <TextView
+                android:id="@+id/widget_month_svago_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Svago"
+                android:text="Svago resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
@@ -224,7 +226,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Carburante: contenitore che si riempie dal basso; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Carburante resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_carburante_cell"
         android:layout_width="0dp"
@@ -265,9 +267,10 @@
             android:paddingLeft="2dp"
             android:paddingRight="2dp">
             <TextView
+                android:id="@+id/widget_month_carburante_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Carburante"
+                android:text="Carburante resta"
                 android:textColor="#E6FFFFFF"
                 android:textSize="12.5sp"
                 android:singleLine="true" />
