@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sfondo tondo, in teal scuro della palette dell'app, delle righe «stima» e «reale» di «Questo mese 2»: il rosso e il verde si leggono su qualsiasi colore del riquadro -->
+<!-- Sfondo tondo, in teal scuro della palette dell'app, delle righe «stima» e «reale» di «Questo mese 2»: la «reale» peggiore della stima è ambra e si legge su qualsiasi colore del riquadro -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#E60B5650" />
+    <solid android:color="#E60B4F4A" />
     <corners android:radius="7dp" />
 </shape>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget «Revolut»: saldo e ultimo movimento dall'ultima lettura (non in tempo reale) -->
+<!-- Widget «Saldo» (3×1): saldo Revolut e ultimo movimento dall'ultima lettura (non in tempo reale). Stesso stile di «Questo mese 2»:
+     teal dell'app, riquadri bianchi trasparenti, etichette da 12 sp e cifre da 16,5 sp in grassetto; nessun altro colore. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_bank_root"
     android:layout_width="match_parent"
@@ -8,68 +9,58 @@
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:background="@drawable/widget_bg">
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="0.9"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginRight="2dp"
-        android:background="@drawable/widget_since_bg">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Revolut"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_bank_since"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#CCFFFFFF"
-            android:textSize="10.5sp"
-            android:singleLine="true" />
-    </LinearLayout>
-
+    <!-- Saldo, con da quando sono i dati -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
         android:background="@drawable/widget_cell">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Saldo"
+            android:text="Saldo Revolut"
             android:textColor="#E6FFFFFF"
             android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
         <TextView
             android:id="@+id/widget_bank_balance"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FFFFFF"
-            android:textSize="17sp"
+            android:textSize="16.5sp"
             android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:ellipsize="end"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_bank_since"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
     </LinearLayout>
 
+    <!-- Ultimo movimento: importo e nome -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
-        android:layout_marginLeft="2dp"
+        android:layout_marginLeft="6dp"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
         android:background="@drawable/widget_cell">
         <TextView
             android:id="@+id/widget_bank_last_label"
@@ -78,22 +69,25 @@
             android:text="Ultimo"
             android:textColor="#E6FFFFFF"
             android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
         <TextView
             android:id="@+id/widget_bank_last"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="16.5sp"
             android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:ellipsize="end"
             android:singleLine="true" />
         <TextView
             android:id="@+id/widget_bank_last_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:maxWidth="110dp"
-            android:textColor="#CCFFFFFF"
-            android:textSize="10.5sp"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
             android:ellipsize="end"
             android:singleLine="true" />
     </LinearLayout>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Da pagare» di «Questo mese 2» quando resta qualcosa da pagare: l'unico colore d'allarme della palette (ambra), con le scritte in teal scuro.
+     Quando è tutto pagato il riquadro è neutro, come gli altri (widget_cell). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FBBF24" />
+    <corners android:radius="14dp" />
+</shape>

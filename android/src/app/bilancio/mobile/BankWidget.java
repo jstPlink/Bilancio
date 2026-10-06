@@ -10,7 +10,7 @@ import android.widget.RemoteViews;
 import java.util.Locale;
 
 /**
- * Widget «Revolut» (4×1): saldo totale in euro (conti e pocket) e ultimo movimento, dall'ULTIMA lettura fatta dalla banca. Non è in tempo reale:
+ * Widget «Saldo» (3×1): saldo Revolut totale in euro (conti e pocket) e ultimo movimento, dall'ULTIMA lettura fatta dalla banca. Non è in tempo reale:
  * il widget non chiama mai la banca (le banche concedono poche letture al giorno) e scrive da quando sono i dati. Si aggiorna quando premi
  * «Leggi dalla banca» o «Aggiorna ora» nell'app, e ogni mezz'ora rilegge dal server quello che c'è. Un tocco apre la scheda Banche.
  */
@@ -51,7 +51,6 @@ public class BankWidget extends AppWidgetProvider {
         BankData shown = d.ok || d.needLogin ? d : BankData.cached(c, BANK); // server non raggiungibile: ultima copia nota
 
         String since = "mai", balance = "—", lastLabel = "Ultimo", last = "—", lastName = "";
-        int lastColor = 0xFFFFFFFF;
         if (shown.needLogin) {
             balance = "Accedi";
             lastName = "nell'app";
@@ -67,7 +66,6 @@ public class BankWidget extends AppWidgetProvider {
             if (shown.hasLast) {
                 last = (shown.lastAmount > 0 ? "+" : "") + money(shown.lastAmount);
                 lastName = shown.lastName;
-                lastColor = shown.lastAmount > 0 ? 0xFF4ADE80 : 0xFFFFFFFF;
                 if (shown.lastPending) lastLabel = "In sospeso";
             }
         }
@@ -75,7 +73,6 @@ public class BankWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_bank_balance, balance);
         v.setTextViewText(R.id.widget_bank_last_label, lastLabel);
         v.setTextViewText(R.id.widget_bank_last, last);
-        v.setTextColor(R.id.widget_bank_last, lastColor);
         v.setTextViewText(R.id.widget_bank_last_name, lastName);
 
         Intent open = new Intent(c, MainActivity.class).putExtra("open", "banks");

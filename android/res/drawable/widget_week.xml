@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Un blocco della barra del mese nell'anteprima statica di «Questo mese 2» (nel widget vero la barra è un'immagine disegnata dal codice, MonthWidget.monthBar).
+     Stessi colori degli altri riquadri: fondo bianco trasparente e parte piena bianca più marcata, sul teal del widget. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="5dp" />
+            <solid android:color="#2EFFFFFF" />
+        </shape>
+    </item>
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="5dp" />
+                <solid android:color="#80FFFFFF" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

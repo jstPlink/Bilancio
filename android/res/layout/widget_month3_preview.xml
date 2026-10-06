@@ -7,105 +7,175 @@
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:background="@drawable/widget_bg">
 
-    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
+    <!-- Colonna di sinistra: tre parti, una sopra l'altra -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginRight="2dp"
         android:orientation="vertical">
 
-        <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
+        <!-- 1) Cose da pagare: ambra se resta qualcosa, riquadro neutro come gli altri se è tutto pagato. Due terzi della colonna; barra e banca un sesto ciascuna -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="4"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:background="@drawable/w2_cell_alert">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Da pagare (3)"
+                android:textColor="#FF0B4F4A"
+                android:textSize="12sp"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="245,00 €"
+                android:textColor="#FF0B4F4A"
+                android:textSize="16.5sp"
+                android:textStyle="bold"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <!-- 2) Barra del mese: una barra proporzionale ai giorni, con un divisore alla fine di ogni domenica (i blocchi sono le settimane lunedì–domenica), e scritto dentro quanto manca alla fine del mese -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="14dp"
+            android:layout_marginTop="6dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="4"
+                    android:layout_marginLeft="0dp"
+                    android:layout_marginRight="1dp"
+                    android:max="4"
+                    android:progress="4"
+                    android:progressDrawable="@drawable/widget_week" />
+                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="7"
+                    android:layout_marginLeft="1dp"
+                    android:layout_marginRight="1dp"
+                    android:max="7"
+                    android:progress="7"
+                    android:progressDrawable="@drawable/widget_week" />
+                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="7"
+                    android:layout_marginLeft="1dp"
+                    android:layout_marginRight="1dp"
+                    android:max="7"
+                    android:progress="6"
+                    android:progressDrawable="@drawable/widget_week" />
+                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="7"
+                    android:layout_marginLeft="1dp"
+                    android:layout_marginRight="1dp"
+                    android:max="7"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/widget_week" />
+                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="6"
+                    android:layout_marginLeft="1dp"
+                    android:layout_marginRight="0dp"
+                    android:max="6"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/widget_week" />
+            </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="mancano 14 g"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12sp"
+                android:shadowColor="#66000000"
+                android:shadowRadius="2"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+        </FrameLayout>
+
+        <!-- 3) Ultimo aggiornamento dalle banche collegate (sparisce se non c'è nessuna banca) -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="14dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/widget_cell">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="banca 12:05"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12sp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+        </FrameLayout>
+    </LinearLayout>
+
+
+    <!-- Spese: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginLeft="6dp"
+        android:background="@drawable/widget_cell"
+        android:clipToOutline="true">
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/preview_fill_tall_a"
+            android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="4dp"
-            android:paddingRight="4dp"
-            android:background="@drawable/widget_cell_due">
+            android:paddingRight="4dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Da pagare (3)"
+                android:text="Spese"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
-                android:singleLine="true" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="245,00 €"
-                android:textColor="#FFFFFF"
-                android:textSize="17.5sp"
-                android:textStyle="bold"
-                android:singleLine="true" />
-            <!-- quanto manca alla fine del mese: barra dei giorni passati e, sotto, i giorni che restano -->
-            <ProgressBar
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="3dp"
-                android:layout_marginLeft="2dp"
-                android:layout_marginRight="2dp"
-                android:max="100"
-                android:progress="45"
-                android:progressDrawable="@drawable/widget_progress" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="mancano 25 g"
-                android:layout_marginTop="2dp"
-                android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
-                android:singleLine="true" />
-            <!-- ultimo aggiornamento dalla banca -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="banca 12:05"
-                android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
-                android:singleLine="true" />
-        </LinearLayout>
-    </LinearLayout>
-
-
-    <!-- Spese resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
-        android:background="@drawable/widget_cell"
-        android:clipToOutline="true">
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@drawable/preview_fill_a"
-            android:scaleType="fitXY" />
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Spese resta"
-                android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="187,60 €"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -114,66 +184,66 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="stima €13,30"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="reale €15,10"
-                android:textColor="#FF4ADE80"
-                android:textSize="10.5sp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Svago resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Svago: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_marginLeft="6dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
         <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/preview_fill_c"
+            android:src="@drawable/preview_fill_tall_c"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Svago resta"
+                android:text="Svago"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="58,80 €"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -182,66 +252,66 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="stima €13,30"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="reale €15,10"
-                android:textColor="#FF4ADE80"
-                android:textSize="10.5sp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Carburante resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Carburante: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_marginLeft="6dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
         <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/preview_fill_b"
+            android:src="@drawable/preview_fill_tall_b"
             android:scaleType="fitXY" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Carburante resta"
+                android:text="Carburante"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="14,00 €"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -250,28 +320,28 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="stima €13,30"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="reale €15,10"
-                android:textColor="#FFFF8585"
-                android:textSize="10.5sp"
+                android:textColor="#FFFBBF24"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>

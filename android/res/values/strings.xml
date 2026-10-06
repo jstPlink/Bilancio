@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_bank_description">Saldo Revolut e ultimo movimento dall\'ultima lettura (non in tempo reale).</string>
-    <string name="widget_month2_description">Da pagare, spese, carburante e svago dal primo del mese, con la spesa stimata e quella reale al giorno.</string>
-    <string name="widget_month3_description">Come «Questo mese», con «Da pagare» più stretto e, in ogni riquadro di spesa, la stima al giorno e sotto la spesa reale.</string>
+    <string name="widget_bank_description">Saldo Revolut e ultimo movimento dall\'ultima lettura (non in tempo reale). Per una griglia 3×1.</string>
+    <string name="widget_month3_description">Da pagare, spese, svago e carburante dal primo del mese, con la barra del mese e la banca. Per una griglia 5×2.</string>
 </resources>

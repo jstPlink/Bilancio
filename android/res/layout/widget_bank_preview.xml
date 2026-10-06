@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Anteprima statica (dati di esempio) del widget Revolut -->
+<!-- Anteprima statica (dati di esempio) del widget «Saldo» (3×1) -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,58 +7,43 @@
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:background="@drawable/widget_bg">
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="0.9"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginRight="2dp"
-        android:background="@drawable/widget_since_bg">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Revolut"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:singleLine="true" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="3 ott 10:32"
-            android:textColor="#CCFFFFFF"
-            android:textSize="10.5sp"
-            android:singleLine="true" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
         android:background="@drawable/widget_cell">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Saldo"
+            android:text="Saldo Revolut"
             android:textColor="#E6FFFFFF"
             android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="1.234,50 €"
+            android:text="842,37 €"
             android:textColor="#FFFFFF"
-            android:textSize="17sp"
+            android:textSize="16.5sp"
             android:textStyle="bold"
+            android:includeFontPadding="false"
+            android:singleLine="true" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="6 ott 12:01"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
     </LinearLayout>
 
@@ -68,7 +53,9 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:gravity="center"
-        android:layout_marginLeft="2dp"
+        android:layout_marginLeft="6dp"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp"
         android:background="@drawable/widget_cell">
         <TextView
             android:layout_width="wrap_content"
@@ -76,22 +63,24 @@
             android:text="Ultimo"
             android:textColor="#E6FFFFFF"
             android:textSize="12sp"
+            android:includeFontPadding="false"
             android:singleLine="true" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="-4,50 €"
+            android:text="-23,50 €"
             android:textColor="#FFFFFF"
-            android:textSize="15sp"
+            android:textSize="16.5sp"
             android:textStyle="bold"
+            android:includeFontPadding="false"
             android:singleLine="true" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Bar Centrale"
-            android:maxWidth="110dp"
-            android:textColor="#CCFFFFFF"
-            android:textSize="10.5sp"
+            android:text="Maracaibo"
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp"
+            android:includeFontPadding="false"
             android:ellipsize="end"
             android:singleLine="true" />
     </LinearLayout>

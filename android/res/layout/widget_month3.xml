@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copia di «Questo mese» (5×1) senza «dal 1° OTT», con Spese, Svago e Carburante più larghi e, in ogni riquadro di spesa, la stima al giorno e sotto la reale (verde se è migliore, rossa se peggiore). File generato da scripts/genera-widget.mjs -->
+<!-- Widget «Questo mese 2» (5×2): colonna di sinistra in tre parti (cose da pagare, barra del mese, banca) e tre riquadri di spesa con stima e reale al giorno. File generato da scripts/genera-widget.mjs -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_month_root"
     android:layout_width="match_parent"
@@ -8,84 +8,104 @@
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
     android:background="@drawable/widget_bg">
 
-    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
+    <!-- Colonna di sinistra: tre parti, una sopra l'altra -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginRight="2dp"
         android:orientation="vertical">
 
-        <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
+        <!-- 1) Cose da pagare: ambra se resta qualcosa, riquadro neutro come gli altri se è tutto pagato. Due terzi della colonna; barra e banca un sesto ciascuna -->
         <LinearLayout
             android:id="@+id/widget_month_due_cell"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="4"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="4dp"
             android:paddingRight="4dp"
-            android:background="@drawable/widget_cell_due">
+            android:background="@drawable/w2_cell_alert">
             <TextView
                 android:id="@+id/widget_month_topay_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Da pagare"
-                android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textColor="#FF0B4F4A"
+                android:textSize="12sp"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_topay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
-                android:textSize="17.5sp"
+                android:textColor="#FF0B4F4A"
+                android:textSize="16.5sp"
                 android:textStyle="bold"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
-            <!-- quanto manca alla fine del mese: barra dei giorni passati e, sotto, i giorni che restano -->
-            <ProgressBar
-                android:id="@+id/widget_month_progress"
-                style="?android:attr/progressBarStyleHorizontal"
+        </LinearLayout>
+
+        <!-- 2) Barra del mese: una barra proporzionale ai giorni, con un divisore alla fine di ogni domenica (i blocchi sono le settimane lunedì–domenica), e scritto dentro quanto manca alla fine del mese -->
+        <FrameLayout
+            android:id="@+id/widget_month_bar_cell"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="14dp"
+            android:layout_marginTop="6dp">
+            <ImageView
+                android:id="@+id/widget_month_bar"
                 android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="3dp"
-                android:layout_marginLeft="2dp"
-                android:layout_marginRight="2dp"
-                android:max="100"
-                android:progress="0"
-                android:progressDrawable="@drawable/widget_progress" />
+                android:layout_height="match_parent"
+                android:scaleType="fitXY" />
             <TextView
                 android:id="@+id/widget_month_left"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_gravity="center"
                 android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
+                android:textSize="12sp"
+                android:shadowColor="#66000000"
+                android:shadowRadius="2"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
-            <!-- ultimo aggiornamento dalla banca -->
+        </FrameLayout>
+
+        <!-- 3) Ultimo aggiornamento dalle banche collegate (sparisce se non c'è nessuna banca) -->
+        <FrameLayout
+            android:id="@+id/widget_month_bank_cell"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="14dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/widget_cell">
             <TextView
                 android:id="@+id/widget_month_bank"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center"
                 android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
+                android:textSize="12sp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
-        </LinearLayout>
+        </FrameLayout>
     </LinearLayout>
 
 
-    <!-- Spese resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Spese: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_spese_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_marginLeft="6dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
         <ViewFlipper
@@ -116,20 +136,21 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
             <TextView
                 android:id="@+id/widget_month_spese_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Spese resta"
+                android:text="Spese"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_spese"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -138,20 +159,20 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:id="@+id/widget_month_spese_est"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
@@ -159,21 +180,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Svago resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Svago: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_svago_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_marginLeft="6dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
         <ViewFlipper
@@ -204,20 +224,21 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
             <TextView
                 android:id="@+id/widget_month_svago_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Svago resta"
+                android:text="Svago"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_svago"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -226,20 +247,20 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:id="@+id/widget_month_svago_est"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
@@ -247,21 +268,20 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Carburante resta: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
+    <!-- Carburante: contenitore con il residuo del budget, che scende dall'alto; la superficie è un'onda sinusoidale che scorre verso destra (fotogrammi in un ViewFlipper) -->
     <FrameLayout
         android:id="@+id/widget_month_carburante_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_marginLeft="6dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
         <ViewFlipper
@@ -292,20 +312,21 @@
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="2dp"
-            android:paddingRight="2dp">
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
             <TextView
                 android:id="@+id/widget_month_carburante_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Carburante resta"
+                android:text="Carburante"
                 android:textColor="#E6FFFFFF"
-                android:textSize="12.5sp"
+                android:textSize="12sp"
                 android:singleLine="true" />
             <TextView
                 android:id="@+id/widget_month_carburante"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16.5sp"
                 android:textStyle="bold"
@@ -314,20 +335,20 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="8dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:background="@drawable/widget_pill">
             <TextView
                 android:id="@+id/widget_month_carburante_est"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             <TextView
@@ -335,7 +356,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFFFF"
-                android:textSize="10.5sp"
+                android:textSize="11.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
             </LinearLayout>

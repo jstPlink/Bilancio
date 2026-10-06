@@ -2,6 +2,30 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.51.0
+- **Tolto il widget «Questo mese» (5×1)**: resta «Questo mese 2» (5×2) come unico widget del mese. Chi aveva il vecchio lo vede sparire dalla Home e può aggiungere «Questo mese 2» dall'elenco dei widget. Con il widget sono state tolte le sue risorse (layout, scheda, anteprima, sfondi rossi e verdi, liquido arancione) e il codice che serviva solo a lui; il generatore dei layout (`scripts/genera-widget.mjs`) ora produce solo «Questo mese 2» e il suo layout è rimasto identico.
+- **Widget «Saldo» ristretto da 4×1 a 3×1 e nello stile di «Questo mese 2»**: due riquadri affiancati, **«Saldo Revolut»** (saldo e da quando sono i dati) e **«Ultimo»** (importo e nome dell'ultimo movimento), con teal, riquadri bianchi trasparenti, etichette da 12 sp e cifre da 16,5 sp in grassetto. Niente più verde per le entrate: l'unico colore d'allarme resta l'ambra, e qui non serve. Un «Saldo» già sulla Home resta largo quattro colonne finché non lo restringi.
+
+## 0.50.0
+- **«Questo mese 2», titoli senza «resta»**: i riquadri si chiamano «Spese», «Svago» e «Carburante». La cifra è sempre il residuo del budget. Gli altri widget non cambiano.
+- **Stessa dimensione e stile per tutte le etichette**: «Da pagare», «Spese», «Svago», «Carburante», «mancano 25 g» e «banca 12:05» sono tutte da 12 sp, non in grassetto; anche le quattro cifre hanno la stessa misura (16,5 sp, grassetto).
+- **Palette coerente**: prima i riquadri avevano rosso, verde chiaro, arancione, rosso e verde per la stima e vari teal. Ora c'è il teal dell'app come sfondo, riquadri bianchi trasparenti tutti uguali (compresa la barra del mese e la riga della banca) e **un solo colore d'allarme, l'ambra**: «Da pagare» quando resta qualcosa, il liquido oltre l'80% del budget, la «reale» peggiore della stima (la migliore è bianca). Tutto pagato: «Da pagare» è neutro come gli altri.
+- **Barra del mese e riga della banca alte la metà**: la colonna di sinistra si divide ora 4 : 1 : 1 (prima 1 : 1 : 1).
+
+## 0.49.0
+- **Barra del mese di «Questo mese 2» con i divisori sulle domeniche**: i blocchi sono le settimane vere (da lunedì a domenica) e il divisore cade alla fine di ogni domenica, tranne a fine mese. La barra è larga in proporzione ai giorni, quindi i blocchi sono da quattro a sei e il primo e l'ultimo possono essere più corti (ottobre 2026: divisori dopo il 4, l'11, il 18 e il 25). Il calcolo è provato da un test sui mesi difficili (che cominciano di domenica, che finiscono di domenica, bisestile).
+- **Colonna di sinistra in tre parti uguali**: cose da pagare, barra del mese e riga della banca hanno ora la stessa altezza (prima 3 : 1,2 : 1). La riga della banca resta in basso.
+
+## 0.48.0
+- **«Questo mese 2» ripensato per una griglia 5×2** (alto il doppio): il widget si propone ora con cinque colonne e due righe. Gli **spazi** sono sistemati: bordo esterno di 8 dp **uguale su tutti i lati** (prima a destra era più largo) e **6 dp fra tutti i riquadri** e fra le tre parti della colonna di sinistra; più aria sopra la cifra e sopra «stima/reale», e nella pastiglia.
+- Le tre parti della colonna di sinistra si **dividono l'altezza in proporzione** (cose da pagare 3, barra del mese 1,2, banca 1) con un minimo per barra e banca, così reggono anche a una riga sola. Il **liquido del budget** ha ora una forma alta come il riquadro, e l'anteprima nella lista dei widget è più alta.
+- Un «Questo mese 2» già sulla Home resta alto una riga: va allungato (o tolto e rimesso). «Questo mese» e il suo layout restano invariati.
+
+## 0.47.0
+- **«Questo mese 2», colonna «Da pagare» divisa in tre parti**, una sopra l'altra: le **cose da pagare** (rosso, o verde chiaro se è tutto pagato), la **barra del mese** e **l'ultimo aggiornamento della banca** (sparisce se non c'è nessuna banca collegata).
+- **Barra del mese a quattro blocchi**, uno per settimana (giorni 1–7, 8–14, 15–21 e il resto del mese), che si riempiono con i giorni passati; il testo **«mancano 25 g»** (o «ultimo giorno») ora è scritto **dentro la barra**. La barra ha un fondo suo (teal scuro e teal) e non cambia più colore con lo stato del «Da pagare».
+- Il calcolo dei blocchi è in una classe a parte (`MonthWeeks`) provata da un test; il layout si rigenera con `node scripts/genera-widget.mjs`. «Questo mese» resta invariato.
+
 ## 0.44.0
 - **Nuovo widget «Questo mese 2»** (Android, 5×1), copia di «Questo mese»: senza «dal 1° OTT», con «Da pagare» e i tre riquadri di spesa **della stessa larghezza**, in ordine **Spese, Svago, Carburante**. In ogni riquadro la **stima** e, sotto, la **spesa reale** al giorno, in formato `stima €9,40` / `reale €12,35` (valuta davanti, centesimi sempre per intero), insieme in un solo sfondo tondo in teal scuro della palette; il reale è verde se è pari o migliore della stima, rosso (più chiaro, per leggersi) se peggiore.
 - «Questo mese» resta invariato. Il layout si genera con `node scripts/genera-widget.mjs` (modalità `stacked`).

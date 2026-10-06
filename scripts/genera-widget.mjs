@@ -1,4 +1,4 @@
-// Genera i layout dei widget «Questo mese» (widget_month2.xml) e «Questo mese 2» (widget_month3.xml) e le loro anteprime statiche per la lista dei widget.
+// Genera il layout del widget «Questo mese 2» (widget_month3.xml, 5×2) e la sua anteprima statica per la lista dei widget (widget_month3_preview.xml).
 // Uso: node scripts/genera-widget.mjs  (dalla cartella del progetto). Qui si cambiano anche il numero di fotogrammi dell'onda
 // (devono coincidere con FRAMES in MonthWidget.java) e il tempo di cambio fotogramma.
 import fs from 'node:fs';
@@ -6,25 +6,22 @@ import fs from 'node:fs';
 const FRAMES = 16;
 const FLIP_MS = 285;
 
-// misure del testo: base (widget semplice) e dettagliato (5×1 con la riga «stima → reale» al giorno, testi più grandi)
-const SIZE = {
-  plain: { since: 14.3, sinceLabel: 11, dueLabel: 11, due: 16.5, title: 11, amount: 15.4, padCell: 6, padRoot: 6 },
-  detail: { since: 15, sinceLabel: 12, dueLabel: 12.5, due: 17.5, title: 12.5, amount: 16.5, padCell: 2, padRoot: 4, day: 11 },
-  // «Questo mese 2»: come il dettagliato, ma stima e reale una sotto l'altra (anche se lo spazio è poco)
-  stacked: { since: 15, sinceLabel: 12, dueLabel: 12.5, due: 17.5, title: 12.5, amount: 16.5, padCell: 2, padRoot: 4, day: 10.5 },
-};
+// Misure (sp e dp). Tutte le etichette (Da pagare, Spese, Svago, Carburante, mancano x g, banca) hanno la stessa dimensione e lo stesso stile; le cifre
+// pure. gap: spazio fra riquadri e fra le tre parti della colonna di sinistra; i margini esterni (padRoot) sono uguali su tutti i lati.
+// barMin/bankMin: altezze minime delle parti barra e banca; amountTop/pillTop: aria sopra la cifra e sopra stima/reale.
+const Z = { title: 12, amount: 16.5, padCell: 4, padRoot: 8, day: 11.5, dueLabelS: 12, dueS: 16.5, small: 12, gap: 6, barMin: 14, bankMin: 14, amountTop: 4, pillTop: 8, pillPadX: 8, pillPadY: 3 };
 
-// larghezza relativa di «Da pagare» e dei tre riquadri di spesa: in «Questo mese 2» «Da pagare» è la metà e lo spazio liberato va agli altri tre
-const WEIGHT = {
-  plain: { due: 1.15, cell: 1 },
-  detail: { due: 1.15, cell: 1 },
-  stacked: { col: 1, cell: 1 }, // «Da pagare» e i tre riquadri di spesa hanno la stessa larghezza
+// Palette: teal dell'app (sfondo), riquadri bianchi trasparenti e un solo colore d'allarme, l'ambra (#FBBF24).
+const PREVIEW = {
+  toPay: '245,00 €', label: 'Da pagare (3)', spese: '187,60 €', carburante: '14,00 €', svago: '58,80 €',
+  est: 'stima €13,30', act: 'reale €15,10', left: 'mancano 14 g', bank: 'banca 12:05',
+  // ottobre 2026 (il 1 è giovedì; domeniche 4, 11, 18, 25), oggi il 17: [giorni del blocco, giorni già passati]
+  bar: [[4, 4], [7, 7], [7, 6], [7, 0], [6, 0]],
 };
-
-const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '187,60 €', carburante: '14,00 €', svago: '58,80 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10', left: 'mancano 25 g', bank: 'banca 12:05' };
-// anteprima: altezza fissa del liquido (dp) invece delle immagini a onde, e il colore del «reale» al giorno
-const PREVIEW_FILL = { spese: ['a', 30], carburante: ['b', 45], svago: ['c', 15] };
-const PREVIEW_DAY_COLOR = { spese: '#FF4ADE80', carburante: '#FFFF8585', svago: '#FF4ADE80' };
+// anteprima: altezza fissa del liquido (dp) invece delle immagini a onde (il widget è alto due righe)
+const PREVIEW_FILL = { spese: ['a', 62], carburante: ['b', 96], svago: ['c', 30] };
+// la «reale» è bianca se è pari o migliore della stima, ambra se è peggiore
+const PREVIEW_DAY_COLOR = { spese: '#FFFFFFFF', carburante: '#FFFBBF24', svago: '#FFFFFFFF' };
 
 const text = (id, extra) => `            <TextView${id ? `\n                android:id="@+id/${id}"` : ''}
                 android:layout_width="wrap_content"
@@ -32,15 +29,12 @@ const text = (id, extra) => `            <TextView${id ? `\n                andr
 ${extra}
                 android:singleLine="true" />`;
 
-const cell = (key, title, mode, preview) => {
-  const z = SIZE[mode];
-  const detailed = mode === 'detail';
-  const stacked = mode === 'stacked';
+const cell = (key, title, preview) => {
   const fill = preview
     ? `        <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:src="@drawable/preview_fill_${PREVIEW_FILL[key][0]}"
+            android:src="@drawable/preview_fill_tall_${PREVIEW_FILL[key][0]}"
             android:scaleType="fitXY" />`
     : `        <ViewFlipper
             android:id="@+id/widget_month_${key}_fill"
@@ -56,9 +50,8 @@ ${Array.from({ length: FRAMES }, (_, i) => `            <ImageView android:id="@
         ${preview ? '' : `android:id="@+id/widget_month_${key}_cell"
         `}android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="${WEIGHT[mode].cell}"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
+        android:layout_weight="1"
+        android:layout_marginLeft="${Z.gap}dp"
         android:background="@drawable/widget_cell"
         android:clipToOutline="true">
 ${fill}
@@ -67,52 +60,42 @@ ${fill}
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingLeft="${z.padCell}dp"
-            android:paddingRight="${z.padCell}dp">
+            android:paddingLeft="${Z.padCell}dp"
+            android:paddingRight="${Z.padCell}dp">
 ${text(preview ? null : `widget_month_${key}_title`, `                android:text="${title}"
                 android:textColor="#E6FFFFFF"
-                android:textSize="${z.title}sp"`)}
-${text(preview ? null : `widget_month_${key}`, `${preview ? `                android:text="${PREVIEW[key]}"\n` : ''}                android:textColor="#FFFFFF"
-                android:textSize="${z.amount}sp"
-                android:textStyle="bold"`)}${detailed ? `
-${text(preview ? null : `widget_month_${key}_day`, `${preview ? `                android:text="${PREVIEW.day}"
-` : ''}                android:layout_marginTop="1dp"
-                android:textColor="${preview ? PREVIEW_DAY_COLOR[key] : '#FFFFFFFF'}"
-                android:textSize="${z.day}sp"
-                android:textStyle="bold"
-                android:shadowColor="#99000000"
-                android:shadowRadius="2"`)}` : ''}${stacked ? `
+                android:textSize="${Z.title}sp"`)}
+${text(preview ? null : `widget_month_${key}`, `${preview ? `                android:text="${PREVIEW[key]}"\n` : ''}                android:layout_marginTop="${Z.amountTop}dp"
+                android:textColor="#FFFFFF"
+                android:textSize="${Z.amount}sp"
+                android:textStyle="bold"`)}
             <!-- stima e reale in un solo sfondo tondo, una riga sotto l'altra -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="${Z.pillTop}dp"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingLeft="6dp"
-                android:paddingRight="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
+                android:paddingLeft="${Z.pillPadX}dp"
+                android:paddingRight="${Z.pillPadX}dp"
+                android:paddingTop="${Z.pillPadY}dp"
+                android:paddingBottom="${Z.pillPadY}dp"
                 android:background="@drawable/widget_pill">
 ${text(preview ? null : `widget_month_${key}_est`, `${preview ? `                android:text="${PREVIEW.est}"
 ` : ''}                android:textColor="#FFFFFFFF"
-                android:textSize="${z.day}sp"
+                android:textSize="${Z.day}sp"
                 android:textStyle="bold"`)}
 ${text(preview ? null : `widget_month_${key}_act`, `${preview ? `                android:text="${PREVIEW.act}"
 ` : ''}                android:textColor="${preview ? PREVIEW_DAY_COLOR[key] : '#FFFFFFFF'}"
-                android:textSize="${z.day}sp"
+                android:textSize="${Z.day}sp"
                 android:textStyle="bold"`)}
-            </LinearLayout>` : ''}
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>`;
 };
 
-const layout = (mode, preview) => {
-  const z = SIZE[mode];
-  const detailed = mode !== 'plain';
-  const stacked = mode === 'stacked';
-  return `<?xml version="1.0" encoding="utf-8"?>
-<!-- ${preview ? 'Anteprima statica (dati di esempio) per la lista dei widget' : stacked ? 'Copia di «Questo mese» (5×1) senza «dal 1° OTT», con Spese, Svago e Carburante più larghi e, in ogni riquadro di spesa, la stima al giorno e sotto la reale (verde se è migliore, rossa se peggiore)' : detailed ? 'Copia di «Questo mese» (5×1) con, in ogni riquadro di spesa, «stima → reale» al giorno: verde se la reale è migliore, rossa se peggiore' : 'Widget «Questo mese»'}. File generato da scripts/genera-widget.mjs -->
+const layout = (preview) => `<?xml version="1.0" encoding="utf-8"?>
+<!-- ${preview ? 'Anteprima statica (dati di esempio) per la lista dei widget' : 'Widget «Questo mese 2» (5×2): colonna di sinistra in tre parti (cose da pagare, barra del mese, banca) e tre riquadri di spesa con stima e reale al giorno'}. File generato da scripts/genera-widget.mjs -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     ${preview ? '' : 'android:id="@+id/widget_month_root"\n    '}android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -120,131 +103,110 @@ const layout = (mode, preview) => {
     android:gravity="center_vertical"
     android:paddingLeft="8dp"
     android:paddingRight="8dp"
-    android:paddingTop="${z.padRoot}dp"
-    android:paddingBottom="${z.padRoot}dp"
+    android:paddingTop="${Z.padRoot}dp"
+    android:paddingBottom="${Z.padRoot}dp"
     android:background="@drawable/widget_bg">
 
-${stacked ? `    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
+    <!-- Colonna di sinistra: tre parti, una sopra l'altra -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="${WEIGHT.stacked.col}"
-        android:layout_marginRight="2dp"
+        android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
+        <!-- 1) Cose da pagare: ambra se resta qualcosa, riquadro neutro come gli altri se è tutto pagato. Due terzi della colonna; barra e banca un sesto ciascuna -->
         <LinearLayout
             ${preview ? '' : 'android:id="@+id/widget_month_due_cell"\n            '}android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="4"
             android:orientation="vertical"
             android:gravity="center"
             android:paddingLeft="4dp"
             android:paddingRight="4dp"
-            android:background="@drawable/widget_cell_due">
+            android:background="@drawable/w2_cell_alert">
             <TextView${preview ? '' : '\n                android:id="@+id/widget_month_topay_label"'}
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="${preview ? PREVIEW.label : 'Da pagare'}"
-                android:textColor="#E6FFFFFF"
-                android:textSize="${z.dueLabel}sp"
+                android:textColor="#FF0B4F4A"
+                android:textSize="${Z.dueLabelS}sp"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
             <TextView${preview ? '' : '\n                android:id="@+id/widget_month_topay"'}
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.toPay}"` : ''}
-                android:textColor="#FFFFFF"
-                android:textSize="${z.due}sp"
+                android:textColor="#FF0B4F4A"
+                android:textSize="${Z.dueS}sp"
                 android:textStyle="bold"
-                android:singleLine="true" />
-            <!-- quanto manca alla fine del mese: barra dei giorni passati e, sotto, i giorni che restano -->
-            <ProgressBar${preview ? '' : '\n                android:id="@+id/widget_month_progress"'}
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="match_parent"
-                android:layout_height="4dp"
-                android:layout_marginTop="3dp"
-                android:layout_marginLeft="2dp"
-                android:layout_marginRight="2dp"
-                android:max="100"
-                android:progress="${preview ? 45 : 0}"
-                android:progressDrawable="@drawable/widget_progress" />
-            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_left"'}
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.left}"` : ''}
-                android:layout_marginTop="2dp"
-                android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
-                android:singleLine="true" />
-            <!-- ultimo aggiornamento dalla banca -->
-            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_bank"'}
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.bank}"` : ''}
-                android:textColor="#E6FFFFFF"
-                android:textSize="10sp"
+                android:includeFontPadding="false"
                 android:singleLine="true" />
         </LinearLayout>
-    </LinearLayout>
-` : `    <!-- «dal 1° OTT»: da quando partono le cifre; un tocco apre la scheda Budget -->
-    <LinearLayout
-        ${preview ? '' : 'android:id="@+id/widget_month_since_cell"\n        '}android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="0.6"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_marginRight="2dp"
-        android:paddingLeft="2dp"
-        android:paddingRight="2dp"
-        android:background="@drawable/widget_since_bg">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="dal 1°"
-            android:textColor="#CCFFFFFF"
-            android:textSize="${z.sinceLabel}sp"
-            android:singleLine="true" />
-        <TextView${preview ? '' : '\n            android:id="@+id/widget_month_since"'}
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"${preview ? `\n            android:text="${PREVIEW.since}"` : ''}
-            android:textColor="#FFFFFF"
-            android:textSize="${z.since}sp"
-            android:textStyle="bold"
-            android:singleLine="true" />
+
+        <!-- 2) Barra del mese: una barra proporzionale ai giorni, con un divisore alla fine di ogni domenica (i blocchi sono le settimane lunedì–domenica), e scritto dentro quanto manca alla fine del mese -->
+        <FrameLayout
+            ${preview ? '' : 'android:id="@+id/widget_month_bar_cell"\n            '}android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="${Z.barMin}dp"
+            android:layout_marginTop="${Z.gap}dp">
+${preview ? `            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+${PREVIEW.bar.map(([len, done], i, all) => `                <ProgressBar
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="${len}"
+                    android:layout_marginLeft="${i === 0 ? 0 : 1}dp"
+                    android:layout_marginRight="${i === all.length - 1 ? 0 : 1}dp"
+                    android:max="${len}"
+                    android:progress="${done}"
+                    android:progressDrawable="@drawable/widget_week" />`).join('\n')}
+            </LinearLayout>` : `            <ImageView
+                android:id="@+id/widget_month_bar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitXY" />`}
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_left"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"${preview ? `\n                android:text="${PREVIEW.left}"` : ''}
+                android:textColor="#E6FFFFFF"
+                android:textSize="${Z.small}sp"
+                android:shadowColor="#66000000"
+                android:shadowRadius="2"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+        </FrameLayout>
+
+        <!-- 3) Ultimo aggiornamento dalle banche collegate (sparisce se non c'è nessuna banca) -->
+        <FrameLayout
+            ${preview ? '' : 'android:id="@+id/widget_month_bank_cell"\n            '}android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:minHeight="${Z.bankMin}dp"
+            android:layout_marginTop="${Z.gap}dp"
+            android:background="@drawable/widget_cell">
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_bank"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"${preview ? `\n                android:text="${PREVIEW.bank}"` : ''}
+                android:textColor="#E6FFFFFF"
+                android:textSize="${Z.small}sp"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:singleLine="true" />
+        </FrameLayout>
     </LinearLayout>
 
-    <!-- Da pagare: rosso se resta qualcosa, verde chiaro se è tutto pagato -->
-    <LinearLayout
-        ${preview ? '' : 'android:id="@+id/widget_month_due_cell"\n        '}android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="${WEIGHT[mode].due}"
-        android:layout_marginLeft="2dp"
-        android:layout_marginRight="2dp"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:paddingLeft="6dp"
-        android:paddingRight="6dp"
-        android:background="@drawable/widget_cell_due">
-        <TextView${preview ? '' : '\n            android:id="@+id/widget_month_topay_label"'}
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="${preview ? PREVIEW.label : 'Da pagare'}"
-            android:textColor="#E6FFFFFF"
-            android:textSize="${z.dueLabel}sp"
-            android:singleLine="true" />
-        <TextView${preview ? '' : '\n            android:id="@+id/widget_month_topay"'}
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"${preview ? `\n            android:text="${PREVIEW.toPay}"` : ''}
-            android:textColor="#FFFFFF"
-            android:textSize="${z.due}sp"
-            android:textStyle="bold"
-            android:singleLine="true" />
-    </LinearLayout>
-`}
-${cell('spese', 'Spese resta', mode, preview)}
-${stacked ? cell('svago', 'Svago resta', mode, preview) : cell('carburante', 'Carburante resta', mode, preview)}
-${stacked ? cell('carburante', 'Carburante resta', mode, preview) : cell('svago', 'Svago resta', mode, preview)}
+${cell('spese', 'Spese', preview)}
+${cell('svago', 'Svago', preview)}
+${cell('carburante', 'Carburante', preview)}
 </LinearLayout>
 `;
-};
 
-const fill = (name, color, dp) => `<?xml version="1.0" encoding="utf-8"?>
+const fill = (color, dp) => `<?xml version="1.0" encoding="utf-8"?>
 <!-- Liquido dell'anteprima dei widget: altezza fissa, angoli tondi come i riquadri -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:gravity="bottom" android:height="${dp}dp">
@@ -256,10 +218,8 @@ const fill = (name, color, dp) => `<?xml version="1.0" encoding="utf-8"?>
 </layer-list>
 `;
 
-fs.writeFileSync('android/res/layout/widget_month2.xml', layout('detail', false));
-fs.writeFileSync('android/res/layout/widget_month2_preview.xml', layout('detail', true));
-fs.writeFileSync('android/res/layout/widget_month3.xml', layout('stacked', false));
-fs.writeFileSync('android/res/layout/widget_month3_preview.xml', layout('stacked', true));
-fs.writeFileSync('android/res/drawable/preview_fill_a.xml', fill('a', '#66FFFFFF', PREVIEW_FILL.spese[1]));
-fs.writeFileSync('android/res/drawable/preview_fill_b.xml', fill('b', '#CCF59E0B', PREVIEW_FILL.carburante[1]));
-fs.writeFileSync('android/res/drawable/preview_fill_c.xml', fill('c', '#66FFFFFF', PREVIEW_FILL.svago[1]));
+fs.writeFileSync('android/res/layout/widget_month3.xml', layout(false));
+fs.writeFileSync('android/res/layout/widget_month3_preview.xml', layout(true));
+fs.writeFileSync('android/res/drawable/preview_fill_tall_a.xml', fill('#66FFFFFF', PREVIEW_FILL.spese[1]));
+fs.writeFileSync('android/res/drawable/preview_fill_tall_b.xml', fill('#CCFBBF24', PREVIEW_FILL.carburante[1])); // ambra: l'unico colore d'allarme
+fs.writeFileSync('android/res/drawable/preview_fill_tall_c.xml', fill('#66FFFFFF', PREVIEW_FILL.svago[1]));
