@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.51.1
+- **Documentazione**: corrette le istruzioni per costruire e installare l'APK (su Windows l'SDK si trova da solo in `~/Android/Sdk`, cioè `C:\Users\<nome>\Android\Sdk`: `ANDROID_HOME` serve solo se è altrove; nel README il percorso era scritto male), spiegato come ritrovare il telefono in debug wireless con `adb mdns services`, e rimesso in ordine il changelog (0.44.0 era sopra la 0.46.0).
+
 ## 0.51.0
 - **Tolto il widget «Questo mese» (5×1)**: resta «Questo mese 2» (5×2) come unico widget del mese. Chi aveva il vecchio lo vede sparire dalla Home e può aggiungere «Questo mese 2» dall'elenco dei widget. Con il widget sono state tolte le sue risorse (layout, scheda, anteprima, sfondi rossi e verdi, liquido arancione) e il codice che serviva solo a lui; il generatore dei layout (`scripts/genera-widget.mjs`) ora produce solo «Questo mese 2» e il suo layout è rimasto identico.
 - **Widget «Saldo» ristretto da 4×1 a 3×1 e nello stile di «Questo mese 2»**: due riquadri affiancati, **«Saldo Revolut»** (saldo e da quando sono i dati) e **«Ultimo»** (importo e nome dell'ultimo movimento), con teal, riquadri bianchi trasparenti, etichette da 12 sp e cifre da 16,5 sp in grassetto. Niente più verde per le entrate: l'unico colore d'allarme resta l'ambra, e qui non serve. Un «Saldo» già sulla Home resta largo quattro colonne finché non lo restringi.
@@ -26,10 +29,6 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 - **Barra del mese a quattro blocchi**, uno per settimana (giorni 1–7, 8–14, 15–21 e il resto del mese), che si riempiono con i giorni passati; il testo **«mancano 25 g»** (o «ultimo giorno») ora è scritto **dentro la barra**. La barra ha un fondo suo (teal scuro e teal) e non cambia più colore con lo stato del «Da pagare».
 - Il calcolo dei blocchi è in una classe a parte (`MonthWeeks`) provata da un test; il layout si rigenera con `node scripts/genera-widget.mjs`. «Questo mese» resta invariato.
 
-## 0.44.0
-- **Nuovo widget «Questo mese 2»** (Android, 5×1), copia di «Questo mese»: senza «dal 1° OTT», con «Da pagare» e i tre riquadri di spesa **della stessa larghezza**, in ordine **Spese, Svago, Carburante**. In ogni riquadro la **stima** e, sotto, la **spesa reale** al giorno, in formato `stima €9,40` / `reale €12,35` (valuta davanti, centesimi sempre per intero), insieme in un solo sfondo tondo in teal scuro della palette; il reale è verde se è pari o migliore della stima, rosso (più chiaro, per leggersi) se peggiore.
-- «Questo mese» resta invariato. Il layout si genera con `node scripts/genera-widget.mjs` (modalità `stacked`).
-
 ## 0.46.0
 - **«Questo mese 2», blocco «Da pagare»**: sotto la cifra c'è ora una **barra del mese** (i giorni passati, oggi compreso, sul totale) con scritto **«mancano 25 g»** (o «ultimo giorno»), per sapere a colpo d'occhio quanto manca alla fine del mese; e, sotto, **l'ultimo aggiornamento dalle banche collegate** («banca 12:05» se è di oggi, «banca 4 ott 17:00» altrimenti; nulla se non c'è nessuna banca collegata). Tutto bianco sul rosso, verde scuro quando è tutto pagato.
 - Il widget «Questo mese» originale resta com'è.
@@ -37,6 +36,10 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 ## 0.45.0
 - **Widget «Questo mese» e «Questo mese 2»**: Spese, Carburante e Svago mostrano il **residuo del budget** (budget meno speso, negativo se superato) e il titolo diventa «Spese resta»; senza budget impostato restano la spesa del mese e il titolo di prima.
 - **Widget, onda dei budget**: il liquido ora è il **residuo** e **scende** man mano che spendi (prima saliva con la spesa): pieno a spesa zero, vuoto a budget finito o superato; arancione quando resta il 20% o meno.
+
+## 0.44.0
+- **Nuovo widget «Questo mese 2»** (Android, 5×1), copia di «Questo mese»: senza «dal 1° OTT», con «Da pagare» e i tre riquadri di spesa **della stessa larghezza**, in ordine **Spese, Svago, Carburante**. In ogni riquadro la **stima** e, sotto, la **spesa reale** al giorno, in formato `stima €9,40` / `reale €12,35` (valuta davanti, centesimi sempre per intero), insieme in un solo sfondo tondo in teal scuro della palette; il reale è verde se è pari o migliore della stima, rosso (più chiaro, per leggersi) se peggiore.
+- «Questo mese» resta invariato. Il layout si genera con `node scripts/genera-widget.mjs` (modalità `stacked`).
 
 ## 0.43.0
 - **Panoramica**: linee di separazione della griglia più leggere (1px, colore tenue).

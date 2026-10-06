@@ -111,7 +111,9 @@ L'app Android ha in più:
   Si possono disattivare, modificare o eliminare. Restano sul telefono e usano la sveglia di sistema (può ritardare di qualche minuto).
 - L'icona nella barra delle notifiche è il logo dell'app in una tinta sola (quadrato arrotondato con il segno ±), con il colore turchese dell'app.
 
-Servono l'SDK Android (build-tools e una piattaforma, di norma in `~/Android/Sdk`, su Windows in `%LOCALAPPDATA%AndroidSdk`, oppure `ANDROID_HOME`) e Java 17; non serve Gradle.
+Servono l'SDK Android (build-tools e una piattaforma) e Java 17; non serve Gradle. Lo script cerca l'SDK da solo in `~/Android/Sdk` (su Windows `C:\Users\<nome>\Android\Sdk`):
+`ANDROID_HOME` serve solo se l'SDK è altrove. `adb` è nella cartella `platform-tools` dello stesso SDK (di norma non nel PATH) e lo script lo usa da solo con `--install`. Il telefono deve essere collegato: con il
+debug wireless, se `adb devices` non lo mostra, `adb mdns services` lo fa ricomparire; se resta muto riattiva il debug wireless dal telefono.
 L'indirizzo del server viene da `BILANCIO_SERVER` nel file `.env` e finisce solo nell'APK (`android/build/` è escluso da Git). L'APK è firmato
 con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la stessa chiave: con un'altra l'installazione si rifiuta e bisogna disinstallare prima l'app (si perdono promemoria e accesso).
 
@@ -330,7 +332,7 @@ test/          node --test; free-port.js sceglie porte libere per i test che avv
 
 - `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.
 - **A ogni modifica dell'app** la versione sale (`npm version <x.y.z> --no-git-tag-version`), si aggiunge una voce in `CHANGELOG.md`, si eseguono i test e si installa l'APK sul telefono con `npm run apk:installa`
-  (su Windows con `ANDROID_HOME` che punta a `%LOCALAPPDATA%\Android\Sdk`). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
+  (l'SDK si trova da solo in `~/Android/Sdk`, su Windows `C:\Users\<nome>\Android\Sdk`; `ANDROID_HOME` solo se è altrove). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
 - I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.
 
 ## Regole di stile
