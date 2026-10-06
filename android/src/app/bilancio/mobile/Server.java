@@ -14,7 +14,8 @@ import java.util.Map;
 import org.json.JSONObject;
 
 /**
- * Collegamento al server di casa: indirizzo (da assets/config.json, scritto in fase di build dal file .env) e sessione
+ * Collegamento al server di casa: indirizzo (da assets/config.json, scritto in fase di build dal file .env; se manca, quello
+ * scelto dall'utente alla prima apertura e conservato nelle preferenze) e sessione
  * (cookie del login). Lo usano la schermata dell'app, il widget e la notifica mensile, così condividono lo stesso accesso.
  */
 final class Server {
@@ -28,17 +29,52 @@ final class Server {
 
     private static final Map<String, String> JAR = new LinkedHashMap<>();
     private static boolean jarLoaded = false;
-    private static String base;
+    private static String embedded;
     private static String appVersion;
 
     private Server() {}
 
     private static synchronized void config(Context c) throws Exception {
-        if (base != null) return;
+        if (appVersion != null) return;
         JSONObject cfg = new JSONObject(new String(readAll(c.getAssets().open("config.json")), StandardCharsets.UTF_8));
-        base = cfg.getString("server").replaceAll("/+$", "");
+        embedded = cfg.optString("server", "").replaceAll("/+$", "");
         appVersion = cfg.getString("version");
     }
+
+    /** Indirizzo del server: quello della build (se c'è) oppure quello scelto dall'utente; vuoto se non è ancora stato scelto. */
+    static String baseUrl(Context c) throws Exception {
+        config(c);
+        return embedded.isEmpty() ? prefs(c).getString("server", "") : embedded;
+    }
+
+    /** L'indirizzo scelto dall'utente, o vuoto se la build ne ha già uno incorporato. */
+    static String userAddress(Context c) {
+        try { config(c); return embedded.isEmpty() ? prefs(c).getString("server", "") : ""; } catch (Exception e) { return ""; }
+    }
+
+    static boolean needsServer(Context c) {
+        try { return baseUrl(c).isEmpty(); } catch (Exception e) { return true; }
+    }
+
+    /** Ripulisce l'indirizzo scritto dall'utente (solo https, senza barra finale); null se non è valido. */
+    static String cleanAddress(String raw) {
+        String s = raw == null ? "" : raw.trim();
+        if (s.isEmpty()) return null;
+        if (!s.matches("(?i)^[a-z][a-z0-9+.-]*://.*")) s = "https://" + s;
+        s = s.replaceAll("/+$", "");
+        try {
+            URL u = new URL(s);
+            if (!"https".equalsIgnoreCase(u.getProtocol()) || u.getHost().isEmpty()) return null;
+            return s;
+        } catch (Exception e) { return null; }
+    }
+
+    static void saveServer(Context c, String address) {
+        prefs(c).edit().putString("server", address).putString("cookie", "").apply();
+        synchronized (Server.class) { JAR.clear(); jarLoaded = true; }
+    }
+
+    static void forgetServer(Context c) { saveServer(c, ""); }
 
     static String version(Context c) throws Exception { config(c); return appVersion; }
 
@@ -97,7 +133,8 @@ final class Server {
     static Reply forward(Context c, String method, String pathAndQuery, Map<String, String> headers, byte[] body) {
         Reply r = new Reply();
         try {
-            config(c);
+            String base = baseUrl(c);
+            if (base.isEmpty()) throw new Exception("Server non ancora impostato");
             HttpURLConnection conn = (HttpURLConnection) new URL(base + pathAndQuery).openConnection();
             conn.setInstanceFollowRedirects(false);
             conn.setConnectTimeout(15000);

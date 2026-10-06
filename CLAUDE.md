@@ -8,7 +8,7 @@ Vedi README.md per le schede, le impostazioni e il funzionamento.
 - **Commit e push solo quando l'utente li chiede.** Non committare né pushare di tua iniziativa dopo ogni modifica.
 - **Ad ogni modifica dell'app**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`) e aggiungi la voce in `CHANGELOG.md`
   (così sul telefono si riconosce la versione), esegui `npm test` e **aggiorna il telefono** senza aspettare che l'utente lo chieda, costruendo e installando l'APK con `npm run apk:installa`.
-  L'SDK si trova da solo in `~/Android/Sdk` (su Windows `C:\Users\<nome>\Android\Sdk`): `ANDROID_HOME` serve solo se è altrove. `adb` sta in `platform-tools` dell'SDK (non nel PATH). Se il telefono non risponde,
+  L'SDK si trova da solo in `~/Android/Sdk` o, su Windows, in `%LOCALAPPDATA%\Android\Sdk` (`C:\Users\<nome>\AppData\Local\Android\Sdk`): `ANDROID_HOME` serve solo se è altrove. `adb` sta in `platform-tools` dell'SDK (non nel PATH). Se il telefono non risponde,
   prova `adb mdns services` (ricollega il debug wireless) e rileggi i dispositivi con `adb devices -l`; se resta muto, dillo all'utente.
   Le modifiche restano non committate finché l'utente non chiede commit e push.
 - **Quando l'utente chiede commit e push**: committa tutto, crea il tag `vX.Y.Z` della versione corrente e pusha anche i tag (le voci di `CHANGELOG.md` non ancora pubblicate vanno insieme).

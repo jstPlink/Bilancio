@@ -13,12 +13,16 @@ export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'donazion
 
 // Le bollette di utenze possono riguardare più case: si distinguono dalla prima cartella del percorso.
 // Tutto il resto (stipendio, affitto, spese…) appartiene alla casa di base.
-export const PLACES = ['budrio', 'crispiano'];
-export const DEFAULT_PLACE = 'budrio';
+// I nomi delle case si scelgono in Impostazioni → Bollette (`settings.placeNames`); di base «Casa 1» e «Casa 2».
+export const PLACES = ['casa1', 'casa2'];
+export const DEFAULT_PLACE = 'casa1';
 export const PLACE_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi']);
-export const placeOf = (name) => {
-  const first = String(name ?? '').split('/')[0].toLowerCase();
-  return PLACES.includes(first) ? first : DEFAULT_PLACE;
+const squash = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, '');
+export const placeNames = (settings) => Object.fromEntries(PLACES.map((id, i) => [id, String(settings?.placeNames?.[id] ?? '').trim() || `Casa ${i + 1}`]));
+// La casa di un documento è la sua prima cartella, se coincide con il nome di una casa (o con «casa1», «casa2»).
+export const placeOf = (name, names = placeNames()) => {
+  const first = squash(String(name ?? '').split('/')[0]);
+  return PLACES.find((id) => first === id || first === squash(names[id])) ?? DEFAULT_PLACE;
 };
 
 const round = (n) => Math.round(n * 100) / 100;
@@ -43,7 +47,8 @@ export function buildCells(db, now = new Date()) {
     return cells.get(k);
   };
   const billShare = Math.min(100, Math.max(1, Number(db.settings?.billShare ?? 50))) / 100;
-  const docPlace = (d) => (PLACE_KINDS.has(d.kind) ? placeOf(d.name) : DEFAULT_PLACE);
+  const names = placeNames(db.settings);
+  const docPlace = (d) => (PLACE_KINDS.has(d.kind) ? placeOf(d.name, names) : DEFAULT_PLACE);
 
   // Una cella = un documento: se esiste un file col mese nel nome (es. "Acqua 2025.10.pdf"),
   // le copie senza quel nome (es. scaricate dal fornitore) non vengono sommate.
@@ -53,7 +58,7 @@ export function buildCells(db, now = new Date()) {
     const place = docPlace(d);
     if (!d.named && namedCells.has(cellKey(d.kind, d.year, d.month, place))) continue;
     const c = get(d.kind, d.year, d.month, place);
-    // Acqua, luce, gas e wifi si dividono con chi convive: conta la quota dell'utente (Impostazioni → Bollette, di norma 50%).
+    // Acqua, luce, gas e wifi si dividono con chi abita con te: conta la quota dell'utente (Impostazioni → Bollette, di norma 50%).
     c.auto = round((c.auto ?? 0) + d.amount * (PLACE_KINDS.has(d.kind) ? billShare : 1));
     c.files.push({ key, name: d.name });
   }
@@ -162,5 +167,5 @@ export function buildGrid(db, year, now = new Date()) {
   summary.avgBalance = summary.avgIncome != null && summary.avgSpent != null
     ? round(summary.avgIncome - summary.avgSpent) : null;
 
-  return { year, years, columns: COLUMNS, rows, summary };
+  return { year, years, columns: COLUMNS, rows, summary, places: placeNames(db.settings) };
 }

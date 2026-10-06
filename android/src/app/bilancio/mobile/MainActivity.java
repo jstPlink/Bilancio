@@ -59,6 +59,53 @@ public class MainActivity extends Activity {
             return;
         }
 
+        if (Server.needsServer(this)) { askServer(null); return; }
+        start();
+    }
+
+    /** Alla prima apertura (build senza indirizzo incorporato) chiede l'indirizzo del server e controlla che risponda. */
+    private void askServer(String problem) {
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("https://indirizzo-del-tuo-server");
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        android.widget.FrameLayout box = new android.widget.FrameLayout(this);
+        box.setPadding(pad, pad / 2, pad, 0);
+        box.addView(input);
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Indirizzo del server")
+            .setMessage((problem == null ? "" : problem + "\n\n") + "Scrivi l'indirizzo https del tuo server Bilancio.")
+            .setView(box)
+            .setCancelable(false)
+            .setPositiveButton("Collega", new android.content.DialogInterface.OnClickListener() {
+                @Override public void onClick(android.content.DialogInterface d, int w) { tryServer(input.getText().toString()); }
+            })
+            .setNegativeButton("Esci", new android.content.DialogInterface.OnClickListener() {
+                @Override public void onClick(android.content.DialogInterface d, int w) { finish(); }
+            })
+            .show();
+    }
+
+    private void tryServer(final String raw) {
+        final String address = Server.cleanAddress(raw);
+        if (address == null) { askServer("Indirizzo non valido: serve un indirizzo https."); return; }
+        Server.saveServer(this, address);
+        pool.execute(new Runnable() {
+            @Override public void run() {
+                final Server.Reply r = Server.get(MainActivity.this, "/api/version");
+                runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        if (r.status == 200) { start(); return; }
+                        Server.forgetServer(MainActivity.this);
+                        askServer("Il server non risponde (" + (r.status == 0 ? r.reason : "errore " + r.status) + ").");
+                    }
+                });
+            }
+        });
+    }
+
+    private void start() {
         boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
         int bg = night ? Color.parseColor("#0E1513") : Color.parseColor("#F4F6F5");
         getWindow().setStatusBarColor(bg);
@@ -259,6 +306,17 @@ public class MainActivity extends Activity {
     /** Le richieste con corpo (POST, PUT, caricamento file…) non arrivano a shouldInterceptRequest: le invia lo script, noi le inoltriamo. */
     private class Bridge {
         @JavascriptInterface public void haptic() { tick(); }
+
+        /** Indirizzo del server scelto dall'utente; vuoto se è incorporato nella build. */
+        @JavascriptInterface public String serverAddress() {
+            return Server.userAddress(MainActivity.this);
+        }
+
+        /** Dimentica il server e il login: alla prossima apertura l'app chiede di nuovo l'indirizzo. */
+        @JavascriptInterface public void serverReset() {
+            Server.forgetServer(MainActivity.this);
+            runOnUiThread(new Runnable() { @Override public void run() { recreate(); } });
+        }
 
         /** Promemoria personalizzati (Impostazioni): elenco con il prossimo scatto di ciascuno, in JSON. */
         @JavascriptInterface public String remindersGet() { return Reminders.listJson(MainActivity.this); }

@@ -17,7 +17,7 @@ const defaults = () => ({
     incomePayers: '',
     rentAmount: 0,
     rentFrom: '',
-    billShare: 50, // % di acqua, luce, gas e wifi a carico dell'utente (convive con la madre: bollette divise in due)
+    billShare: 50, // % di acqua, luce, gas e wifi a carico dell'utente (di norma 50: bollette divise in due)
     budgets: {},
     savingsGoal: 0,
   },

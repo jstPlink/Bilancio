@@ -20,7 +20,7 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 
 - **Panoramica.** La tabella ha tutte le celle scure come lo sfondo; solo i titoli **Entrate, Uscite e Bilancio** e la colonna dei **mesi** sono leggermente colorati, tutti dello stesso colore. In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
   entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
-  nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci di *Crispiano* in una sola
+  nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci della *Casa 2* in una sola
   colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
   da pagare di ogni colonna; il riquadro **Da pagare** in alto salda tutto con un clic.
   - Le celle che vengono da un documento (bollette, affitto) sono **verdi se pagate e rosse se da pagare**. Un clic cambia lo stato;
@@ -79,6 +79,7 @@ come il localhost collegato al server. Perciò le modifiche alla grafica si vedo
 ```bash
 npm run apk              # costruisce android/build/Bilancio-<versione>.apk
 npm run apk:installa     # lo costruisce e lo installa sul telefono (debug wireless attivo)
+npm run apk -- --generico  # senza l'indirizzo del server incorporato: l'app lo chiede alla prima apertura (per distribuirla)
 ```
 
 L'app Android ha in più:
@@ -111,7 +112,7 @@ L'app Android ha in più:
   Si possono disattivare, modificare o eliminare. Restano sul telefono e usano la sveglia di sistema (può ritardare di qualche minuto).
 - L'icona nella barra delle notifiche è il logo dell'app in una tinta sola (quadrato arrotondato con il segno ±), con il colore turchese dell'app.
 
-Servono l'SDK Android (build-tools e una piattaforma) e Java 17; non serve Gradle. Lo script cerca l'SDK da solo in `~/Android/Sdk` (su Windows `C:\Users\<nome>\Android\Sdk`):
+Servono l'SDK Android (build-tools e una piattaforma) e Java 17; non serve Gradle. Lo script cerca l'SDK da solo in `~/Android/Sdk` e, su Windows, in `%LOCALAPPDATA%\Android\Sdk` (`C:\Users\<nome>\AppData\Local\Android\Sdk`, il percorso di Android Studio):
 `ANDROID_HOME` serve solo se l'SDK è altrove. `adb` è nella cartella `platform-tools` dello stesso SDK (di norma non nel PATH) e lo script lo usa da solo con `--install`. Il telefono deve essere collegato: con il
 debug wireless, se `adb devices` non lo mostra, `adb mdns services` lo fa ricomparire; se resta muto riattiva il debug wireless dal telefono.
 L'indirizzo del server viene da `BILANCIO_SERVER` nel file `.env` e finisce solo nell'APK (`android/build/` è escluso da Git). L'APK è firmato
@@ -212,7 +213,7 @@ tramite Enable Banking, in quattro fasi, ognuna da confermare prima della succes
 
 ## Più case
 
-Le bollette in sottocartelle chiamate `Budrio` o `Crispiano` sono tenute separate: luce e gas hanno una colonna per casa; acqua e wifi
+Le bollette in sottocartelle con il nome di una casa sono tenute separate (i nomi si scelgono in **Impostazioni → Bollette**, di base «Casa 1» e «Casa 2»; chi usava i vecchi nomi di cartella lancia `node scripts/rinomina-casa.mjs casa2 <nome>` con l'app ferma, vedi CHANGELOG 0.52.0): luce e gas hanno una colonna per casa; acqua e wifi
 sommano le case e mostrano il dettaglio nella cella.
 
 ## Come legge i PDF
@@ -332,7 +333,7 @@ test/          node --test; free-port.js sceglie porte libere per i test che avv
 
 - `npm test` dopo ogni modifica a `src/`; `npm run dev` riavvia da solo il server quando cambia il codice.
 - **A ogni modifica dell'app** la versione sale (`npm version <x.y.z> --no-git-tag-version`), si aggiunge una voce in `CHANGELOG.md`, si eseguono i test e si installa l'APK sul telefono con `npm run apk:installa`
-  (l'SDK si trova da solo in `~/Android/Sdk`, su Windows `C:\Users\<nome>\Android\Sdk`; `ANDROID_HOME` solo se è altrove). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
+  (l'SDK si trova da solo in `~/Android/Sdk` o, su Windows, in `%LOCALAPPDATA%\Android\Sdk`; `ANDROID_HOME` solo se è altrove). **Commit, tag `vX.Y.Z` e push solo quando vengono chiesti**, tutti insieme (anche dei tag). La versione compare accanto al nome nell'app.
 - I file `.env` e `data/` non vanno mai in Git; l'indirizzo del server e le password stanno solo lì.
 
 ## Regole di stile

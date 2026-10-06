@@ -92,6 +92,9 @@ app.put('/api/settings', async (req, res) => {
     if (b.rentFrom && !/^\d{4}-\d{2}$/.test(b.rentFrom)) return bad(res, 'Data inizio affitto non valida.');
     s.rentFrom = b.rentFrom;
   }
+  if (b.placeNames && typeof b.placeNames === 'object') {
+    s.placeNames = Object.fromEntries(PLACES.map((id) => [id, String(b.placeNames[id] ?? '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40)]));
+  }
   for (const key of ['ownNames', 'incomePayers']) if (typeof b[key] === 'string') s[key] = b[key].trim().slice(0, 300);
   setIdentity(s);
   await store.save();
@@ -274,7 +277,7 @@ app.post('/api/upload', async (req, res) => {
     }
     if (!isPdf(buffer)) return bad(res, 'Le bollette e le buste paga devono essere file PDF.');
     const tag = info.type === 'busta' ? 'busta' : 'bolletta';
-    const name = uploadedDocName(info);
+    const name = uploadedDocName(info, db().settings);
     const ocr = createOcr({ cacheDir: path.join(path.dirname(dbFile), 'tessdata'), size: 1 });
     let read;
     try { read = await readPdfDocument(buffer, { name, tag, modified: new Date(), ocr }); } finally { await ocr.close(); }

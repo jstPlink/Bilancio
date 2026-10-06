@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseUploadRequest, uploadedDocName, isPdf } from '../src/uploads.js';
 
 test('bolletta: servono tipo di utenza e casa valida', () => {
-  assert.deepEqual(parseUploadRequest({ type: 'bolletta', name: 'Luce 2026.09', kind: 'luce', place: 'crispiano' }), { type: 'bolletta', name: 'Luce 2026.09', kind: 'luce', place: 'crispiano' });
+  assert.deepEqual(parseUploadRequest({ type: 'bolletta', name: 'Luce 2026.09', kind: 'luce', place: 'casa2' }), { type: 'bolletta', name: 'Luce 2026.09', kind: 'luce', place: 'casa2' });
   assert.throws(() => parseUploadRequest({ type: 'bolletta', name: 'x', kind: 'affitto' }), /acqua, luce, gas o wifi/);
   assert.throws(() => parseUploadRequest({ type: 'bolletta', name: 'x', kind: 'gas', place: 'roma' }), /Casa non valida/);
 });
@@ -23,7 +23,7 @@ test('il nome è ripulito dai caratteri vietati', () => {
 });
 
 test('nome mostrato: casa come cartella solo per le bollette, estensione aggiunta', () => {
-  assert.equal(uploadedDocName({ type: 'bolletta', name: 'Luce 2026.09', place: 'crispiano' }), 'Crispiano/Luce 2026.09.pdf');
+  assert.equal(uploadedDocName({ type: 'bolletta', name: 'Luce 2026.09', place: 'casa2' }), 'Casa 2/Luce 2026.09.pdf');
   assert.equal(uploadedDocName({ type: 'busta', name: 'Settembre.pdf' }), 'Settembre.pdf');
   assert.equal(uploadedDocName({ type: 'estratto', name: 'Revolut' }), 'Revolut.csv');
 });

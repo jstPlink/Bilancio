@@ -49,10 +49,10 @@ test('griglia: da pagare, medie; solo le spese si inseriscono a mano', () => {
     manual: { 'luce|2026|2': 70, 'spese|2026|1': 30 },
   };
   const g = buildGrid(db, 2026, new Date(2026, 1, 15));
-  assert.equal(g.summary.toPay['luce:budrio'], 60);        // gennaio pagato; febbraio 60: l'importo manuale sulla luce è ignorato
-  assert.equal(g.summary.toPay['gas:budrio'], 20);         // documento corretto a mano
+  assert.equal(g.summary.toPay['luce:casa1'], 60);        // gennaio pagato; febbraio 60: l'importo manuale sulla luce è ignorato
+  assert.equal(g.summary.toPay['gas:casa1'], 20);         // documento corretto a mano
   assert.equal(g.summary.toPay.affitto, 1000);   // gen + feb, mesi futuri esclusi
-  assert.equal(g.summary.average['luce:budrio'], 50);
+  assert.equal(g.summary.average['luce:casa1'], 50);
   assert.equal(g.rows[0].cells.spese.amount, 30);  // spese manuali: contano nel totale ma non sono da pagare
   assert.equal(g.summary.toPay.spese, null);
   assert.equal(g.summary.avgIncome, 1500);

@@ -2,6 +2,13 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `vX.Y.Z`.
 
+## 0.52.0
+- **Pronta per Google Play, senza dati personali nel codice**: i nomi delle case non sono più nel codice (erano due nomi di località). Le case ora sono **«Casa 1» e «Casa 2»** e il loro nome si sceglie in **Impostazioni → Bollette**: è anche il nome della cartella dei documenti (es. `Casa 1/2026/Luce 2026.03.pdf`; vale anche `casa1`/`casa2`).
+  Il caricamento dei documenti, la tabella e il widget usano i nomi scelti. **Chi aveva le vecchie cartelle**: con l'app ferma, `node scripts/rinomina-casa.mjs casa2 <nome-della-vecchia-cartella>` (e lo stesso per `casa1`) dà il nome alla casa e rinomina le spunte «pagato» già salvate.
+- **App Android con indirizzo del server a scelta**: `npm run apk -- --generico` costruisce un APK senza il tuo indirizzo incorporato; alla prima apertura l'app chiede l'indirizzo https del server e controlla che risponda. In Impostazioni compare «Server → Cambia server». L'APK normale (`npm run apk:installa`) resta com'era.
+- **Build dell'APK**: su Windows lo script trova l'SDK anche in `%LOCALAPPDATA%\Android\Sdk` (Android Studio); documentazione corretta.
+- Test e commenti con nomi neutri (tolto anche un riferimento personale nei commenti).
+
 ## 0.51.1
 - **Documentazione**: corrette le istruzioni per costruire e installare l'APK (su Windows l'SDK si trova da solo in `~/Android/Sdk`, cioè `C:\Users\<nome>\Android\Sdk`: `ANDROID_HOME` serve solo se è altrove; nel README il percorso era scritto male), spiegato come ritrovare il telefono in debug wireless con `adb mdns services`, e rimesso in ordine il changelog (0.44.0 era sopra la 0.46.0).
 
@@ -204,7 +211,7 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 - **Panoramica**: Entrate medie, Uscite medie e Bilancio medio affiancate su una riga; tolti l'anno e «al mese» dalle etichette.
 
 ## 0.27.0
-- **Telefono: solo la vista compatta** (Mese, Entrate, Uscite, Bilancio). Su schermo largo tutte le voci (bollette, Crispiano, affitto, prestito…) sono sempre aperte; tolti i pulsanti per aprire e chiudere.
+- **Telefono: solo la vista compatta** (Mese, Entrate, Uscite, Bilancio). Su schermo largo tutte le voci (bollette, Casa 2, affitto, prestito…) sono sempre aperte; tolti i pulsanti per aprire e chiudere.
 - **Grafici adattati al telefono**: il grafico rientra nello schermo, senza scorrimento a destra, e si ridisegna se ruoti il telefono.
 - **App installabile (PWA)**: manifest, icone e meta per aggiungere Bilancio alla schermata Home di Android e iPhone, a schermo intero. Le icone si rigenerano con `scripts/genera-icone.mjs`.
 
@@ -219,12 +226,12 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 - **Più informazioni su ogni pagamento**: sotto la descrizione compaiono giorno e ora, metodo (carta, bonifico, prelievo…), commissione, valuta e testo della banca. Cliccando la riga si aprono i dettagli completi: saldo dopo il pagamento, conto, categoria (automatica o scelta), file di origine, gli altri pagamenti con la stessa descrizione (quante volte, totale, media, date) e i link per cercarla su Google e su Maps. L'app ora conserva anche questi dati dall'estratto conto Revolut (orario, tipo, commissione, valuta, saldo); i movimenti già salvati si completano da soli alla prossima lettura degli estratti, senza toccare le categorie.
 - **"Banca" diventa "Statistiche"** e contiene solo i grafici e la tabella mese per mese.
 - Tolti la descrizione sotto il nome dell'app e il testo sotto la tabella della panoramica.
-- **Crispiano comprimibile** anche nella nuova tabella compatta: dentro Bollette, la colonna "Crispiano" si apre e si chiude (chiusa mostra un solo totale con lo stato pagato di tutte le sue voci).
+- **Casa 2 comprimibile** anche nella nuova tabella compatta: dentro Bollette, la colonna "Casa 2" si apre e si chiude (chiusa mostra un solo totale con lo stato pagato di tutte le sue voci).
 - **Vista per telefono**: la tabella principale diventa un elenco di schede mensili, i filtri e le tabelle dei movimenti si adattano allo schermo stretto e i pulsanti sono più grandi.
 - **Localhost collegato al server**: con `BILANCIO_SERVER` le pagine sono quelle di questa cartella (si vedono subito le modifiche) e solo dati e login passano dal server, che prima rispondeva anche con le pagine della sua versione. La versione mostrata è quella locale. La documentazione dice che il localhost deve sempre puntare al server.
 
 ## 0.25.0
-- **Crispiano comprimibile** dentro Bollette: con Bollette aperta compare una colonna "Crispiano" con il suo pulsante apri/chiudi. Chiusa, mostra un solo totale (luce + gas di Crispiano, con lo stato pagato di tutte le voci insieme); aperta, mostra Luce e Gas di Crispiano separati, ognuno con il suo documento. Le voci di Crispiano sono ora raggruppate dopo quelle di Budrio. Lo stato viene ricordato.
+- **Casa 2 comprimibile** dentro Bollette: con Bollette aperta compare una colonna "Casa 2" con il suo pulsante apri/chiudi. Chiusa, mostra un solo totale (luce + gas di Casa 2, con lo stato pagato di tutte le voci insieme); aperta, mostra Luce e Gas di Casa 2 separati, ognuno con il suo documento. Le voci di Casa 2 sono ora raggruppate dopo quelle di Casa 1. Lo stato viene ricordato.
 
 ## 0.24.0
 - **Tolto il "codice di configurazione"**: la prima password si crea dalla pagina di accesso con la sola password, da qualsiasi indirizzo. Va creata subito dopo l'avvio: finché non esiste, chiunque apra il sito può sceglierla.
@@ -309,7 +316,7 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 - **Grafici** (SVG, senza librerie esterne): stipendio contro uscite (bollette e affitto dai documenti, spesa/svago/carburante dalla banca), uscite bancarie per categoria mese per mese, le 10 voci più pesanti; tooltip al passaggio e tabella dei numeri sotto i grafici.
 
 ## 0.9.0
-- **Luce e gas in due colonne** (Budrio e Crispiano): ognuna con il proprio documento, la propria spunta "pagato", media e totale da pagare. Acqua e wifi restano una colonna sola, con il dettaglio per casa sotto l'importo. Tolto il selettore "Bollette di", ormai superfluo.
+- **Luce e gas in due colonne** (Casa 1 e Casa 2): ognuna con il proprio documento, la propria spunta "pagato", media e totale da pagare. Acqua e wifi restano una colonna sola, con il dettaglio per casa sotto l'importo. Tolto il selettore "Bollette di", ormai superfluo.
 - **Celle divise in due al passaggio del mouse**: a sinistra "Apri" il documento (con più documenti, una sezione per ciascuno, B/C per casa), a destra ✓ / ↺ per segnare pagato o da pagare. Da tastiera: Tab sulla cella e poi sui link.
 
 ## 0.8.1
@@ -317,7 +324,7 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 
 ## 0.8.0
 - **Estratti conto in PDF**: lettura dei PDF UniCredit (trimestrali) e Revolut dal link/cartella degli estratti conto. Uscite ed entrate si distinguono dalla posizione delle colonne; per UniCredit le uscite e le entrate lette vengono confrontate col riepilogo della banca e, se non tornano, l'aggiornamento lo segnala. Revolut: contano solo i pagamenti con carta (trasferimenti tra pocket, ricariche e bonifici sono esclusi).
-- **Bollette per casa**: Budrio e Crispiano si distinguono dalla cartella. Selettore "Bollette di: Tutte / Budrio / Crispiano" sopra la tabella; in "Tutte" ogni cella mostra il totale e, sotto, il dettaglio per casa. La spunta "pagato" è per casa. Totale spese, saldo e riquadri restano sempre complessivi.
+- **Bollette per casa**: Casa 1 e Casa 2 si distinguono dalla cartella. Selettore "Bollette di: Tutte / Casa 1 / Casa 2" sopra la tabella; in "Tutte" ogni cella mostra il totale e, sotto, il dettaglio per casa. La spunta "pagato" è per casa. Totale spese, saldo e riquadri restano sempre complessivi.
 - Il riquadro **Da pagare** è ora un pulsante: un clic (con conferma) salda tutto, di tutti gli anni e di tutte le case.
 - Nuove parole chiave per le categorie (Spar, Ecu, ristoranti, giocattoli).
 

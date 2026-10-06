@@ -1,6 +1,7 @@
 // Costruisce l'APK dell'app Android senza Gradle: node scripts/build-apk.mjs [--install]
 // Serve l'SDK Android (build-tools + una piattaforma) e Java 17. Dal file .env legge BILANCIO_SERVER, che finisce solo
 // nell'APK (android/build/, escluso da Git): l'indirizzo del server non va mai nel codice.
+// Con --generico l'indirizzo non viene incorporato: l'app lo chiede all'utente alla prima apertura (versione adatta a Google Play).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -13,10 +14,13 @@ const build = path.join(android, 'build');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
 try { process.loadEnvFile(path.join(root, '.env')); } catch { /* .env facoltativo: basta la variabile d'ambiente */ }
-const server = process.env.BILANCIO_SERVER;
-if (!server) throw new Error('Manca BILANCIO_SERVER: scrivilo nel file .env (vedi README, «Localhost che punta al server»).');
+const generic = process.argv.includes('--generico');
+const server = generic ? '' : process.env.BILANCIO_SERVER;
+if (!generic && !server) throw new Error('Manca BILANCIO_SERVER: scrivilo nel file .env (vedi README, «Localhost che punta al server»), oppure usa --generico.');
 
-const sdk = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT ?? path.join(os.homedir(), 'Android', 'Sdk');
+// Posti dove di norma sta l'SDK: ~/Android/Sdk e, su Windows, %LOCALAPPDATA%/Android/Sdk (percorso di Android Studio).
+const candidates = [path.join(os.homedir(), 'Android', 'Sdk'), ...(process.env.LOCALAPPDATA ? [path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk')] : [])];
+const sdk = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT ?? candidates.find((d) => fs.existsSync(path.join(d, 'build-tools'))) ?? candidates[0];
 const newest = (dir) => fs.readdirSync(dir).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).at(-1);
 const tools = path.join(sdk, 'build-tools', newest(path.join(sdk, 'build-tools')));
 const androidJar = path.join(sdk, 'platforms', newest(path.join(sdk, 'platforms')), 'android.jar');
@@ -70,7 +74,7 @@ if (!fs.existsSync(keystore)) {
   run('keytool', ['-genkeypair', '-keystore', keystore, '-storepass', 'android', '-keypass', 'android', '-alias', 'androiddebugkey', '-keyalg', 'RSA', '-keysize', '2048', '-validity', '10000', '-dname', 'CN=Android Debug,O=Android,C=US']);
 }
 const aligned = path.join(build, 'aligned.apk');
-const apk = path.join(build, `Bilancio-${pkg.version}.apk`);
+const apk = path.join(build, `Bilancio-${pkg.version}${generic ? "-generico" : ""}.apk`);
 run(exe('zipalign'), ['-f', '-p', '4', path.join(build, 'base.apk'), aligned]);
 run('java', ['-jar', path.join(tools, 'lib', 'apksigner.jar'), 'sign', '--ks', keystore, '--ks-pass', 'pass:android', '--key-pass', 'pass:android', '--out', apk, aligned]);
 console.log(`APK pronto: ${path.relative(root, apk)} (${(fs.statSync(apk).size / 1024).toFixed(0)} KB)`);

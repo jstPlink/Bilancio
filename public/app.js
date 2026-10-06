@@ -39,7 +39,8 @@ const parseInput = (text) => {
 };
 const inputValue = (n) => (n == null ? '' : String(n).replace('.', ','));
 
-const PLACE_LABELS = { tutte: 'Tutte', budrio: 'Budrio', crispiano: 'Crispiano' };
+// I nomi delle case arrivano dal server con la tabella (Impostazioni → Bollette).
+const PLACE_LABELS = { tutte: 'Tutte', casa1: 'Casa 1', casa2: 'Casa 2' };
 const state = { year: new Date().getFullYear(), grid: null, docs: [], settings: null };
 
 async function api(path, options) {
@@ -68,6 +69,7 @@ function toast(message, ms = 4500) {
 
 async function loadGrid() {
   state.grid = await api(`/api/grid?year=${state.year}`);
+  Object.assign(PLACE_LABELS, state.grid.places);
   if (!state.grid.years.includes(state.year)) state.year = state.grid.years[0];
   renderYears();
   renderCards();
@@ -101,7 +103,7 @@ function renderCards() {
 
 // Uscite raggruppate: ogni gruppo è una colonna; "Bollette" si può aprire nelle sue voci (e per casa).
 const GROUPS = [
-  { id: 'bollette', label: 'Bollette', leaves: ['acqua', 'luce:budrio', 'luce:crispiano', 'gas:budrio', 'gas:crispiano', 'wifi'] },
+  { id: 'bollette', label: 'Bollette', leaves: ['acqua', 'luce:casa1', 'luce:casa2', 'gas:casa1', 'gas:casa2', 'wifi'] },
   { id: 'affitto', label: 'Affitto', leaves: ['affitto'] },
   { id: 'prestito', label: 'Prestito', leaves: ['prestito'] },
   { id: 'spese', label: 'Spesa', leaves: ['spese'] },
@@ -114,6 +116,8 @@ const GROUPS = [
 const phone = window.matchMedia('(max-width: 720px)');
 
 const colLabel = (col) => col.label ?? KINDS.find((k) => k.id === col.kind).label;
+// Sigla breve di una casa: l'iniziale del nome, o il numero se le due iniziali coincidono.
+const placeTag = (id) => (PLACE_LABELS.casa1[0].toLowerCase() === PLACE_LABELS.casa2[0].toLowerCase() ? id.slice(-1) : PLACE_LABELS[id][0]);
 const colName = (col) => (col.place ? `${colLabel(col)} ${PLACE_LABELS[col.place]}` : colLabel(col));
 
 // Somma di più celle della stessa riga (un gruppo): importo totale, parti pagabili e "pagato" solo se lo sono tutte.
@@ -170,16 +174,16 @@ function buildColumns() {
       add({ ...col, sub: true, depth: 1, colorKey: g.id });
       if (isMulti) {
         const addLeaf = (l, depth = 2) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], sub: true, depth });
-        const crispiano = members.filter((l) => l.place === 'crispiano');
-        members.filter((l) => l.place !== 'crispiano').forEach((l) => addLeaf(l));
-        // Le voci di Crispiano si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
-        if (g.id === 'bollette' && crispiano.length) {
-          const ids = crispiano.map((l) => l.id);
+        const secondHome = members.filter((l) => l.place === 'casa2');
+        members.filter((l) => l.place !== 'casa2').forEach((l) => addLeaf(l));
+        // Le voci della seconda casa si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
+        if (g.id === 'bollette' && secondHome.length) {
+          const ids = secondHome.map((l) => l.id);
           add({
-            id: 'g:crispiano', kind: 'bollette', label: 'Crispiano', place: null, colorKey: 'bollette', sub: true, depth: 2,
+            id: 'g:casa2', kind: 'bollette', label: PLACE_LABELS.casa2, place: null, colorKey: 'bollette', sub: true, depth: 2,
             cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids,
           });
-          crispiano.forEach((l) => addLeaf(l, 3));
+          secondHome.forEach((l) => addLeaf(l, 3));
         }
       }
     });
@@ -218,12 +222,13 @@ function cellHtml(col, month, c) {
   // a sinistra si apre il documento, a destra si segna pagato o da pagare.
   const multi = c.files.length > 1;
   const open = c.files.map((f, i) => {
-    const tag = PLACE_LABELS[f.name.split('/')[0].toLowerCase()]?.[0] ?? String(i + 1);
+    const home = ['casa1', 'casa2'].find((id) => f.name.split('/')[0].toLowerCase().replace(/\s+/g, '') === PLACE_LABELS[id].toLowerCase().replace(/\s+/g, ''));
+    const tag = home ? placeTag(home) : String(i + 1);
     return `<a class="filelink" href="/api/file?key=${encodeURIComponent(f.key)}" target="_blank" rel="noopener" title="Apri ${esc(f.name)}" aria-label="Apri il documento: ${esc(f.name)}">${multi ? tag : 'Apri'}</a>`;
   }).join('');
   // Più voci nella stessa cella (gruppo o più case): il totale e, sotto, il dettaglio.
   const showDetail = c.parts.length > 1 && col.leafIds?.length === 1;
-  const detail = showDetail ? c.parts.map((p) => `${PLACE_LABELS[p.place][0]} ${money(p.amount)}`).join(' · ') : '';
+  const detail = showDetail ? c.parts.map((p) => `${placeTag(p.place)} ${money(p.amount)}`).join(' · ') : '';
   const tip = c.parts.length > 1
     ? c.parts.map((p) => `${KINDS.find((k) => k.id === p.kind)?.label ?? p.kind} ${PLACE_LABELS[p.place]}: ${money(p.amount)} (${p.paid ? 'pagato' : 'da pagare'})`).join(' · ')
     : (c.paid ? 'Pagato' : 'Da pagare');
@@ -246,7 +251,7 @@ async function saveExpense(input) {
   await loadGrid();
 }
 
-// Su schermo largo tutte le voci (Uscite → Bollette → Crispiano…) sono sempre aperte; sul telefono restano Mese, Entrate, Uscite, Bilancio.
+// Su schermo largo tutte le voci (Uscite → Bollette → seconda casa…) sono sempre aperte; sul telefono restano Mese, Entrate, Uscite, Bilancio.
 function renderGrid() {
   const { rows } = state.grid;
   const cols = buildColumns();
@@ -699,7 +704,8 @@ function guessUpload(fileName) {
   if (/\.csv$/i.test(fileName) || /estratt|movimenti|statement/i.test(fileName)) return { base, type: 'estratto' };
   if (/busta|cedolino|stipendi|payslip/i.test(fileName)) return { base, type: 'busta' };
   const kind = /acqua|idric/i.test(fileName) ? 'acqua' : /luce|elettric|energia/i.test(fileName) ? 'luce' : /\bgas\b/i.test(fileName) ? 'gas' : /wifi|wi-fi|internet|fibra|telefon/i.test(fileName) ? 'wifi' : '';
-  const place = /crispiano/i.test(fileName) ? 'crispiano' : /budrio/i.test(fileName) ? 'budrio' : '';
+  const low = fileName.toLowerCase();
+  const place = ['casa1', 'casa2'].find((id) => low.includes(PLACE_LABELS[id].toLowerCase())) ?? '';
   return { base, type: 'bolletta', kind, place };
 }
 
@@ -713,7 +719,7 @@ function openUpload() {
     <label>Che documento è?<select name="type">${Object.entries(UPLOAD_TYPES).map(([v, l]) => opt(v, l)).join('')}</select></label>
     <div class="row" id="upBill" hidden>
       <label>Utenza<select name="kind">${['acqua', 'luce', 'gas', 'wifi'].map((k) => opt(k, KINDS.find((x) => x.id === k).label)).join('')}</select></label>
-      <label>Casa<select name="place">${Object.entries({ budrio: 'Budrio', crispiano: 'Crispiano' }).map(([v, l]) => opt(v, l)).join('')}</select></label>
+      <label>Casa<select name="place">${Object.entries({ casa1: PLACE_LABELS.casa1, casa2: PLACE_LABELS.casa2 }).map(([v, l]) => opt(v, l)).join('')}</select></label>
     </div>
     <p class="muted" id="upHint"></p>
     <p class="error" id="upErr" role="alert"></p>
@@ -858,9 +864,14 @@ async function openSettings() {
     </div></details>
     <details class="fs"><summary>Bollette</summary><div class="fsbody">
       <label>La mia quota di acqua, luce, gas e wifi (%)<input name="billShare" inputmode="decimal" value="${inputValue(s.billShare ?? 50)}" placeholder="50"></label>
-      <small>Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
+      <div class="row">
+        <label>Nome della casa 1<input name="place1" value="${esc(s.placeNames?.casa1 ?? '')}" placeholder="Casa 1" maxlength="40" autocomplete="off"></label>
+        <label>Nome della casa 2<input name="place2" value="${esc(s.placeNames?.casa2 ?? '')}" placeholder="Casa 2" maxlength="40" autocomplete="off"></label>
+      </div>
+      <small>Il nome della casa è quello della cartella delle bollette (es. «Casa 1/2026/Luce 2026.03.pdf»). Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
     </div></details>
     <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
+    ${window.Native?.serverAddress?.() ? `<details class="fs"><summary>Server</summary><div class="fsbody"><p class="muted">${esc(window.Native.serverAddress())}</p><button type="button" class="ghost" data-act="server-reset">Cambia server</button><small>Esci dal server attuale: l'app chiederà di nuovo l'indirizzo.</small></div></details>` : ''}
     ${window.Native?.remindersGet ? '<details class="fs" id="remBox"><summary>Promemoria</summary><div class="fsbody" id="remBody"></div></details>' : ''}
     <details class="fs" id="bkBox"><summary>Collega le banche</summary><div class="fsbody" id="bkBody"><p class="muted">Caricamento…</p></div></details>
     ${state.protected ? '<details class="fs"><summary>Account</summary><div class="fsbody"><button type="button" class="ghost" data-act="logout">Esci dall&rsquo;app</button></div></details>' : ''}
@@ -891,6 +902,7 @@ async function openSettings() {
   form.addEventListener('click', (e) => {
     if (e.target.closest('[data-act=close]')) leave();
     if (e.target.dataset.act === 'logout') logout();
+    if (e.target.dataset.act === 'server-reset' && confirm('Cambiare server? Dovrai accedere di nuovo.')) window.Native.serverReset();
     if (e.target.dataset.act?.startsWith('bk-')) bankAction(e.target).catch((err) => toast(err.message, 8000));
     if (e.target.dataset.act?.startsWith('rem-') && e.target.dataset.act !== 'rem-toggle') reminderAction(e.target);
   });
@@ -905,6 +917,7 @@ async function openSettings() {
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
           rentFrom: form.rentFrom.value,
           billShare: parseInput(form.billShare.value) ?? 50,
+          placeNames: { casa1: form.place1.value, casa2: form.place2.value },
         },
       });
       dlg.close();
