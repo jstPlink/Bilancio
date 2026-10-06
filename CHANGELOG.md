@@ -6,6 +6,10 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 - **Nuovo widget «Questo mese 2»** (Android, 5×1), copia di «Questo mese»: senza «dal 1° OTT», con «Da pagare» e i tre riquadri di spesa **della stessa larghezza**, in ordine **Spese, Svago, Carburante**. In ogni riquadro la **stima** e, sotto, la **spesa reale** al giorno, in formato `stima €9,40` / `reale €12,35` (valuta davanti, centesimi sempre per intero), insieme in un solo sfondo tondo in teal scuro della palette; il reale è verde se è pari o migliore della stima, rosso (più chiaro, per leggersi) se peggiore.
 - «Questo mese» resta invariato. Il layout si genera con `node scripts/genera-widget.mjs` (modalità `stacked`).
 
+## 0.46.0
+- **«Questo mese 2», blocco «Da pagare»**: sotto la cifra c'è ora una **barra del mese** (i giorni passati, oggi compreso, sul totale) con scritto **«mancano 25 g»** (o «ultimo giorno»), per sapere a colpo d'occhio quanto manca alla fine del mese; e, sotto, **l'ultimo aggiornamento dalle banche collegate** («banca 12:05» se è di oggi, «banca 4 ott 17:00» altrimenti; nulla se non c'è nessuna banca collegata). Tutto bianco sul rosso, verde scuro quando è tutto pagato.
+- Il widget «Questo mese» originale resta com'è.
+
 ## 0.45.0
 - **Widget «Questo mese» e «Questo mese 2»**: Spese, Carburante e Svago mostrano il **residuo del budget** (budget meno speso, negativo se superato) e il titolo diventa «Spese resta»; senza budget impostato restano la spesa del mese e il titolo di prima.
 - **Widget, onda dei budget**: il liquido ora è il **residuo** e **scende** man mano che spendi (prima saliva con la spesa): pieno a spesa zero, vuoto a budget finito o superato; arancione quando resta il 20% o meno.

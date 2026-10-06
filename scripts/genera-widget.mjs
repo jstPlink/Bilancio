@@ -21,7 +21,7 @@ const WEIGHT = {
   stacked: { col: 1, cell: 1 }, // «Da pagare» e i tre riquadri di spesa hanno la stessa larghezza
 };
 
-const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '187,60 €', carburante: '14,00 €', svago: '58,80 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10' };
+const PREVIEW = { since: 'OTT', toPay: '245,00 €', label: 'Da pagare (3)', spese: '187,60 €', carburante: '14,00 €', svago: '58,80 €', day: '13,3→15,1/g', est: 'stima €13,30', act: 'reale €15,10', left: 'mancano 25 g', bank: 'banca 12:05' };
 // anteprima: altezza fissa del liquido (dp) invece delle immagini a onde, e il colore del «reale» al giorno
 const PREVIEW_FILL = { spese: ['a', 30], carburante: ['b', 45], svago: ['c', 15] };
 const PREVIEW_DAY_COLOR = { spese: '#FF4ADE80', carburante: '#FFFF8585', svago: '#FF4ADE80' };
@@ -154,6 +154,31 @@ ${stacked ? `    <!-- Solo «Da pagare» (qui non c'è «dal 1° OTT») -->
                 android:textColor="#FFFFFF"
                 android:textSize="${z.due}sp"
                 android:textStyle="bold"
+                android:singleLine="true" />
+            <!-- quanto manca alla fine del mese: barra dei giorni passati e, sotto, i giorni che restano -->
+            <ProgressBar${preview ? '' : '\n                android:id="@+id/widget_month_progress"'}
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:max="100"
+                android:progress="${preview ? 45 : 0}"
+                android:progressDrawable="@drawable/widget_progress" />
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_left"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.left}"` : ''}
+                android:layout_marginTop="2dp"
+                android:textColor="#E6FFFFFF"
+                android:textSize="10sp"
+                android:singleLine="true" />
+            <!-- ultimo aggiornamento dalla banca -->
+            <TextView${preview ? '' : '\n                android:id="@+id/widget_month_bank"'}
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"${preview ? `\n                android:text="${PREVIEW.bank}"` : ''}
+                android:textColor="#E6FFFFFF"
+                android:textSize="10sp"
                 android:singleLine="true" />
         </LinearLayout>
     </LinearLayout>

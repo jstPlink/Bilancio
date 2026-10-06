@@ -27,6 +27,7 @@ final class Month {
     double budgetSpese;       // budget mensile (Impostazioni → Budget di spesa); 0 = nessun budget
     double budgetCarburante;
     double budgetSvago;
+    String bankAt = "";      // ultimo aggiornamento di una banca collegata (ISO), vuoto se non ce n'è
     long at;
 
     static int currentYear() { return Calendar.getInstance().get(Calendar.YEAR); }
@@ -78,7 +79,28 @@ final class Month {
         } catch (Exception e) {
             m.ok = false;
         }
+        if (m.ok) m.bankAt = lastBankUpdate(c);
         return m;
+    }
+
+    /**
+     * L'ultimo aggiornamento tra le banche collegate (da /api/banking). Un server senza banche, o una risposta in errore, danno vuoto:
+     * il widget semplicemente non scrive nulla.
+     */
+    private static String lastBankUpdate(Context c) {
+        try {
+            Server.Reply r = Server.get(c, "/api/banking");
+            if (r.status != 200) return "";
+            JSONArray conns = new JSONObject(new String(r.body, StandardCharsets.UTF_8)).optJSONArray("connections");
+            String latest = "";
+            for (int i = 0; conns != null && i < conns.length(); i++) {
+                String t = conns.getJSONObject(i).optString("lastSync", "");
+                if (!t.isEmpty() && !"null".equals(t) && t.compareTo(latest) > 0) latest = t; // gli ISO si ordinano come testo
+            }
+            return latest;
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     // ------------------------------------------------------------------ ultima lettura (per mostrare subito qualcosa)
@@ -98,6 +120,7 @@ final class Month {
             o.put("budgetSpese", budgetSpese);
             o.put("budgetCarburante", budgetCarburante);
             o.put("budgetSvago", budgetSvago);
+            o.put("bankAt", bankAt);
             o.put("at", at);
             prefs(c).edit().putString("ultima", o.toString()).apply();
         } catch (Exception e) { /* senza cache */ }
@@ -119,6 +142,7 @@ final class Month {
             m.budgetSpese = o.optDouble("budgetSpese", 0);
             m.budgetCarburante = o.optDouble("budgetCarburante", 0);
             m.budgetSvago = o.optDouble("budgetSvago", 0);
+            m.bankAt = o.optString("bankAt", "");
             m.at = o.getLong("at");
             m.ok = true;
         } catch (Exception e) { /* nessuna lettura precedente */ }

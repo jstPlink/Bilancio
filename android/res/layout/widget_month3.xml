@@ -46,6 +46,34 @@
                 android:textSize="17.5sp"
                 android:textStyle="bold"
                 android:singleLine="true" />
+            <!-- quanto manca alla fine del mese: barra dei giorni passati e, sotto, i giorni che restano -->
+            <ProgressBar
+                android:id="@+id/widget_month_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_marginTop="3dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/widget_progress" />
+            <TextView
+                android:id="@+id/widget_month_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="#E6FFFFFF"
+                android:textSize="10sp"
+                android:singleLine="true" />
+            <!-- ultimo aggiornamento dalla banca -->
+            <TextView
+                android:id="@+id/widget_month_bank"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#E6FFFFFF"
+                android:textSize="10sp"
+                android:singleLine="true" />
         </LinearLayout>
     </LinearLayout>
 

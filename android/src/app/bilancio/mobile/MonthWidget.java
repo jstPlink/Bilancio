@@ -169,6 +169,37 @@ public class MonthWidget extends AppWidgetProvider {
         v.setTextColor(actId, !hasBudget ? 0xFFFFFFFF : r <= budget / days ? 0xFF4ADE80 : 0xFFFF8585); // su sfondo scuro (widget_pill): il rosso si legge
     }
 
+    /** «banca 12:05» se è di oggi, «banca 4 ott 17:00» altrimenti (ora del telefono); vuoto se non c'è nessuna banca collegata. */
+    private static String bankText(String iso) {
+        if (iso == null || iso.isEmpty()) return "";
+        try {
+            java.time.ZonedDateTime t = java.time.Instant.parse(iso).atZone(java.time.ZoneId.systemDefault());
+            boolean today = t.toLocalDate().equals(java.time.LocalDate.now());
+            return "banca " + t.format(java.time.format.DateTimeFormatter.ofPattern(today ? "HH:mm" : "d MMM HH:mm", Locale.ITALY));
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Quanto manca alla fine del mese (solo «Questo mese 2»): barra dei giorni passati, oggi compreso, e «mancano 25 g». */
+    private static void monthProgress(RemoteViews v, boolean good, String bankAt) {
+        Calendar now = Calendar.getInstance();
+        int day = now.get(Calendar.DAY_OF_MONTH);
+        int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
+        v.setProgressBar(R.id.widget_month_progress, days, day, false);
+        v.setTextViewText(R.id.widget_month_left, day >= days ? "ultimo giorno" : "mancano " + (days - day) + " g");
+        v.setTextViewText(R.id.widget_month_bank, bankText(bankAt));
+        // sul rosso tutto bianco; sul verde chiaro («tutto pagato») scritte e barra verde scuro, come il resto del riquadro
+        int ink = good ? 0xFF14663A : 0xE6FFFFFF;
+        v.setTextColor(R.id.widget_month_left, ink);
+        v.setTextColor(R.id.widget_month_bank, ink);
+        // i colori della barra si cambiano da Android 12 (prima resta bianca: sul verde chiaro si vede poco, ma i giorni restano scritti sotto)
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            v.setColorStateList(R.id.widget_month_progress, "setProgressTintList", android.content.res.ColorStateList.valueOf(good ? 0xFF14663A : 0xFFFFFFFF));
+            v.setColorStateList(R.id.widget_month_progress, "setProgressBackgroundTintList", android.content.res.ColorStateList.valueOf(good ? 0x4414663A : 0x55FFFFFF));
+        }
+    }
+
     private static PendingIntent tap(Context c, int code, String open, String cat, boolean detailed, boolean stacked) {
         Intent i = new Intent(c, MainActivity.class).putExtra("open", open);
         if (cat != null) i.putExtra("cat", cat);
@@ -226,6 +257,7 @@ public class MonthWidget extends AppWidgetProvider {
         v.setInt(R.id.widget_month_due_cell, "setBackgroundResource", good ? R.drawable.widget_cell_ok : R.drawable.widget_cell_due);
         v.setTextColor(R.id.widget_month_topay_label, good ? 0xFF14663A : 0xE6FFFFFF);
         v.setTextColor(R.id.widget_month_topay, good ? 0xFF14663A : 0xFFFFFFFF);
+        if (stacked) monthProgress(v, good, shown.bankAt);
 
         v.setOnClickPendingIntent(R.id.widget_month_root, tap(c, 1, "overview", null, detailed, stacked));
         if (!stacked) v.setOnClickPendingIntent(R.id.widget_month_since_cell, tap(c, 6, "budget", null, detailed, stacked));
