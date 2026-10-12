@@ -5,6 +5,7 @@ Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il 
 ## 0.15.1
 - **Storico (web)**: i valori di entrate, uscite e bilancio sono più piccoli del 15%; sul telefono restano come prima.
 - **Documentazione**: README riscritto per intero (architettura server/frontend/app, schede, widget, API, avvio, rilascio) e `CLAUDE.md` aggiornato con le regole di lavoro.
+- **Documentazione** (ritocco finale, senza cambiare l'app): aggiunte le sezioni «Sicurezza e dati» (password, chiavi, gettone, backup) e «Problemi frequenti» (404 dopo un aggiornamento, «Redirect URI not allowed», password, cache della pagina, widget, installazione sul telefono).
 
 ## 0.15.0
 - **Statistiche**: anche le **entrate**. In alto Entrate, Uscite e Bilancio (con il numero di movimenti); poi uscite per categoria, mese per mese (una barra verde sottile per le entrate sopra quella delle uscite, e a destra entrate e uscite del mese), dove vanno i soldi e, nuovo, **da dove arrivano le entrate** (le otto controparti che pesano di più). I giroconti non contano. Il totale coincide con lo Storico (test). Serve il server alla 0.15.0.

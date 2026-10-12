@@ -126,6 +126,26 @@ Tre barre che si accorciano (il budget che si consuma, l'ultima rossa) su fondo 
 
 Stile tipografico da giornale svizzero: **carta e inchiostro** (chiaro e scuro come il sistema), un solo **rosso vermiglio** come accento, **angoli vivi** e filetti (1px sottili, 2px a inizio sezione), numeri grandi in **serif**, etichette in **monospazio maiuscolo**, testo in sans. Scala del testo: 11 etichette · 13 secondario · 15 testo, campi e pulsanti · 22 titoli · 34 numeri (28 sul telefono; i tre totali dello Storico sono più grandi). Pulsanti: primario = inchiostro pieno (rosso al passaggio), secondario = solo filetto, link = sottolineato rosso; schede = sottolineatura rossa spessa. Il widget è la stessa pagina in piccolo: fondo inchiostro, testo carta, un solo carattere sans-serif.
 
+## Sicurezza e dati
+
+- Il server è protetto da una sola **password**; la prima è quella di `MYBANK_PASSWORD` (nel `docker-compose.yml` c'è un segnaposto: **cambiala subito** da Opzioni → Cambia password). Dopo 8 tentativi sbagliati in 10 minuti l'accesso da quell'indirizzo si blocca per un po'.
+- L'**ID e la chiave privata di Enable Banking** stanno solo nel server (`data/mybank.json`) e non tornano mai all'interfaccia. Le banche si leggono **solo in lettura**: MyBank non può spostare denaro.
+- Il **widget** e l'app usano un gettone firmato, valido 180 giorni, che decade quando cambi la password.
+- **Backup**: basta copiare la cartella `data/` del server (movimenti, tag scelti a mano, budget, collegamenti, password). Non va mai su GitHub (è in `.gitignore`, come `.env`).
+
+## Problemi frequenti
+
+| Sintomo | Causa e rimedio |
+|---|---|
+| «Il server non ha ancora questa funzione» | Il server è più vecchio dell'app: `docker compose pull && docker compose up -d`. |
+| «Redirect URI not allowed» collegando la banca | L'indirizzo di ritorno non è registrato su Enable Banking: apri MyBank dall'indirizzo https pubblico e registra esattamente quello mostrato in *Banche → Enable Banking* (finisce con `/api/banks/callback`); si può fissare con `MYBANK_PUBLIC_URL`. |
+| La password è ancora quella del file | La password cambiata dalle Opzioni sostituisce quella di `MYBANK_PASSWORD`; se non l'hai cambiata vale ancora il segnaposto del `docker-compose.yml`. Per tornare a quella del file, cancella `data/auth.json` e riavvia. |
+| Dopo un aggiornamento la pagina del browser sembra vecchia | La pagina non si tiene in cache ma il browser può avere il vecchio script: ricarica con Ctrl+F5. |
+| Il widget dice «Problema nel caricamento» | Nel layout c'è una view non ammessa nei RemoteViews: lancia `npm test`. |
+| Il widget dice «accedi in app» | La sessione è scaduta: apri l'app e fai il login. |
+| Il widget o l'app non si aggiornano sul telefono | `npm run apk:installa` con il debug wireless attivo; se `adb` non vede il telefono, ripeti l'abbinamento (Opzioni sviluppatore → Debug wireless). L'app Android firmata con una chiave diversa non si aggiorna: va disinstallata e reinstallata (la chiave di debug sta in `~/.android/debug.keystore`). |
+| Un movimento è «Non definito» | Viene da un pocket senza nome riconosciuto o da UniCredit: dai un nome al pocket con **Rinomina** (es. «01 Spesa») o scegli il tag a mano. |
+
 ## Versioni e rilascio
 
 Ogni modifica alza la versione (`package.json`) e aggiunge una voce a `CHANGELOG.md`; il tag Git è `mybank-vX.Y.Z` (i tag `vX.Y.Z` sono della vecchia app Bilancio). Dopo un push GitHub costruisce l'immagine Docker; il NAS si aggiorna con `docker compose pull && docker compose up -d`; il telefono con `npm run apk:installa`.
