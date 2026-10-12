@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuth } from './auth.js';
-import { BANKS, startLink, finishLink, syncConnection, publicState } from './banks.js';
+import { AUTO_PER_DAY, BANKS, startLink, finishLink, syncConnection, publicState } from './banks.js';
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, widgetData, yearSummary } from './stats.js';
@@ -97,10 +97,12 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   app.get('/api/widget', (req, res) => res.json(widgetData(db)));
 
   // ---------------------------------------------------------------- banche
+  // Orari dell'aggiornamento automatico: quelli scelti dall'utente (Banche → Aggiornamento) oppure quelli di base.
+  const hoursNow = () => (Array.isArray(db.settings.autoHours) && db.settings.autoHours.length ? db.settings.autoHours : AUTO_HOURS);
   const bankInfo = (req) => ({
     ...publicState(db),
     redirectUrl: `${baseUrl(req)}/api/banks/callback`,
-    auto: { hours: AUTO_HOURS, tz: TZ, next: nextRun().toISOString() },
+    auto: { hours: hoursNow(), tz: TZ, next: nextRun(new Date(), hoursNow()).toISOString(), max: AUTO_PER_DAY },
   });
   app.get('/api/banks', (req, res) => res.json(bankInfo(req)));
 
@@ -113,6 +115,17 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     else if (!db.banking.app?.privateKey) return bad(res, 'Manca la chiave privata.');
     db.banking.app = { appId, privateKey: privateKey || db.banking.app.privateKey };
     await store.save();
+    res.json(bankInfo(req));
+  }));
+
+  app.put('/api/banks/schedule', wrap(async (req, res) => {
+    const raw = Array.isArray(req.body?.hours) ? req.body.hours : [];
+    const hours = [...new Set(raw.map(Number))].sort((a, b) => a - b);
+    if (!hours.length || hours.some((h) => !Number.isInteger(h) || h < 0 || h > 23)) return bad(res, 'Scegli almeno un orario, tra le 0 e le 23.');
+    if (hours.length > AUTO_PER_DAY) return bad(res, `Le banche concedono ${AUTO_PER_DAY} accessi automatici al giorno: gli orari possono essere al massimo ${AUTO_PER_DAY}.`);
+    db.settings.autoHours = hours;
+    await store.save();
+    if (active) scheduleAutoRead(); // il prossimo aggiornamento si ricalcola subito
     res.json(bankInfo(req));
   }));
 
@@ -169,9 +182,13 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     console.log(`Aggiornamento automatico delle banche: ${added} nuovi movimenti${errors.length ? `, errori: ${errors.join(' · ')}` : ''}`);
     return b.lastAuto;
   }
+  let timer = null;
+  let active = false;
   function scheduleAutoRead() {
-    const when = nextRun();
-    const timer = setTimeout(async () => {
+    active = true;
+    clearTimeout(timer);
+    const when = nextRun(new Date(), hoursNow());
+    timer = setTimeout(async () => {
       try { await autoRead(); } catch (e) { console.error('Aggiornamento automatico non riuscito:', e.message); }
       scheduleAutoRead();
     }, Math.max(1000, when.getTime() - Date.now()));
@@ -179,6 +196,13 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     return timer;
   }
 
-  app.use(express.static(path.join(root, 'public')));
+  // La pagina non si tiene mai in cache e punta a script e stile con la versione nell'indirizzo: dopo un aggiornamento nessun browser,
+  // app o proxy può mostrare un'app.js vecchia con una pagina nuova.
+  const pub = path.join(root, 'public');
+  app.get(['/', '/index.html'], (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(fs.readFileSync(path.join(pub, 'index.html'), 'utf8').replaceAll('__V__', VERSION));
+  });
+  app.use(express.static(pub, { setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
   return { app, store, db, autoRead, scheduleAutoRead };
 }

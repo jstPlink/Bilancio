@@ -2,6 +2,19 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.5.0
+- **Orari di aggiornamento modificabili** (scheda Banche → Aggiornamento): si tolgono con la × e se ne aggiungono con il menu, da 1 a 4 (le banche concedono 4 accessi automatici al giorno); salvati sul server, il prossimo aggiornamento si ricalcola subito. Quelli di base restano 5, 11, 14 e 19.
+- **Password da almeno 5 caratteri** (prima 8).
+- **Localhost che punta al server**: con `MYBANK_SERVER` nel file `.env`, `npm start` serve le pagine di questa cartella e inoltra dati e login al server (nessun dato locale).
+
+## 0.4.0
+- **Opzioni** non è più una scheda: è un pulsante in alto a destra, al posto di «Esci». In cima alle Opzioni c'è **Cambia password**, che apre una finestra (password attuale e due volte la nuova); **Esci** sta in fondo alle Opzioni.
+- **Banche collassabili**: UniCredit e Revolut si chiudono e si aprono; Revolut parte chiusa.
+- **Versione** in alto a destra al posto della data dell'ultimo aggiornamento (che resta nella scheda Banche), ingrandita del 50%.
+
+## 0.3.1
+- **Correzione**: dopo un aggiornamento un browser, l'app o un proxy poteva tenere un `app.js` vecchio con la pagina nuova, e la scheda Opzioni riportava alla pagina iniziale. Ora la pagina non si tiene mai in cache e punta a script e stile con la versione nell'indirizzo (`app.js?v=0.3.1`).
+
 ## 0.3.0
 - **Scheda Opzioni**: cambio della password dell'account (serve la password attuale, almeno 8 caratteri; salvata come impronta scrypt in `data/auth.json`; gli altri accessi decadono e quello che cambia resta attivo), uscita dall'account, informazioni e, nell'app Android, «Cambia server». `MYBANK_PASSWORD` resta la password iniziale.
 - Documentato come ritrovare la chiave di Enable Banking (si scarica una sola volta: se è persa, se ne crea una nuova).

@@ -8,7 +8,7 @@ const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day:
 const THIS_YEAR = new Date().getFullYear();
 let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), mv: { year: THIS_YEAR, month: 0, tag: '', q: '' } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '' } };
 
 // ------------------------------------------------------------------ rete
 
@@ -74,6 +74,8 @@ async function loadOptions() {
   $('#serverBox').hidden = !window.Native?.changeServer;
 }
 $('#changeServerBtn').addEventListener('click', () => window.Native?.changeServer?.());
+$('#pwOpen').addEventListener('click', () => { $('#pwForm').reset(); $('#pwError').textContent = ''; $('#pwDialog').showModal(); $('#pwCurrent').focus(); });
+$('#pwCancel').addEventListener('click', () => $('#pwDialog').close());
 $('#pwForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const err = $('#pwError');
@@ -83,6 +85,7 @@ $('#pwForm').addEventListener('submit', async (e) => {
     const r = await api('POST', '/api/password', { current: $('#pwCurrent').value, next: $('#pwNew').value });
     try { if (window.Native?.saveToken && r.token) window.Native.saveToken(r.token); } catch { /* fuori dall'app non c'è */ }
     e.target.reset();
+    $('#pwDialog').close();
     toast('Password cambiata.');
   } catch (ex) { if (ex instanceof Unauthorized) return fail(ex); err.textContent = ex.message; }
 });
@@ -96,9 +99,11 @@ function show(tab) {
   history.replaceState(null, '', `#${tab}`);
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
   ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
 }
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
+$('#optionsBtn').addEventListener('click', () => show('opzioni'));
 
 const yearOptions = (years, current) => {
   const list = [...new Set([...years, THIS_YEAR, current])].sort((a, b) => b - a);
@@ -205,14 +210,19 @@ $('#budgetForm').addEventListener('submit', async (e) => {
 async function loadBanks() {
   const d = await api('GET', '/api/banks');
   TAGS = d.tags ?? TAGS;
-  $('#lastSync').textContent = d.lastSync ? `Aggiornato ${fmtDateTime(d.lastSync)}` : '';
   const auto = d.lastAuto;
-  const hours = d.auto.hours.map((h) => `<span class="pill">${String(h).padStart(2, '0')}:00</span>`).join('');
+  const hrs = d.auto.hours;
+  const chips = hrs.map((h) => `<span class="chip">${String(h).padStart(2, '0')}:00<button class="x" data-hour-del="${h}" aria-label="Togli le ${h}" ${hrs.length <= 1 ? 'disabled' : ''}>×</button></span>`).join('');
+  const free = Array.from({ length: 24 }, (_, h) => h).filter((h) => !hrs.includes(h));
+  const adder = hrs.length < d.auto.max
+    ? `<select id="hourAdd" aria-label="Aggiungi un orario">${free.map((h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}</select><button class="ghost" id="hourAddBtn">Aggiungi</button>`
+    : `<span class="muted">Massimo ${d.auto.max}: le banche non concedono più accessi automatici al giorno.</span>`;
   $('#syncPanel').innerHTML = `
     <h2>Aggiornamento</h2>
     <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b>.</p>
-    <div><p class="muted">Aggiornamento automatico ogni giorno alle (ora italiana):</p><div class="hours">${hours}</div>
-      <p class="muted">Prossimo: ${fmtDateTime(d.auto.next)}${auto ? ` · ultimo automatico: ${fmtDateTime(auto.at)}, ${auto.added} nuovi movimenti${auto.errors.length ? ` (errori: ${esc(auto.errors.join(' · '))})` : ''}` : ''}</p></div>
+    <div><p class="muted">Aggiornamento automatico ogni giorno alle (ora italiana, al massimo ${d.auto.max}):</p>
+      <div class="hours">${chips}${adder}</div>
+      <p class="muted">Prossimo: ${fmtDateTime(d.auto.next)}${d.lastAuto ? ` · ultimo automatico: ${fmtDateTime(d.lastAuto.at)}, ${d.lastAuto.added} nuovi movimenti${d.lastAuto.errors.length ? ` (errori: ${esc(d.lastAuto.errors.join(' · '))})` : ''}` : ''}</p></div>
     <div class="foot"><button class="primary" id="syncBtn" ${d.connections.length ? '' : 'disabled'}><span class="spin" hidden></span><span>Aggiorna ora</span></button>
       <span class="muted">Per gli aggiornamenti in più durante la giornata.</span></div>`;
   $('#ebStatus').textContent = d.configured ? '· configurato' : '· da configurare';
@@ -222,22 +232,30 @@ async function loadBanks() {
   if (!d.configured) $('#ebPanel').open = true;
   $('#bankList').innerHTML = d.banks.map((b) => {
     const c = d.connections.find((x) => x.bank === b.key);
-    if (!c) return `<div class="bank"><header><h2>${esc(b.label)}</h2><span class="status no">Non collegata</span></header>
-      <div class="foot"><button class="primary" data-link="${b.key}" ${d.configured ? '' : 'disabled'}>Collega ${esc(b.label)}</button>${d.configured ? '' : '<span class="muted">Prima configura Enable Banking qui sotto.</span>'}</div></div>`;
+    const open = state.bankOpen[b.key] ?? b.key !== 'revolut'; // Revolut ha molti pocket: di base è chiusa
+    const wrap = (status, body) => `<details class="bank" data-bank="${b.key}" ${open ? 'open' : ''}><summary><h2>${esc(b.label)}</h2>${status}</summary>${body}</details>`;
+    if (!c) return wrap('<span class="status no">Non collegata</span>', `<div class="foot"><button class="primary" data-link="${b.key}" ${d.configured ? '' : 'disabled'}>Collega ${esc(b.label)}</button>${d.configured ? '' : '<span class="muted">Prima configura Enable Banking qui sotto.</span>'}</div>`);
     const status = c.expired ? '<span class="status late">Consenso scaduto</span>' : `<span class="status ok">Collegata · ${c.daysLeft} giorni</span>`;
-    return `<div class="bank"><header><h2>${esc(b.label)}</h2>${status}</header>
+    return wrap(status, `
       <p class="muted">Ultima lettura ${fmtDateTime(c.lastSync)} · oggi restano ${c.left.auto} accessi automatici e ${c.left.manual} letture a mano.</p>
       ${c.accounts.map((a) => `<div class="acct"><div class="n">${esc(a.name)}<div class="s">${a.main ? `Conto${a.iban ? ` · ${esc(a.iban)}` : ''}` : `Pocket · nome ${esc(a.nameSource)}`} · ${a.movements} movimenti</div></div>
         <button class="link" data-rename="${esc(a.uid)}" data-name="${esc(a.name)}">Rinomina</button></div>`).join('')}
-      <div class="foot"><button class="ghost" data-link="${b.key}">${c.expired ? 'Ricollega' : 'Rinnova il consenso'}</button><button class="link danger" data-unlink="${c.id}">Scollega</button></div></div>`;
+      <div class="foot"><button class="ghost" data-link="${b.key}">${c.expired ? 'Ricollega' : 'Rinnova il consenso'}</button><button class="link danger" data-unlink="${c.id}">Scollega</button></div>`);
   }).join('');
 }
 
+$('#bankList').addEventListener('toggle', (e) => { const k = e.target.dataset?.bank; if (k) state.bankOpen[k] = e.target.open; }, true);
 $('#banche').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   try {
-    if (t.id === 'syncBtn') {
+    if (t.dataset.hourDel || t.id === 'hourAddBtn') {
+      const current = [...document.querySelectorAll('[data-hour-del]')].map((b) => Number(b.dataset.hourDel));
+      const hours = t.id === 'hourAddBtn' ? [...current, Number($('#hourAdd').value)] : current.filter((h) => h !== Number(t.dataset.hourDel));
+      await api('PUT', '/api/banks/schedule', { hours });
+      await loadBanks();
+      toast('Orari aggiornati.');
+    } else if (t.id === 'syncBtn') {
       t.disabled = true; t.querySelector('.spin').hidden = false;
       try {
         const r = await api('POST', '/api/banks/sync', {});

@@ -24,8 +24,8 @@ Un giroconto si riconosce da: testo del giro tra pocket, IBAN della controparte 
 - **Storico** (principale): l'anno scelto, mese per mese, **entrate**, **uscite** e **bilancio**, con il totale. Un tocco su un mese mostra le uscite per tag.
 - **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. I pagamenti ancora in sospeso contano subito e hanno una barra rossa a sinistra.
 - **Budget**: il budget mensile di Spesa, Svago e Carburante e, per il mese in corso, residuo, spesa giornaliera stimata e reale.
-- **Opzioni**: **cambio della password dell'account** (serve quella attuale; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), uscita dall'account e informazioni; nell'app Android anche «Cambia server».
-- **Banche**: collegamento di UniCredit e Revolut, **aggiornamento** (4 automatici al giorno alle **5, 11, 14 e 19**, ora italiana, più il pulsante **Aggiorna ora** per quelli in più), rinomina dei pocket e credenziali di Enable Banking.
+- **Opzioni** (pulsante in alto a destra, accanto alla versione): in cima **Cambia password** (finestra con la password attuale e due volte la nuova; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), poi le informazioni (nell'app Android anche «Cambia server») e in fondo **Esci**.
+- **Banche**: collegamento di UniCredit e Revolut (ogni banca si chiude e si apre; Revolut, con i suoi pocket, parte chiusa), **aggiornamento** (fino a 4 automatici al giorno, di base alle **5, 11, 14 e 19** ora italiana: gli orari si cambiano dalla scheda stessa, togliendoli con la × e aggiungendone con il menu; più il pulsante **Aggiorna ora** per quelli in più), rinomina dei pocket e credenziali di Enable Banking.
 
 **Widget Android 5×1**, quattro celle: a sinistra la **barra del mese** (tacca rossa a fine di ogni domenica, giorni che restano) e sotto l'**ora dell'ultimo aggiornamento** delle banche; poi **Spesa**, **Svago** e **Carburante** con il **residuo del budget** (budget meno speso nel mese), sotto la **spesa giornaliera stimata** (budget diviso i giorni del mese) e sotto la **reale** (speso diviso i giorni passati, oggi compreso; verde se è pari o migliore della stima, rossa se peggiore). Si aggiorna ogni mezz'ora e quando apri l'app o premi «Aggiorna ora».
 
@@ -43,6 +43,8 @@ npm start                # http://127.0.0.1:4870
 
 `MYBANK_PASSWORD` è la password **iniziale**: la cambi dalla scheda Opzioni e da quel momento il valore nel file non conta più. Senza `MYBANK_PASSWORD` il server parte solo su `127.0.0.1` (accesso libero, per provare in locale); su altri indirizzi (`HOST=0.0.0.0`) la password è obbligatoria.
 I dati stanno in `data/` (`mybank.json` e la chiave di firma `secret.key`; non finiscono mai su GitHub).
+
+**Localhost che punta al server:** con `MYBANK_SERVER=https://<il tuo server>` nel file `.env`, `npm start` non usa dati locali: le pagine sono quelle di questa cartella (le modifiche al codice si vedono subito) ma dati e login arrivano dal server, quindi password e dati sono quelli veri e in locale non si legge né si scrive nulla. Se il server non ha ancora una funzione nuova, la chiamata dà un errore finché non lo aggiorni. La stessa variabile finisce nell'APK (`npm run apk`).
 
 **Provare senza banche vere:** `npm run demo` avvia una banca finta e un'app con dati inventati su `http://localhost:4871` (database a parte in `data/demo`).
 

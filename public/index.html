@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#131211">
   <title>MyBank</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=__V__">
 </head>
 <body>
   <main id="login" hidden>
@@ -21,8 +21,8 @@
 
   <div id="app" hidden>
     <header class="top">
-      <div class="brand"><h1><i></i>MyBank</h1><span class="version" id="version"></span></div>
-      <div class="top-actions"><span class="muted" id="lastSync"></span></div>
+      <div class="brand"><h1><i></i>MyBank</h1></div>
+      <div class="top-actions"><span class="version" id="version"></span><button class="ghost" id="optionsBtn">Opzioni</button></div>
     </header>
 
     <nav class="tabs" role="tablist">
@@ -30,7 +30,6 @@
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
       <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
-      <button role="tab" data-tab="opzioni" aria-selected="false">Opzioni</button>
     </nav>
 
     <main>
@@ -82,31 +81,36 @@
       </section>
 
       <section id="opzioni" hidden>
-        <form id="pwForm" class="panel">
-          <h2>Password dell'account</h2>
-          <p class="muted">La password con cui entri dal web e dall'app. Cambiandola, gli altri accessi (altri browser, altri telefoni) devono rifare il login; questo resta attivo. Da qui in poi vale quella che scegli, non più quella scritta nel file del server.</p>
-          <div class="fields">
-            <label>Password attuale <input id="pwCurrent" type="password" autocomplete="current-password" required></label>
-            <label>Nuova password <input id="pwNew" type="password" autocomplete="new-password" minlength="8" required></label>
-            <label>Ripeti la nuova password <input id="pwRepeat" type="password" autocomplete="new-password" minlength="8" required></label>
-          </div>
-          <p class="error" id="pwError" role="alert"></p>
-          <div class="foot"><button class="primary" type="submit">Cambia password</button><span class="muted">Almeno 8 caratteri.</span></div>
-        </form>
         <div class="panel">
-          <h2>Sessione</h2>
-          <div class="foot"><button class="ghost" id="logoutBtn">Esci</button><span class="muted" id="sessionNote"></span></div>
+          <h2>Account</h2>
+          <div class="foot"><button class="primary" id="pwOpen">Cambia password</button><span class="muted">La password con cui entri dal web e dall'app.</span></div>
         </div>
         <div class="panel">
           <h2>Informazioni</h2>
           <p class="muted" id="aboutText"></p>
           <div class="foot" id="serverBox" hidden><button class="ghost" id="changeServerBtn">Cambia server</button><span class="muted">Solo nell'app Android.</span></div>
         </div>
+        <div class="panel">
+          <h2>Sessione</h2>
+          <div class="foot"><button class="ghost" id="logoutBtn">Esci</button><span class="muted" id="sessionNote"></span></div>
+        </div>
       </section>
     </main>
   </div>
 
+  <dialog id="pwDialog">
+    <form id="pwForm">
+      <h2>Cambia password</h2>
+      <p class="muted">Cambiandola, gli altri accessi (altri browser, altri telefoni) devono rifare il login; questo resta attivo. Da qui in poi vale la nuova, non più quella scritta nel file del server.</p>
+      <label>Password attuale <input id="pwCurrent" type="password" autocomplete="current-password" required></label>
+      <label>Nuova password <input id="pwNew" type="password" autocomplete="new-password" minlength="5" required></label>
+      <label>Ripeti la nuova password <input id="pwRepeat" type="password" autocomplete="new-password" minlength="5" required></label>
+      <p class="error" id="pwError" role="alert"></p>
+      <div class="foot"><button class="primary" type="submit">Cambia password</button><button class="ghost" type="button" id="pwCancel">Annulla</button><span class="muted">Almeno 5 caratteri.</span></div>
+    </form>
+  </dialog>
+
   <div id="toast" role="status"></div>
-  <script src="app.js" type="module"></script>
+  <script src="app.js?v=__V__" type="module"></script>
 </body>
 </html>

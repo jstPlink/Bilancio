@@ -155,7 +155,7 @@ test("cambio password: serve quella attuale, la nuova vale subito, i vecchi acce
   const oldToken = first.json.token;
 
   assert.equal((await api("POST", "/api/password", { current: "sbagliata", next: "nuova-password" })).status, 400);
-  assert.equal((await api("POST", "/api/password", { current: "segreta", next: "corta" })).status, 400);
+  assert.equal((await api("POST", "/api/password", { current: "segreta", next: "abcd" })).status, 400);
 
   const changed = await api("POST", "/api/password", { current: "segreta", next: "nuova-password" });
   assert.equal(changed.status, 200);
@@ -183,4 +183,43 @@ test("la password cambiata resta anche dopo il riavvio del server", async (t) =>
   t.after(() => s2.close());
   assert.equal((await post(s2.address().port, "/api/login", { password: "segreta" })).status, 401);
   assert.equal((await post(s2.address().port, "/api/login", { password: "dopo-il-riavvio" })).status, 200);
+});
+
+test("la pagina non si tiene in cache e punta a script e stile con la versione", async (t) => {
+  const { base } = await setup(t);
+  const page = await fetch(`${base}/`);
+  assert.equal(page.headers.get("cache-control"), "no-store");
+  const html = await page.text();
+  assert.match(html, /app\.js\?v=\d+\.\d+\.\d+/);
+  assert.match(html, /style\.css\?v=\d+\.\d+\.\d+/);
+  assert.ok(!html.includes("__V__"));
+  assert.equal((await fetch(`${base}/app.js`)).headers.get("cache-control"), "no-cache");
+});
+
+test("gli orari dell'aggiornamento automatico si cambiano (da 1 a 4) e restano salvati", async (t) => {
+  const { api, db } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  assert.deepEqual((await api("GET", "/api/banks")).json.auto.hours, [5, 11, 14, 19]);
+
+  const ok = await api("PUT", "/api/banks/schedule", { hours: [19, 7, 7, 12] });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.json.auto.hours, [7, 12, 19]); // ordinati e senza doppioni
+  assert.deepEqual(db.settings.autoHours, [7, 12, 19]);
+  assert.equal(ok.json.auto.max, 4);
+  const next = new Date(ok.json.auto.next);
+  assert.ok(next.getTime() > Date.now());
+
+  assert.equal((await api("PUT", "/api/banks/schedule", { hours: [] })).status, 400);
+  assert.equal((await api("PUT", "/api/banks/schedule", { hours: [1, 2, 3, 4, 5] })).status, 400); // le banche concedono 4 accessi automatici
+  assert.equal((await api("PUT", "/api/banks/schedule", { hours: [24] })).status, 400);
+  assert.equal((await api("PUT", "/api/banks/schedule", { hours: ["a"] })).status, 400);
+  assert.deepEqual((await api("GET", "/api/banks")).json.auto.hours, [7, 12, 19]); // i rifiuti non cambiano nulla
+});
+
+test("la password può avere 5 caratteri", async (t) => {
+  const { api } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  assert.equal((await api("POST", "/api/password", { current: "segreta", next: "abcd" })).status, 400);
+  assert.equal((await api("POST", "/api/password", { current: "segreta", next: "abcde" })).status, 200);
+  assert.equal((await api("POST", "/api/login", { password: "abcde" })).status, 200);
 });

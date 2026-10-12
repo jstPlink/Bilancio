@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const DAYS = 180;
 const COOKIE = 'mybank';
-export const MIN_PASSWORD = 8;
+export const MIN_PASSWORD = 5;
 
 export function createAuth({ dir, password }) {
   fs.mkdirSync(dir, { recursive: true });
