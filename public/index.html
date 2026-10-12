@@ -59,7 +59,7 @@
       </div></details>
       <div id="movesEmpty" class="empty" hidden>
         <h2>Nessun movimento nel periodo</h2>
-        <p>Collega la banca da Impostazioni → Collega le banche e premi <b>Aggiorna ora</b>, oppure carica l'estratto conto da Impostazioni → Documenti (in Revolut: Conti → Estratti → Excel/CSV).</p>
+        <p>I movimenti arrivano dalle banche, dal 1 ottobre 2026. Collega la banca da Impostazioni → Collega le banche e premi <b>Aggiorna ora</b> (o <b>Leggi dalla banca</b> nella scheda Banche).</p>
       </div>
       <div id="movesBody"></div>
     </section>
@@ -72,7 +72,7 @@
       </div>
       <div id="analysisEmpty" class="empty" hidden>
         <h2>Nessun dato bancario</h2>
-        <p>Collega la banca da Impostazioni → Collega le banche, oppure carica un estratto conto da Impostazioni → Documenti.</p>
+        <p>I movimenti arrivano dalle banche, dal 1 ottobre 2026. Collega la banca da Impostazioni → Collega le banche.</p>
       </div>
       <div id="analysisBody"></div>
     </section>
@@ -90,11 +90,7 @@
         <button type="button" id="uploadBtn" class="primary">Carica documento</button>
         <button type="button" id="refreshBtn" class="primary"><span class="spin" hidden></span><span class="label">Aggiorna</span></button>
       </div>
-      <div id="docsEmpty" class="empty" hidden>
-        <h2>Nessun documento ancora</h2>
-        <p>Indica qui sopra dove si trovano le buste paga e le bollette (Impostazioni → Dove si trovano i documenti) e premi <b>Aggiorna</b>.</p>
-      </div>
-      <div class="tablewrap"><table id="docTable"></table></div>
+      <div id="docsBody"></div>
     </section>
   </main>
 

@@ -52,7 +52,7 @@ test('la lettura per la scheda Banche tiene una copia a parte e non tocca i dati
   db.banking.connections.push(conn);
   const asked = [];
   const client = {
-    transactions: async (uid, q) => { asked.push(q.transaction_status); return { transactions: q.transaction_status === 'PDNG' ? [tx('p1', '2026-10-01', -5, 'In attesa')] : [tx('a', '2026-09-20', -10, 'Negozio'), tx('b', '2026-09-21', 50, 'Azienda')] }; },
+    transactions: async (uid, q) => { asked.push(q.transaction_status); return { transactions: q.transaction_status === 'PDNG' ? [tx('p1', '2026-10-01', -5, 'In attesa')] : [tx('a', '2026-10-01', -10, 'Negozio'), tx('b', '2026-10-02', 50, 'Azienda')] }; },
     balances: async () => ({ balances: [{ balance_type: 'CLBD', balance_amount: { amount: '500', currency: 'EUR' } }] }),
     details: async () => ({ name: 'Conto', cash_account_type: 'CACC', product: 'Conto corrente' }),
   };
@@ -231,7 +231,7 @@ test('readAndMerge: una sola lettura aggiorna la copia della scheda Banche e por
   let pending = [{ ...tx('p1', '2026-10-01', -4.5, 'In attesa'), booking_date: undefined, value_date: '2026-10-01', status: 'PDNG' }];
   const asked = [];
   const client = {
-    transactions: async (uid, q) => { asked.push(q.transaction_status); return { transactions: q.transaction_status === 'PDNG' ? pending : [tx('a', '2026-09-20', -10, 'Negozio'), tx('b', '2026-09-21', 50, 'Mario')] }; },
+    transactions: async (uid, q) => { asked.push(q.transaction_status); return { transactions: q.transaction_status === 'PDNG' ? pending : [tx('a', '2026-10-01', -10, 'Negozio'), tx('b', '2026-10-02', 50, 'Mario')] }; },
     balances: async () => ({ balances: [] }),
     details: async () => ({}),
   };
@@ -259,7 +259,7 @@ test('scheda Banche: per ogni pagamento in sospeso si dice se è già nell\'app 
   await readAndMerge({ client, db, conn, now: NOW });
   const rows = () => buildExplore(db, NOW).connections[0].transactions.filter((t) => t.status === 'PDNG');
   const by = Object.fromEntries(rows().map((t) => [t.party, t.inApp]));
-  assert.deepEqual([by['Supermercato Coop'].state, by['Supermercato Coop'].counted, by['Supermercato Coop'].category], ['presente', true, 'spesa']);
+  assert.deepEqual([by['Supermercato Coop'].state, by['Supermercato Coop'].counted, by['Supermercato Coop'].category], ['presente', false, 'altro']); // senza pocket è «altro»: si vede ma non si somma
   assert.deepEqual([by['Ferramenta Rossi'].state, by['Ferramenta Rossi'].counted], ['presente', false]); // categoria «altro»: si vede ma non si somma
   // un sospeso nella copia ma non ancora nei dati dell'app (copia letta da un server vecchio)
   for (const id of Object.keys(db.transactions)) if (db.transactions[id].pending) delete db.transactions[id];

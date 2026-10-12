@@ -1,4 +1,4 @@
-// Documenti caricati a mano dall'app: scelta del tipo (estratto conto, bolletta, busta paga) e nome del file.
+// Documenti caricati a mano dall'app: scelta del tipo (estratto conto UniCredit, bolletta o busta paga) e nome del file.
 import { PLACES, PLACE_KINDS, placeNames } from './grid.js';
 
 export const UPLOAD_TYPES = ['estratto', 'bolletta', 'busta'];
@@ -23,7 +23,7 @@ export function parseUploadRequest(query = {}) {
 
 // Nome mostrato in Documenti. La casa è la prima cartella del nome (come per le bollette lette dalle cartelle).
 export function uploadedDocName({ type, name, place }, settings) {
-  const file = /\.(pdf|csv)$/i.test(name) ? name : `${name}.${type === 'estratto' ? 'csv' : 'pdf'}`;
+  const file = /\.pdf$/i.test(name) ? name : `${name}.pdf`;
   return type === 'bolletta' && place ? `${placeNames(settings)[place]}/${file}` : file;
 }
 

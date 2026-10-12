@@ -106,7 +106,7 @@ test('l\'interfaccia non riceve mai la chiave privata e vede solo l\'IBAN masche
 
 // ------------------------------------------------------------------ sincronizzazione
 
-const bookedTx = (id, amount, date = '2026-09-20', name = 'Negozio') => ({ transaction_id: id, booking_date: date, credit_debit_indicator: 'DBIT', transaction_amount: { amount: String(amount), currency: 'EUR' }, creditor: { name } });
+const bookedTx = (id, amount, date = '2026-10-01', name = 'Negozio') => ({ transaction_id: id, booking_date: date, credit_debit_indicator: 'DBIT', transaction_amount: { amount: String(amount), currency: 'EUR' }, creditor: { name } });
 const makeConn = (over = {}) => ({ id: 'S1', bank: 'unicredit', accounts: [{ uid: 'u1', iban: '', name: 'Conto', currency: 'EUR' }], validUntil: '2027-01-01T00:00:00Z', lastSync: null, calls: [], ...over });
 
 test('sincronizzazione: scorre le pagine, chiede solo i movimenti registrati e non duplica', async () => {
@@ -132,16 +132,13 @@ test('sincronizzazione: scorre le pagine, chiede solo i movimenti registrati e n
   assert.equal(queries.at(-1).date_from, '2026-09-25');
 });
 
-test('i movimenti già importati da CSV o PDF (stessa data e importo) si contano una volta sola, e vince la banca', async () => {
+test('si salvano solo i movimenti dal 1 ottobre 2026', async () => {
   const db = freshDb();
-  db.transactions.csv1 = { id: 'csv1', date: '2026-09-20', amount: -10, description: 'NEGOZIO ROMA 123', category: 'spesa' };
-  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [] : [bookedTx('A', 10), bookedTx('B', 10), bookedTx('C', 7)] }) };
+  const client = { transactions: async (uid, q) => ({ transactions: q.transaction_status === 'PDNG' ? [] : [bookedTx('A', 10, '2026-09-30'), bookedTx('B', 10, '2026-10-01'), bookedTx('C', 7, '2026-10-02')] }) };
   const r = await syncConnection({ client, db, conn: makeConn(), now: NOW });
-  assert.equal(r.added, 3); // la banca porta tutto
-  const { reconcileBankAndFiles } = await import('../src/reconcile.js');
-  assert.equal(reconcileBankAndFiles(db), 1); // e quello del file con lo stesso importo e giorno sparisce
-  assert.equal(db.transactions.csv1, undefined);
-  assert.equal(Object.keys(db.transactions).length, 3);
+  assert.equal(r.added, 2); // quello di settembre non si salva
+  assert.equal(Object.keys(db.transactions).length, 2);
+  assert.ok(Object.values(db.transactions).every((t) => t.date >= '2026-10-01'));
 });
 
 test('se la banca non concede un anno di storico si ripiega su 90 giorni', async () => {

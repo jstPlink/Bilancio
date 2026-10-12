@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { LEGACY_CATEGORY } from './statements.js';
 
 // Persistenza su SQLite (data/bilancino.db): impostazioni, documenti letti,
 // spunte "pagato", importi manuali. Il server tiene una copia in memoria (`data`)
@@ -13,9 +12,8 @@ const defaults = () => ({
     payslipsSource: '',
     billsSource: '',
     statementsSource: '',
-    ownNames: '',
-    incomePayers: '',
-    rentAmount: 0,
+    rentAmount: 0, // importo totale mensile dell'affitto
+    rentShare: 100, // % a carico dell'utente: l'affitto contato è rentAmount × rentShare / 100
     rentFrom: '',
     billShare: 50, // % di acqua, luce, gas e wifi a carico dell'utente (di norma 50: bollette divise in due)
     budgets: {},
@@ -26,11 +24,9 @@ const defaults = () => ({
   manual: {},
   transactions: {},
   statementFiles: {},
-  statementParser: 0,
   auth: null,
   banking: { app: null, connections: [], pending: {} },
   categoryVersion: 0,
-  rules: {},
   lastRefresh: null,
 });
 
@@ -57,32 +53,14 @@ export function createStore(file, { legacyJson } = {}) {
     }
     db = { ...d, ...kv, docs };
     db.settings = { ...d.settings, ...db.settings };
-    // La rata del prestito non si imposta più a mano: si legge dagli estratti conto.
-    delete db.settings.loanAmount;
-    delete db.settings.loanFrom;
-    migrateCategories();
-    // Una tantum: le entrate che erano "altro" (ignorate) sono giroconti.
-    if ((db.categoryVersion ?? 0) < 2) {
-      for (const t of Object.values(db.transactions)) if (t.amount > 0 && t.category === 'altro') t.category = 'giroconti';
-      for (const k of Object.keys(db.rules)) if (k.startsWith('in:') && db.rules[k] === 'altro') db.rules[k] = 'giroconti';
-      db.categoryVersion = 2;
-      save();
-    }
     return db;
-  }
-
-  // Le categorie cibo e casa sono diventate "spesa".
-  function migrateCategories() {
-    const fix = (c) => LEGACY_CATEGORY[c] ?? c;
-    for (const t of Object.values(db.transactions)) t.category = fix(t.category);
-    for (const k of Object.keys(db.rules)) db.rules[k] = fix(db.rules[k]);
   }
 
   function save() {
     sql.exec('BEGIN');
     try {
       const put = sql.prepare('INSERT INTO kv (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v');
-      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'statementParser', 'categoryVersion', 'auth', 'banking', 'rules', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
+      for (const k of ['settings', 'paid', 'manual', 'transactions', 'statementFiles', 'categoryVersion', 'auth', 'banking', 'lastRefresh']) put.run(k, JSON.stringify(db[k] ?? null));
       sql.exec('DELETE FROM docs');
       const ins = sql.prepare('INSERT INTO docs (key, json) VALUES (?, ?)');
       for (const [key, doc] of Object.entries(db.docs)) ins.run(key, JSON.stringify(doc));

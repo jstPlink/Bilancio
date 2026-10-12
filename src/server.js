@@ -4,47 +4,36 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
 import { buildCells, buildGrid, cellKey, DEFAULT_PLACE, effectiveDoc, KINDS, NO_PAYMENT, PLACES, PLACE_KINDS, SPENDING_KINDS } from './grid.js';
-import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey, parseStatement, setIdentity, addOrEnrich } from './statements.js';
-import { matchBillPayments } from './billmatch.js';
+import { CATEGORIES, CATEGORY_KIND, NOT_COUNTED, ruleKey } from './statements.js';
 import { createAuth } from './auth.js';
 import { refresh, progress, readPdfDocument, isUploadKey } from './scanner.js';
 import { createOcr } from './ocr.js';
-import { parsePdfStatement } from './pdfstatements.js';
 import { parseUploadRequest, uploadedDocName, isPdf } from './uploads.js';
 import { randomUUID } from 'node:crypto';
-import { learnIdentity } from './identity.js';
 import { BANKS, bankingState, checkKey, createClient as bankClient, psuHeaders, readAndMerge, finishLink, normalizeKey, publicState as bankingPublic, readBankData, startLink, syncConnection } from './banking.js';
 import { buildBankWidget, buildExplore } from './bankexplorer.js';
-import { reconcileBankAndFiles } from './reconcile.js';
 import { AUTO_READ_HOURS, AUTO_READ_TZ, nextRun } from './schedule.js';
 import { budgetOverview, cleanBudgets } from './budget.js';
 import { classifySource, openTarget } from './sources.js';
+import { readLoanRates, saveLoanRates } from './loanstatements.js';
+import { cutoffOf, DEFAULT_POCKETS, movementsView } from './movements.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = process.env.BILANCIO_DATA ?? process.env.BILANCINO_DATA ?? path.join(root, 'data');
 const dbFile = process.env.BILANCIO_DB ?? process.env.BILANCINO_DB ?? path.join(dataDir, 'bilancino.db');
 const store = createStore(dbFile, { legacyJson: path.join(dataDir, 'db.json') });
 store.load();
-setIdentity(store.data.settings);
-// Abbina gli addebiti delle utenze alle bollette già lette (una tantum all'avvio, poi a ogni aggiornamento).
-if (matchBillPayments(store.data)) store.save();
-// Nome del titolare e datore di lavoro si ricavano dai dati (buste paga e movimenti): non vanno scritti a mano.
-// Dopo ogni importazione o lettura dalla banca: riconosce nome e datore di lavoro e toglie i movimenti dei file che la banca ha già (vince la banca).
-const learn = () => {
-  try {
-    const r = learnIdentity(store.data);
-    const dup = reconcileBankAndFiles(store.data);
-    return { ...r, duplicates: dup, changed: r.changed || dup > 0 };
-  } catch { return null; }
-};
-// Una tantum: con una banca collegata gli estratti conto non si leggono più da un indirizzo (i dati già letti restano; i più vecchi si caricano a mano da
-// Impostazioni → Documenti → Carica documento). L'indirizzo tolto resta in `settings.statementsSourceOld`, fuori dall'interfaccia.
-{
-  const s = store.data.settings;
-  if (s.statementsSource?.trim() && bankingState(store.data).connections.length) { s.statementsSourceOld = s.statementsSource; s.statementsSource = ''; store.save(); }
+// Una tantum (0.55.3): i tag messi a mano ai movimenti senza controparte (giri tra pocket) tornano quelli del pocket di partenza.
+if ((store.data.categoryVersion ?? 0) < 4) {
+  const transferLike = (t) => t.noParty === true || /^(accreditas+eur|(da|a|from|to)s+eur)/i.test(String(t.description ?? '').trim());
+  let fixed = 0;
+  for (const t of Object.values(store.data.transactions ?? {})) {
+    if (t.source === 'banca' && t.manual && (transferLike(t) || t.category === 'giroconto')) { delete t.manual; t.category = 'altro'; fixed++; }
+  }
+  store.data.categoryVersion = 4;
+  store.save();
+  if (fixed) console.log(`Ripristinati i tag automatici di ${fixed} movimenti tra pocket.`);
 }
-if (learn()?.changed) store.save();
-
 const app = express();
 const auth = createAuth({
   envPassword: process.env.BILANCIO_PASSWORD,
@@ -53,7 +42,6 @@ const auth = createAuth({
 });
 app.use(express.json());
 auth.mount(app); // l'app è sempre protetta: tutto, tranne la pagina /login, richiede la password
-app.use('/api/statements', express.text({ type: '*/*', limit: '20mb' }));
 app.use('/api/upload', express.raw({ type: '*/*', limit: '40mb' }));
 app.use(express.static(path.join(root, 'public')));
 
@@ -71,7 +59,7 @@ app.get('/api/settings', (req, res) => res.json(db().settings));
 app.put('/api/settings', async (req, res) => {
   const b = req.body ?? {};
   const s = db().settings;
-  for (const key of ['payslipsSource', 'billsSource']) {
+  for (const key of ['payslipsSource', 'billsSource', 'statementsSource']) {
     if (typeof b[key] === 'string') {
       const src = classifySource(b[key]);
       if (src?.type === 'invalid') return bad(res, src.reason);
@@ -88,6 +76,11 @@ app.put('/api/settings', async (req, res) => {
     if (!(n >= 0)) return bad(res, 'Importo affitto non valido.');
     s.rentAmount = n;
   }
+  if (b.rentShare !== undefined) {
+    const n = Number(b.rentShare);
+    if (!(n > 0 && n <= 100)) return bad(res, 'La quota dell\'affitto deve essere tra 1 e 100.');
+    s.rentShare = n;
+  }
   if (typeof b.rentFrom === 'string') {
     if (b.rentFrom && !/^\d{4}-\d{2}$/.test(b.rentFrom)) return bad(res, 'Data inizio affitto non valida.');
     s.rentFrom = b.rentFrom;
@@ -95,8 +88,13 @@ app.put('/api/settings', async (req, res) => {
   if (b.placeNames && typeof b.placeNames === 'object') {
     s.placeNames = Object.fromEntries(PLACES.map((id) => [id, String(b.placeNames[id] ?? '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40)]));
   }
-  for (const key of ['ownNames', 'incomePayers']) if (typeof b[key] === 'string') s[key] = b[key].trim().slice(0, 300);
-  setIdentity(s);
+  if (typeof b.cutoff === 'string') {
+    if (b.cutoff && !/^d{4}-d{2}-01$/.test(b.cutoff)) return bad(res, 'La data di divisione tra Storico e Bilancio deve essere il primo di un mese (AAAA-MM-01).');
+    s.cutoff = b.cutoff;
+  }
+  if (b.pockets && typeof b.pockets === 'object') {
+    s.pockets = Object.fromEntries(Object.keys(DEFAULT_POCKETS).map((k) => [k, String(b.pockets[k] ?? '').replace(/s+/g, ' ').trim().slice(0, 60)]));
+  }
   await store.save();
   res.json(s);
 });
@@ -109,8 +107,6 @@ app.post('/api/refresh', async (req, res) => {
   refreshing = true;
   try {
     const report = await refresh(db(), { force: Boolean(req.body?.force), cacheDir: path.join(path.dirname(dbFile), 'tessdata') });
-    report.matched = matchBillPayments(db());
-    learn();
     // Le banche collegate NON si leggono qui: si leggono solo con i pulsanti apposta (Impostazioni → «Aggiorna ora», scheda Banche → «Leggi dalla banca»).
     await store.save();
     res.json(report);
@@ -124,7 +120,7 @@ app.post('/api/refresh', async (req, res) => {
 app.get('/api/grid', (req, res) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   // I budget viaggiano con la griglia: il widget Android li legge con la stessa chiamata delle cifre del mese.
-  res.json({ ...buildGrid(db(), year), lastRefresh: db().lastRefresh, budgets: cleanBudgets(db().settings.budgets) });
+  res.json({ ...buildGrid(movementsView(db(), { history: true }), year), cutoff: cutoffOf(db().settings), lastRefresh: db().lastRefresh, budgets: cleanBudgets(db().settings.budgets) });
 });
 
 // Budget mensile di spesa, svago e carburante, e la stima fatta dall'app sui mesi già chiusi.
@@ -132,7 +128,7 @@ app.get('/api/grid', (req, res) => {
 app.get('/api/budget', (req, res) => {
   const savings = req.query.savings === undefined ? undefined : Number(req.query.savings);
   if (savings !== undefined && !(savings >= 0)) return bad(res, 'Risparmio non valido.');
-  res.json(budgetOverview(db(), { savings }));
+  res.json(budgetOverview(movementsView(db(), { history: true }), { savings }));
 });
 
 app.put('/api/budget', async (req, res) => {
@@ -144,7 +140,7 @@ app.put('/api/budget', async (req, res) => {
   if (budgets !== undefined) s.budgets = cleanBudgets(budgets);
   if (savingsGoal !== undefined) s.savingsGoal = Number(savingsGoal) > 0 ? Math.round(Number(savingsGoal) * 100) / 100 : 0;
   await store.save();
-  res.json(budgetOverview(db()));
+  res.json(budgetOverview(movementsView(db(), { history: true })));
 });
 
 app.post('/api/paid', async (req, res) => {
@@ -165,7 +161,7 @@ app.post('/api/paid', async (req, res) => {
 app.post('/api/pay-all', async (req, res) => {
   let count = 0;
   let total = 0;
-  for (const c of buildCells(db()).values()) {
+  for (const c of buildCells(movementsView(db(), { history: true })).values()) {
     if (NO_PAYMENT.has(c.kind) || c.amount == null || c.paid) continue;
     db().paid[cellKey(c.kind, c.year, c.month, c.place)] = true;
     count++;
@@ -240,42 +236,21 @@ app.get('/api/file', (req, res) => {
   res.status(404).send('Sorgente sconosciuta.');
 });
 
-// Estratto conto CSV: aggiunge i movimenti nuovi (quelli già presenti non si duplicano).
-app.post('/api/statements', async (req, res) => {
-  if (typeof req.body !== 'string' || !req.body.trim()) return bad(res, 'Nessun file ricevuto.');
-  let items;
-  try { items = parseStatement(req.body, db().rules); } catch (e) { return bad(res, e.message); }
-  const all = (db().transactions ??= {});
-  let added = 0;
-  for (const t of items) if (addOrEnrich(all, t) === 'added') added++;
-  learn();
-  await store.save();
-  res.json({ found: items.length, added, duplicates: items.length - added });
-});
-
 // Carica un documento dall'app: il file arriva nel corpo, il resto (tipo, nome, utenza, casa) nella query.
-// Estratto conto (CSV o PDF): aggiunge i movimenti. Bolletta o busta paga (PDF): si conserva il file e se ne legge importo e periodo.
+// Bolletta o busta paga (PDF): si conserva il file e se ne legge importo e periodo.
 app.post('/api/upload', async (req, res) => {
   let info;
   try { info = parseUploadRequest(req.query); } catch (e) { return bad(res, e.message); }
   const buffer = req.body;
   if (!Buffer.isBuffer(buffer) || !buffer.length) return bad(res, 'Nessun file ricevuto.');
   try {
+    if (!isPdf(buffer)) return bad(res, 'Gli estratti conto, le bollette e le buste paga devono essere file PDF.');
     if (info.type === 'estratto') {
-      let items;
-      let check;
-      if (isPdf(buffer)) ({ items, check } = await parsePdfStatement(buffer, db().rules));
-      else items = parseStatement(buffer.toString('utf8'), db().rules);
-      const all = (db().transactions ??= {});
-      let added = 0;
-      for (const t of items) if (addOrEnrich(all, t, info.name) === 'added') added++;
-      learn();
+      const r = await readLoanRates(buffer);
+      const added = saveLoanRates(db(), r.items, info.name);
       await store.save();
-      const warning = check && (Math.abs(check.parsedOut - check.statedOut) > 0.005 || Math.abs(check.parsedIn - check.statedIn) > 0.005)
-        ? `le uscite lette (${check.parsedOut}) non tornano col riepilogo della banca (${check.statedOut})` : undefined;
-      return res.json({ type: 'estratto', found: items.length, added, duplicates: items.length - added, warning });
+      return res.json({ type: 'estratto', bank: r.bank, found: r.items.length, added });
     }
-    if (!isPdf(buffer)) return bad(res, 'Le bollette e le buste paga devono essere file PDF.');
     const tag = info.type === 'busta' ? 'busta' : 'bolletta';
     const name = uploadedDocName(info, db().settings);
     const ocr = createOcr({ cacheDir: path.join(path.dirname(dbFile), 'tessdata'), size: 1 });
@@ -294,7 +269,6 @@ app.post('/api/upload', async (req, res) => {
       amount: parsed.amount ?? null, status: missing.length ? 'incompleto' : 'ok', missing, ocr: read.ocr, named: parsed.named ?? false,
       text: read.text.slice(0, 12000), readAt: new Date().toISOString(), uploaded: true,
     };
-    learn();
     await store.save();
     const d = effectiveDoc(db().docs[key]);
     res.json({ type: info.type, doc: { key, name, kind: d.kind, year: d.year, month: d.month, amount: d.amount, status: d.status, missing } });
@@ -354,7 +328,6 @@ app.get('/api/banking/callback', async (req, res) => {
     try {
       const r = await syncConnection({ client, db: db(), conn });
       note = ` Ho letto ${r.found} movimenti (${r.added} nuovi).`;
-      learn();
     } catch (e) { note = ` I movimenti si leggono con «Aggiorna ora» nelle Impostazioni o con «Leggi dalla banca» (${html(e.message)}).`; }
     await store.save();
     res.send(page('Banca collegata ✓', `${html(BANKS[conn.bank].label)} è collegata in sola lettura.${note} Puoi chiudere questa pagina e tornare a Bilancio.`));
@@ -374,7 +347,6 @@ app.post('/api/banking/sync', async (req, res) => {
       const r = await readAndMerge({ client, db: db(), conn });
       total.found += r.found; total.added += r.added; total.duplicates += r.duplicates; total.pending += r.pending;
     }
-    learn();
     await store.save();
     res.json({ ...total, ...bankUi(req) });
   } catch (e) { await store.save(); bad(res, e.message); }
@@ -382,7 +354,7 @@ app.post('/api/banking/sync', async (req, res) => {
 
 // Scheda «Banche»: i dati originali delle banche, in una copia separata che non entra in Panoramica, Movimenti né Statistiche.
 // L'aggiornamento automatico delle banche: a che ore e come è andato l'ultimo.
-const exploreUi = () => ({ ...buildExplore(db()), auto: { hours: AUTO_READ_HOURS, last: bankingState(db()).lastAuto ?? null } });
+const exploreUi = () => ({ ...buildExplore(movementsView(db())), auto: { hours: AUTO_READ_HOURS, last: bankingState(db()).lastAuto ?? null } });
 app.get('/api/banking/explore', (req, res) => res.json(exploreUi()));
 
 // Per il widget Android di una banca: saldo e ultimi movimenti dell'ultima copia letta (non chiama la banca).
@@ -403,7 +375,6 @@ app.post('/api/banking/explore/read', async (req, res) => {
     for (const conn of targets) {
       try { const r = await readAndMerge({ client, db: db(), conn }); merged.added += r.added; merged.pending += r.pending; } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
     }
-    learn();
     await store.save();
     res.json({ ...exploreUi(), errors, merged });
   } catch (e) { bad(res, e.message); }
@@ -434,35 +405,35 @@ app.delete('/api/banking/connections/:id', async (req, res) => {
 
 app.get('/api/transactions', (req, res) => {
   const year = Number(req.query.year);
-  const list = Object.values(db().transactions ?? {}).filter((t) => !year || t.date.startsWith(`${year}-`));
+  // Con ?history=1 ci sono anche le rate del prestito degli estratti UniCredit (prima di ottobre): serve al filtro «Prestito».
+  const list = Object.values(movementsView(db(), { history: req.query.history === '1' }).transactions).filter((t) => !year || t.date.startsWith(`${year}-`));
   list.sort((a, b) => b.date.localeCompare(a.date) || a.description.localeCompare(b.description));
-  res.json({ categories: CATEGORIES, transactions: list });
+  res.json({ categories: CATEGORIES, transactions: list, cutoff: cutoffOf(db().settings) });
 });
 
-// Schede Movimenti e Statistiche: come sono smistati i movimenti e come si incrociano con stipendio e bollette.
-// Filtri opzionali: ?year=2025&month=3 (anno e/o mese; i grafici mostrano i mesi che corrispondono).
-const BILL_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito']);
+// Schede Movimenti e Statistiche: i movimenti della banca dal 1 ottobre 2026 (spesa, svago, carburante; «altro» non conta) e come si incrociano con stipendio e bollette.
+// Filtri opzionali: ?year=2026&month=11 (anno e/o mese; i grafici mostrano i mesi che corrispondono).
+const BILL_KINDS = new Set(['acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito']); // spese fisse: bollette, affitto e rata del prestito
 const pad2 = (n) => String(n).padStart(2, '0');
 app.get('/api/analysis', (req, res) => {
   const year = Number(req.query.year) || 0;
   const month = Number(req.query.month) || 0;
   const match = (ym) => (!year || ym.startsWith(`${year}-`)) && (!month || ym.endsWith(`-${pad2(month)}`));
   const round = (n) => Math.round(n * 100) / 100;
-  const everything = Object.values(db().transactions ?? {});
+  const view = movementsView(db());
+  const everything = Object.values(view.transactions);
   const list = everything.filter((t) => match(t.date.slice(0, 7)));
-  // I giroconti (soldi tra i miei conti) e le bollette già contate nei documenti non entrano in nessun totale: si vedono solo nelle loro tabelle.
+  // «Altro» non entra in nessun totale né media: si vede solo nella sua tabella, per smistarlo a mano.
   const counted = list.filter((t) => !NOT_COUNTED.has(t.category));
-  const outflows = counted.filter((t) => t.amount < 0);
-  const inflows = counted.filter((t) => t.amount > 0);
 
-  // Raggruppa i movimenti per descrizione (uguali a meno di cifre e punteggiatura).
+  // Raggruppa i movimenti per descrizione (uguali a meno di cifre e punteggiatura). Le uscite sommano in positivo.
   const group = (txs) => {
     const map = new Map();
     for (const t of txs) {
       const key = ruleKey(t.description, t.amount) || t.description;
       const m = map.get(key) ?? { id: t.id, name: t.description, positive: t.amount > 0, doc: t.matchedDoc, count: 0, total: 0, from: t.date, last: t.date };
       m.count++;
-      m.total += Math.abs(t.amount);
+      m.total += -t.amount;
       if (t.date < m.from) m.from = t.date;
       if (t.date > m.last) m.last = t.date;
       map.set(key, m);
@@ -471,18 +442,16 @@ app.get('/api/analysis', (req, res) => {
   };
   const sum = (txs) => round(txs.reduce((a, t) => a + Math.abs(t.amount), 0));
 
-  // Uscite: totali per categoria e, dentro ogni categoria, per descrizione.
-  const spendCategories = CATEGORIES.filter((c) => c !== 'entrate' && !NOT_COUNTED.has(c));
-  const total = outflows.reduce((a, t) => a + Math.abs(t.amount), 0);
-  const inCategory = (c) => outflows.filter((t) => (spendCategories.includes(t.category) ? t.category : 'altro') === c);
+  const spendCategories = CATEGORIES.filter((c) => !NOT_COUNTED.has(c));
+  const total = counted.reduce((a, t) => a - t.amount, 0);
 
-  // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella, uscite bancarie per categoria e altre entrate.
+  // Mese per mese: stipendio e bollette dai documenti, spese correnti come nella tabella (spesa, svago, carburante dai movimenti).
   const byMonth = new Map();
   const slot = (ym) => {
-    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, otherIncome: 0, bills: 0, spesa: 0, svago: 0, carburante: 0, bank: { spesa: 0, svago: 0, carburante: 0, prestito: 0, donazioni: 0, tasse: 0, altro: 0 } });
+    if (!byMonth.has(ym)) byMonth.set(ym, { ym, income: 0, bills: 0, spesa: 0, svago: 0, carburante: 0 });
     return byMonth.get(ym);
   };
-  for (const c of buildCells(db()).values()) {
+  for (const c of buildCells(movementsView(db(), { history: true })).values()) {
     if (c.amount == null) continue;
     const m = slot(`${c.year}-${pad2(c.month)}`);
     if (c.kind === 'stipendio') m.income += c.amount;
@@ -490,35 +459,22 @@ app.get('/api/analysis', (req, res) => {
     else if (c.kind === 'spese') m.spesa += c.amount;
     else if (c.kind === 'svago' || c.kind === 'carburante') m[c.kind] += c.amount;
   }
-  for (const t of everything) {
-    if (NOT_COUNTED.has(t.category)) continue;
-    const m = slot(t.date.slice(0, 7));
-    if (t.amount < 0) m.bank[spendCategories.includes(t.category) ? t.category : 'altro'] += Math.abs(t.amount);
-    else if (t.category === 'entrate') m.otherIncome += t.amount;
-  }
   const years = [...new Set([...byMonth.keys()].map((ym) => Number(ym.slice(0, 4))))].sort((a, b) => b - a);
   // Con un anno scelto si mostrano sempre tutti e 12 i mesi, anche quelli ancora senza dati.
   if (year && !month) for (let mo = 1; mo <= 12; mo++) slot(`${year}-${pad2(mo)}`);
   const months = [...byMonth.values()].filter((m) => match(m.ym)).sort((a, b) => a.ym.localeCompare(b.ym)).map((m) => ({
-    ...m,
-    income: round(m.income), otherIncome: round(m.otherIncome), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
-    bank: Object.fromEntries(Object.entries(m.bank).map(([k, v]) => [k, round(v)])),
+    ...m, income: round(m.income), bills: round(m.bills), spesa: round(m.spesa), svago: round(m.svago), carburante: round(m.carburante),
   }));
 
   res.json({
-    years, months, total: round(total), count: outflows.length,
+    years, months, total: round(total), count: counted.length,
     categories: spendCategories.map((k) => {
-      const txs = inCategory(k);
-      const t = txs.reduce((a, x) => a + Math.abs(x.amount), 0);
+      const txs = counted.filter((t) => t.category === k);
+      const t = txs.reduce((a, x) => a - x.amount, 0);
       return { category: k, count: txs.length, total: round(t), share: total ? t / total : 0, column: CATEGORY_KIND[k] ?? null, merchants: group(txs) };
     }),
-    // Entrate: "entrate" conta come altro denaro ricevuto, "altro" sono giri interni ignorati.
     excluded: [...NOT_COUNTED].map((k) => {
       const txs = list.filter((t) => t.category === k);
-      return { category: k, count: txs.length, total: sum(txs), merchants: group(txs) };
-    }),
-    inflows: ['entrate', 'altro'].map((k) => {
-      const txs = inflows.filter((t) => (t.category === 'entrate' ? 'entrate' : 'altro') === k);
       return { category: k, count: txs.length, total: sum(txs), merchants: group(txs) };
     }),
   });
@@ -530,12 +486,9 @@ app.put('/api/transactions', async (req, res) => {
   const t = db().transactions?.[id];
   if (!t) return res.status(404).json({ error: 'Movimento non trovato.' });
   if (!CATEGORIES.includes(category)) return bad(res, 'Categoria non valida.');
-  // La scelta vale per tutti i movimenti con la stessa descrizione e lo stesso verso (entrata o uscita).
-  const key = ruleKey(t.description, t.amount);
-  if (key && key !== 'in:') {
-    db().rules[key] = category;
-    for (const o of Object.values(db().transactions)) if (ruleKey(o.description, o.amount) === key) { o.category = category; o.manual = true; }
-  } else { t.category = category; t.manual = true; }
+  // La scelta vale solo per quel movimento: i tag li dà il pocket, il resto si smista a mano uno per uno.
+  t.category = category;
+  t.manual = true;
   await store.save();
   res.json({ ok: true });
 });
@@ -551,7 +504,6 @@ async function autoRead() {
   for (const conn of b.connections) {
     try { const r = await readAndMerge({ client, db: db(), conn }); added += r.added; } catch (e) { errors.push(`${BANKS[conn.bank]?.label ?? conn.bank}: ${e.message}`); }
   }
-  learn();
   b.lastAuto = { at: new Date().toISOString(), added, errors };
   await store.save();
   console.log(`Aggiornamento automatico delle banche: ${added} nuovi movimenti${errors.length ? `, errori: ${errors.join(' · ')}` : ''}`);

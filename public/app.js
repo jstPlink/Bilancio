@@ -12,17 +12,14 @@ const KINDS = [
   { id: 'spese', label: 'Spese' },
   { id: 'svago', label: 'Svago' },
   { id: 'carburante', label: 'Carburante' },
-  { id: 'entrate', label: 'Altre entrate' },
-  { id: 'donazioni', label: 'Donazioni' },
-  { id: 'tasse', label: 'Tasse' },
 ];
 // Tipi che si assegnano a un documento (le altre voci vengono dalla banca).
-const DOC_KINDS = KINDS.filter((k) => !['entrate', 'donazioni', 'tasse'].includes(k.id));
-const INCOME = new Set(['stipendio', 'entrate']);
+const DOC_KINDS = KINDS;
+const INCOME = new Set(['stipendio']);
 const EXPENSES = KINDS.filter((k) => !INCOME.has(k.id));
 // Voci senza stato "pagato": lo stipendio (entrata) e le spese correnti, che arrivano dall'estratto conto.
 const SPENDING = new Set(['spese', 'svago', 'carburante']);
-const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'donazioni', 'tasse', 'prestito']);
+const NO_PAYMENT = new Set([...INCOME, ...SPENDING, 'prestito']);
 // Voci con un budget mensile (id della colonna e nome).
 const BUDGET_KINDS = [['spese', 'Spesa'], ['svago', 'Svago'], ['carburante', 'Carburante']];
 const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
@@ -88,9 +85,10 @@ function renderCards() {
   const s = state.grid.summary;
   const card = (k, v, sub = '', cls = '', vcls = '') => `<div class="card ${cls}"><div class="k">${k}</div><div class="v ${vcls}">${v}</div><div class="sub">${sub}</div></div>`;
   const dueParts = EXPENSES.filter((k) => s.toPayAll[k.id] > 0).map((k) => k.label).join(', ');
+  const totalDue = Math.round(EXPENSES.reduce((a, k) => a + (s.toPayAll[k.id] > 0 ? s.toPayAll[k.id] : 0), 0) * 100) / 100;
   $('#cards').innerHTML = [
-    s.totalToPay > 0
-      ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(s.totalToPay)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
+    totalDue > 0
+      ? `<button class="card due payall-all" data-payall-everything="1" title="Segna tutto come pagato"><div class="k">Da pagare</div><div class="v">${money(totalDue)}</div><div class="sub">${dueParts} · clic per saldare tutto</div></button>`
       : card('Da pagare', money(0), 'Tutto pagato', 'due'),
     card('Entrate medie', money(s.avgIncome) || '—', '', '', 'good'),
     card('Uscite medie', money(s.avgSpent) || '—', '', '', 'bad'),
@@ -103,14 +101,12 @@ function renderCards() {
 
 // Uscite raggruppate: ogni gruppo è una colonna; "Bollette" si può aprire nelle sue voci (e per casa).
 const GROUPS = [
-  { id: 'bollette', label: 'Bollette', leaves: ['acqua', 'luce:casa1', 'luce:casa2', 'gas:casa1', 'gas:casa2', 'wifi'] },
+  { id: 'bollette', label: 'Bollette', leaves: [] }, // le voci (acqua, luce, gas, wifi) si ricavano dalle colonne del server
   { id: 'affitto', label: 'Affitto', leaves: ['affitto'] },
   { id: 'prestito', label: 'Prestito', leaves: ['prestito'] },
   { id: 'spese', label: 'Spesa', leaves: ['spese'] },
   { id: 'svago', label: 'Svago', leaves: ['svago'] },
   { id: 'carburante', label: 'Carburante', leaves: ['carburante'] },
-  { id: 'donazioni', label: 'Donazioni', leaves: ['donazioni'] },
-  { id: 'tasse', label: 'Tasse', leaves: ['tasse'] },
 ];
 // Telefono: solo le colonne compatte (Mese, Entrate, Uscite, Bilancio). Schermo largo: tutte le voci sempre aperte.
 const phone = window.matchMedia('(max-width: 720px)');
@@ -146,8 +142,7 @@ function buildColumns() {
     cell: (m) => ({ amount: rows[m - 1].income }),
     tip: (m) => {
       const st = cellOf('stipendio', m).amount;
-      const other = cellOf('entrate', m).amount;
-      return [st != null ? `Stipendio ${money(st)}` : '', other != null ? `Altre entrate ${money(other)}` : ''].filter(Boolean).join(' · ');
+      return st != null ? `Stipendio ${money(st)}` : '';
     },
     avg: () => s.avgIncome,
   });
@@ -165,26 +160,18 @@ function buildColumns() {
 
   if (!phone.matches) {
     GROUPS.forEach((g) => {
-      const members = g.leaves.map((id) => leaf[id]);
-      const isMulti = g.leaves.length > 1;
+      // Nessuna colonna per casa: se un server più vecchio le manda ancora, restano come voci a parte.
+      const leafIds = g.id === 'bollette' ? leaves.filter((l) => ['acqua', 'luce', 'gas', 'wifi'].includes(l.kind)).map((l) => l.id) : g.leaves;
+      const members = leafIds.map((id) => leaf[id]);
+      const isMulti = leafIds.length > 1;
       const first = members[0];
       const col = isMulti
-        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(g.leaves.map((id) => cellOf(id, m))), leafIds: g.leaves }
+        ? { id: `g:${g.id}`, kind: g.id, label: g.label, place: null, cell: (m) => sumCells(leafIds.map((id) => cellOf(id, m))), leafIds }
         : { ...first, label: first.kind === 'spese' ? 'Spesa' : undefined, cell: (m) => cellOf(first.id, m), leafIds: [first.id] };
       add({ ...col, sub: true, depth: 1, colorKey: g.id });
       if (isMulti) {
         const addLeaf = (l, depth = 2) => add({ ...l, cell: (m) => cellOf(l.id, m), leafIds: [l.id], sub: true, depth });
-        const secondHome = members.filter((l) => l.place === 'casa2');
-        members.filter((l) => l.place !== 'casa2').forEach((l) => addLeaf(l));
-        // Le voci della seconda casa si possono comprimere in una sola colonna (utile quando non ci sono più bollette da pagare).
-        if (g.id === 'bollette' && secondHome.length) {
-          const ids = secondHome.map((l) => l.id);
-          add({
-            id: 'g:casa2', kind: 'bollette', label: PLACE_LABELS.casa2, place: null, colorKey: 'bollette', sub: true, depth: 2,
-            cell: (m) => sumCells(ids.map((id) => cellOf(id, m))), leafIds: ids,
-          });
-          secondHome.forEach((l) => addLeaf(l, 3));
-        }
+        members.forEach((l) => addLeaf(l));
       }
     });
   }
@@ -266,7 +253,7 @@ function renderGrid() {
   const body = rows.map((r) => `<tr><th scope="row" class="go" data-go="balance" data-month="${r.month}" role="button" tabindex="0" title="Movimenti di ${MONTHS[r.month - 1]}">${MONTHS[r.month - 1]}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${cellHtml(c, r.month, c.cell(r.month))}</td>`).join('')}</tr>`).join('');
   const foot = `
     <tr><th>Media ${state.year}</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${money(c.average) || '–'}</td>`).join('')}</tr>
-    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${c.due ? `<button class="link" data-payall="${c.id}" title="Segna come pagato tutto ${esc(colName(c))} fino a oggi">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
+    <tr><th>Da pagare</th>${cols.map((c) => `<td class="num ${cls(c)}"> ${c.due ? `<button class="link" data-duecol="${c.id}" title="Mostra i movimenti da pagare di ${esc(colName(c))}">${money(c.due)}</button>` : ''}</td>`).join('')}</tr>`;
   $('#grid').innerHTML = `<thead><tr><th class="g-month">Mese</th>${head}</tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot>`;
 }
 
@@ -281,7 +268,7 @@ window.addEventListener('resize', () => {
 });
 
 async function payEverything() {
-  const due = state.grid.summary.totalToPay;
+  const due = Math.round(EXPENSES.reduce((a, k) => a + Math.max(0, state.grid.summary.toPayAll[k.id] ?? 0), 0) * 100) / 100;
   if (!(due > 0)) return;
   if (!confirm(`Segnare come pagato tutto il dovuto (${money(due)}, di tutti gli anni e di tutte le case)?`)) return;
   const r = await api('/api/pay-all', { method: 'POST', body: {} });
@@ -308,9 +295,9 @@ async function payAll(colId) {
 
 // ------------------------------------------------------------------ movimenti
 
-const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito (rata mutuo)', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bolletta già contata (non contare)', giroconti: 'Giroconto (non contare)', sospesi: 'Da suddividere (non contare)', altro: 'Altro (non conta)' };
-const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bollette pagate', giroconti: 'Giroconti', sospesi: 'Da suddividere', altro: 'Altro' };
-const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', prestito: 'var(--viz-bollette)', donazioni: 'var(--viz-donazioni)', tasse: 'var(--viz-tasse)', bollette: 'var(--viz-altro)', giroconti: 'var(--viz-altro)', sospesi: 'var(--viz-altro)', altro: 'var(--viz-altro)' };
+const CATEGORY_LABELS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', altro: 'Altro' };
+const CATEGORY_NAME = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', altro: 'Altro' };
+const CATEGORY_COLOR = { spesa: 'var(--viz-spesa)', svago: 'var(--viz-svago)', carburante: 'var(--viz-carburante)', prestito: 'var(--viz-bollette)', altro: 'var(--viz-altro)' };
 const fmtDate = (d) => d.split('-').reverse().join('/');
 
 // Ordinamento delle colonne: clic sull'intestazione, di nuovo per invertire.
@@ -347,11 +334,7 @@ function setSort(spec) {
   renderBank();
 }
 
-const categorySelect = (attr, id, current, label, positive = false) => {
-  const options = positive ? ['entrate', 'giroconti', 'altro'] : ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'bollette', 'giroconti', 'sospesi', 'altro'];
-  const names = positive ? { entrate: 'Entrate', giroconti: 'Giroconto (non contare)', altro: 'Altro (non conta)' } : CATEGORY_LABELS;
-  return `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${options.map((c) => `<option value="${c}" ${c === current ? 'selected' : ''}>${names[c]}</option>`).join('')}</select>`;
-};
+const categorySelect = (attr, id, current, label) => `<select ${attr}="${id}" aria-label="Categoria di ${esc(label)}">${Object.entries(CATEGORY_LABELS).map(([c, name]) => `<option value="${c}" ${c === current ? 'selected' : ''}>${name}</option>`).join('')}</select>`;
 
 const CURRENT_YEAR = new Date().getFullYear();
 // Periodo e filtri condivisi da Movimenti e Statistiche.
@@ -363,12 +346,10 @@ state.moves = [];
 // Carica movimenti e analisi del periodo scelto e ridisegna la scheda visibile.
 async function loadBank() {
   const { year, month } = state.bank;
-  const [tx, analysis, settings] = await Promise.all([
-    api(`/api/transactions?year=${year}`),
+  const [tx, analysis] = await Promise.all([
+    api(`/api/transactions?year=${year}${state.bank.cat === 'prestito' ? '&history=1' : ''}`), // col filtro Prestito si vedono anche le rate degli estratti UniCredit
     api(`/api/analysis?year=${year}&month=${month}`),
-    api('/api/settings').catch(() => null),
   ]);
-  state.payers = String(settings?.incomePayers ?? '').split(/[,;]/).map((p) => p.trim()).filter((p) => normText(p));
   state.moves = tx.transactions;
   state.bank.data = analysis;
   renderBank();
@@ -399,8 +380,8 @@ function renderFilters() {
   }
   const catSelect = $('#catSelect');
   if (catSelect) {
-    const names = data ? [...data.categories, ...data.inflows.filter((c) => c.count), ...data.excluded.filter((c) => c.count)].map((c) => c.category) : [];
-    const list = [...new Set([...names, ...(cat ? [cat] : [])])].filter((c) => c !== 'giroconti');
+    // Solo i tag di adesso (le vecchie categorie, anche se il server le manda, non si filtrano).
+    const list = Object.keys(CATEGORY_LABELS);
     catSelect.innerHTML = `<option value="">Tutte</option>${list.map((c) => `<option value="${c}" ${c === cat ? 'selected' : ''}>${esc(catName(c))}</option>`).join('')}`;
   }
   document.querySelectorAll('.f-reset').forEach((el) => { el.hidden = year === CURRENT_YEAR && !month && !cat && !q && !state.bank.flow; });
@@ -451,9 +432,8 @@ const dayOf = (date) => new Date(`${date}T12:00:00`);
 const longDate = (date) => dayOf(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const normText = (s) => String(s ?? '').toLowerCase().replace(/[0-9]+/g, ' ').replace(/[^a-zà-ÿ ]/g, ' ').replace(/\s+/g, ' ').trim();
 const sameKey = (t) => (t.amount > 0 ? 'in:' : '') + (normText(t.description) || t.description);
-// Chi paga lo stipendio (Impostazioni → «Chi mi paga lo stipendio»): i suoi bonifici hanno descrizioni sempre un po' diverse, ma sono la stessa cosa.
-const payerOf = (t) => (t.amount > 0 ? (state.payers ?? []).find((p) => normText(t.description).includes(normText(p))) : undefined);
-const groupKey = (t) => { const p = payerOf(t); return p ? `in:@${normText(p)}` : sameKey(t); };
+const payerOf = () => undefined; // lo stipendio viene dalle buste paga, non dai movimenti
+const groupKey = sameKey;
 const searchUrl = (t) => `https://www.google.com/search?q=${encodeURIComponent(t.description)}`;
 const mapsUrl = (t) => `https://www.google.com/maps/search/${encodeURIComponent(t.description)}`;
 const catName = (c) => CATEGORY_NAME[c] ?? c;
@@ -502,7 +482,6 @@ function filteredMoves() {
   const { month, cat, q, flow } = state.bank;
   const needle = q.trim().toLowerCase();
   return state.moves.filter((t) => {
-    if (t.category === 'giroconti') return false; // i giri tra i propri conti hanno la loro sezione e non contano
     if (month && Number(t.date.slice(5, 7)) !== month) return false;
     if (flow === 'in' && !(t.amount > 0)) return false;
     if (flow === 'out' && !(t.amount < 0)) return false;
@@ -510,6 +489,14 @@ function filteredMoves() {
     if (!needle) return true;
     return `${t.description} ${t.detail ?? ''} ${methodOf(t)} ${t.amount} ${money(t.amount)} ${fmtDate(t.date)} ${catName(t.category)}`.toLowerCase().includes(needle);
   });
+}
+
+// Cambia il filtro per tag: da e verso «Prestito» i movimenti si rileggono (le rate degli estratti UniCredit sono prima di ottobre).
+function setCat(next) {
+  const reload = (state.bank.cat === 'prestito') !== (next === 'prestito');
+  state.bank.cat = next;
+  if (next === 'prestito') state.bank.year = 0; // le rate degli estratti sono di mesi e anni passati
+  if (reload) loadBank().catch((err) => toast(err.message)); else renderBank();
 }
 
 function toggleExpand(id) {
@@ -525,34 +512,42 @@ function categoryCards(a) {
     const share = c.share != null ? ` · ${(c.share * 100).toFixed(1).replace('.', ',')}%` : '';
     return `<button class="card catcard${on ? ' on' : ''}${muted ? ' muted-card' : ''}" data-cat="${c.category}" aria-pressed="${on}" title="${on ? 'Clic per togliere il filtro' : 'Clic per vedere solo questi movimenti'}"><div class="k"><i class="key" style="--c:${color}"></i> ${esc(name)}${note}</div><div class="v">${money(c.total)}</div><div class="sub">${c.count} movimenti${share}</div></button>`;
   };
-  const inflow = a.inflows.find((c) => c.category === 'entrate');
-  const hidden = a.excluded.filter((c) => c.count && c.category !== 'giroconti'); // i giroconti non compaiono tra le statistiche
+  const hidden = a.excluded.filter((c) => c.count && CATEGORY_LABELS[c.category]); // «altro» non conta: si vede solo per smistarlo a mano
   return [
-    ...a.categories.filter((c) => c.count || state.bank.cat === c.category).map((c) => card(c, { note: c.column ? '' : ' <small>· fuori dalla tabella</small>' })),
-    inflow?.count ? card(inflow, { name: 'Altre entrate', color: 'var(--viz-entrate)' }) : '',
+    ...a.categories.filter((c) => CATEGORY_LABELS[c.category] && (c.count || state.bank.cat === c.category)).map((c) => card(c)),
     ...hidden.map((c) => card(c, { muted: true, note: ' <small>· non conta</small>' })),
   ].join('');
 }
 
+// Movimenti «da pagare»: le voci di una colonna (bollette, affitto…) ancora da pagare, con la pastiglia «Da pagare» e la linea arancione.
+function renderDue() {
+  const col = state.colMap?.[state.bank.due];
+  $('#movesEmpty').hidden = true;
+  if (!col) { state.bank.due = null; return false; }
+  const items = [];
+  for (let m = 1; m <= 12; m++) for (const id of col.leafIds ?? []) for (const p of state.grid.rows[m - 1].cells[id]?.parts ?? []) if (!p.paid && p.amount != null) items.push({ m, p });
+  const total = Math.round(items.reduce((s, x) => s + x.p.amount, 0) * 100) / 100;
+  const label = (p) => `${KINDS.find((k) => k.id === p.kind)?.label ?? p.kind}${PLACE_LABELS[p.place] && p.kind !== 'affitto' && p.kind !== 'prestito' ? ` ${PLACE_LABELS[p.place]}` : ''}`;
+  $('#movesBody').innerHTML = `<p class="catfilter">Mostro solo i <b>da pagare</b>: ${esc(colName(col))}, ${state.year} <button class="link" data-cleardue="1">Mostra tutto</button> <button class="link" data-payall="${col.id}">Segna tutto come pagato</button></p>`
+    + (items.length ? `<p class="muted resultline">${items.length} da pagare · ${money(total)}</p><div class="mvlist">${items.map(({ m, p }) => `<div class="mvitem pending due"><div class="mv-l1"><span class="mv-date">${MONTHS[m - 1]} ${state.year}</span><span class="pill warn">Da pagare</span><span class="mv-amt">${money(p.amount)}</span></div><div class="mv-l2"><span class="dtext">${esc(label(p))}</span></div></div>`).join('')}</div>`
+      : '<p class="muted">Niente da pagare in questa colonna per quest anno.</p>');
+  return true;
+}
+
 function renderMoves() {
+  if (state.bank.due && renderDue()) return;
   const a = state.bank.data;
-  const empty = !state.moves.length && !(a && (a.count || a.months?.some((m) => m.bank && Object.values(m.bank).some(Boolean))));
+  const empty = !state.moves.length && !(a && a.count);
   $('#movesEmpty').hidden = !empty;
   if (empty) { $('#movesBody').innerHTML = ''; return; }
 
   const list = filteredMoves();
-  const out = list.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const inn = list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const summary = `<p class="muted resultline">${list.length} movimenti${list.some((t) => t.pending) ? ` (${list.filter((t) => t.pending).length} in sospeso, già contati)` : ''} · uscite ${money(out)} · entrate ${money(inn)} <span title="Comprese le bollette già contate nei documenti, che non entrano nei totali dell'app. I giroconti stanno nella sezione in fondo">(${periodLabel()})</span>. Tocca un movimento per vederne i dati completi. Cambia la categoria dal menu: vale per tutte le descrizioni uguali.</p>`;
+  const out = list.filter((t) => t.category !== 'altro').reduce((s, t) => s - t.amount, 0); // «altro» non conta
+    const summary = `<p class="muted resultline">${list.length} movimenti${list.some((t) => t.pending) ? ` (${list.filter((t) => t.pending).length} in sospeso)` : ''} · spese contate ${money(out)} <span title="Il tag lo decide il pocket di provenienza: 01 Spesa, Svago, Carburante; il resto è «altro» e non conta">(${periodLabel()})</span>. Tocca un movimento per vederne i dati; i movimenti «altro» si smistano a mano dal menu.</p>`;
   const flowName = { in: 'solo entrate', out: 'solo uscite' }[state.bank.flow];
   const filter = (state.bank.cat ? `<p class="catfilter">Categoria: <b>${esc(catName(state.bank.cat))}</b> <button class="link" data-clearcat="1">Togli il filtro</button></p>` : '')
     + (flowName ? `<p class="catfilter">Mostro <b>${flowName}</b> <button class="link" data-clearflow="1">Mostra tutto</button></p>` : '');
-  // Giroconti: soldi che si spostano tra i tuoi conti e pocket (spesso registrati due volte, in uscita e in entrata). Non contano in nessun totale.
-  const { month } = state.bank;
-  const transfers = state.moves.filter((t) => t.category === 'giroconti' && (!month || Number(t.date.slice(5, 7)) === month));
-  const moved = transfers.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-  const transferBox = transfers.length ? `<details class="acat transfers"${state.bank.transfersOpen ? ' open' : ''}><summary>Giroconti tra i tuoi conti <span class="muted">· ${transfers.length} movimenti, ${money(moved)} spostati, non contati in nessun totale</span></summary><p class="muted">Sono gli stessi soldi che passano da un conto o pocket all'altro: per questo non compaiono in Panoramica né in Statistiche. Se uno di questi movimenti è in realtà una spesa o un'entrata, cambiane la categoria dal menu.</p>${movesTable(transfers, 'transferTable')}</details>` : '';
-  $('#movesBody').innerHTML = filter + summary + movesTable(list) + transferBox;
+  $('#movesBody').innerHTML = filter + summary + movesTable(list);
 }
 
 // Un solo elenco: ogni transazione è una riga; con «Unisci le transazioni ripetute» quelle con la stessa descrizione (lo stesso ente) sono accorpate in una riga che si apre sui singoli movimenti.
@@ -631,21 +626,21 @@ function renderAnalysis() {
   const top = cats.flatMap((c) => c.merchants.map((m) => ({ ...m, cat: c.category }))).sort((x, y) => y.total - x.total).slice(0, 10);
   const numbers = a.months.map((m) => {
     const out = m.bills + m.spesa + m.svago + m.carburante;
-    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.otherIncome) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num">${money(m.bank.donazioni) || '–'}</td><td class="num">${money(m.bank.tasse) || '–'}</td><td class="num">${money(m.bank.altro) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
+    return `<tr><td>${monthLong(m.ym)}</td><td class="num">${money(m.income) || '–'}</td><td class="num">${money(m.bills) || '–'}</td><td class="num">${money(m.spesa) || '–'}</td><td class="num">${money(m.svago) || '–'}</td><td class="num">${money(m.carburante) || '–'}</td><td class="num"><b>${money(out) || '–'}</b></td><td class="num ${m.income ? (m.income - out >= 0 ? 'pos' : 'neg') : ''}">${m.income ? money(m.income - out) : '–'}</td></tr>`;
   }).join('');
 
   $('#analysisBody').innerHTML = `
-    <p class="muted">${a.count} uscite bancarie, ${money(a.total)} in tutto (${periodLabel()}). Tocca una categoria per vederne i movimenti.</p>
+    <p class="muted">${a.count} movimenti contati, ${money(a.total)} in tutto (${periodLabel()}), dal 1 ottobre 2026. «Altro» non entra in nessun totale né media. Tocca una categoria per vederne i movimenti.</p>
     <div class="cards catcards">${categoryCards(a)}</div>
     <section class="chartcard">
       <h3>Stipendio contro uscite</h3>
-      <p class="muted">Bollette e affitto dai documenti, rata del prestito dagli estratti conto; spesa, svago e carburante dall'estratto conto. La linea verde sono le altre entrate in banca (bonifici ricevuti, non contati nello stipendio). Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
+      <p class="muted">Bollette e affitto dai documenti, rata del prestito da UniCredit; spesa, svago e carburante dai pocket della banca. Se la linea sta sopra le colonne, il mese chiude in positivo. Clic su un mese per filtrarlo.</p>
       <div id="chIncome" class="chart"></div>
     </section>
     <div class="chartrow">
       <section class="chartcard">
         <h3>Dove va il denaro della banca</h3>
-        <p class="muted">Tutte le uscite bancarie per categoria, compresa la parte ancora in "Altro" (le entrate sono nel grafico sopra).</p>
+        <p class="muted">Le uscite dei pocket Spesa, Svago e Carburante mese per mese.</p>
         <div id="chBank" class="chart"></div>
       </section>
       <section class="chartcard">
@@ -655,7 +650,7 @@ function renderAnalysis() {
       </section>
     </div>
     <details class="acat"><summary>Numeri mese per mese <span class="muted">· tabella dei grafici</span></summary>
-      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Altre entrate</th><th class="num">Bollette e affitto</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Donazioni</th><th class="num">Tasse</th><th class="num">Altro (banca)</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
+      <div class="tablewrap"><table class="atable"><thead><tr><th>Mese</th><th class="num">Stipendio</th><th class="num">Bollette, affitto e rata</th><th class="num">Spesa</th><th class="num">Svago</th><th class="num">Carburante</th><th class="num">Uscite totali</th><th class="num">Saldo</th></tr></thead><tbody>${numbers}</tbody></table></div>
     </details>`;
 
   const pick = (ym) => {
@@ -668,16 +663,15 @@ function renderAnalysis() {
       { label: 'Spesa', color: 'var(--viz-spesa)', get: (m) => m.spesa },
       { label: 'Svago', color: 'var(--viz-svago)', get: (m) => m.svago },
       { label: 'Carburante', color: 'var(--viz-carburante)', get: (m) => m.carburante },
-      { label: 'Bollette e affitto', color: 'var(--viz-bollette)', get: (m) => m.bills },
+      { label: 'Bollette, affitto e rata', color: 'var(--viz-bollette)', get: (m) => m.bills },
     ],
     lines: [
       { label: 'Stipendio', color: 'var(--ink)', get: (m) => m.income },
-      { label: 'Altre entrate', color: 'var(--viz-entrate)', get: (m) => m.otherIncome },
     ],
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   monthChart($('#chBank'), a.months, {
-    series: ['spesa', 'svago', 'carburante', 'prestito', 'donazioni', 'tasse', 'altro'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m.bank[k] })),
+    series: ['spesa', 'svago', 'carburante'].map((k) => ({ label: CATEGORY_NAME[k], color: CATEGORY_COLOR[k], get: (m) => m[k] })),
     onPick: state.bank.year && state.bank.month ? undefined : pick,
   });
   hBars($('#chTop'), top.map((m) => ({ label: shortName(m.name), value: m.total, color: CATEGORY_COLOR[m.cat], cat: CATEGORY_NAME[m.cat], sub: `${m.count} volte` })));
@@ -687,13 +681,13 @@ async function setCategory(select) {
   const ids = (select.dataset.moves ?? select.dataset.move ?? select.dataset.amove).split(',');
   for (const id of ids) await api('/api/transactions', { method: 'PUT', body: { id, category: select.value } });
   await Promise.all([loadBank(), loadGrid()]);
-  toast('Categoria salvata: la ricorderò per i movimenti con la stessa descrizione.');
+  toast('Categoria salvata per questo movimento.');
 }
 
-// Carica documento: si sceglie il file, il nome e che cosa è (estratto conto, bolletta o busta paga).
-const UPLOAD_TYPES = { estratto: 'Estratto conto', bolletta: 'Bolletta', busta: 'Busta paga' };
+// Carica documento: si sceglie il file, il nome e che cosa è (bolletta o busta paga).
+const UPLOAD_TYPES = { bolletta: 'Bolletta', busta: 'Busta paga', estratto: 'Estratto conto UniCredit' };
 const UPLOAD_HINTS = {
-  estratto: 'CSV (Revolut: Conti → Estratti → Excel/CSV) o PDF (UniCredit, Revolut): i movimenti si aggiungono a Movimenti, senza duplicati.',
+  estratto: 'PDF dell\'estratto conto UniCredit: se ne legge solo la rata del prestito (le altre voci si ignorano).',
   bolletta: 'PDF della bolletta: ne leggo importo e mese. Se il mese non è nel PDF, scrivilo nel nome (es. «Luce 2026.09»).',
   busta: 'PDF della busta paga: ne leggo il netto in busta e il mese.',
 };
@@ -701,7 +695,7 @@ const UPLOAD_HINTS = {
 // Prima ipotesi sul tipo di documento, dal nome e dall'estensione del file.
 function guessUpload(fileName) {
   const base = fileName.replace(/\.[^.]+$/, '');
-  if (/\.csv$/i.test(fileName) || /estratt|movimenti|statement/i.test(fileName)) return { base, type: 'estratto' };
+  if (/estratt|unicredit|conto/i.test(fileName)) return { base, type: 'estratto' };
   if (/busta|cedolino|stipendi|payslip/i.test(fileName)) return { base, type: 'busta' };
   const kind = /acqua|idric/i.test(fileName) ? 'acqua' : /luce|elettric|energia/i.test(fileName) ? 'luce' : /\bgas\b/i.test(fileName) ? 'gas' : /wifi|wi-fi|internet|fibra|telefon/i.test(fileName) ? 'wifi' : '';
   const low = fileName.toLowerCase();
@@ -714,7 +708,7 @@ function openUpload() {
   const opt = (v, l) => `<option value="${v}">${l}</option>`;
   dlg.innerHTML = `<form class="dlg" method="dialog">
     <h2>Carica documento</h2>
-    <label>File<input type="file" name="file" accept=".pdf,.csv,application/pdf,text/csv" required></label>
+    <label>File<input type="file" name="file" accept=".pdf,application/pdf" required></label>
     <label>Nome<input name="name" placeholder="Es. Luce 2026.09" autocomplete="off" required></label>
     <label>Che documento è?<select name="type">${Object.entries(UPLOAD_TYPES).map(([v, l]) => opt(v, l)).join('')}</select></label>
     <div class="row" id="upBill" hidden>
@@ -728,7 +722,6 @@ function openUpload() {
   const sync = () => {
     $('#upBill').hidden = form.type.value !== 'bolletta';
     $('#upHint').textContent = UPLOAD_HINTS[form.type.value];
-    form.file.accept = form.type.value === 'estratto' ? '.pdf,.csv,application/pdf,text/csv' : '.pdf,application/pdf';
   };
   sync();
   form.type.addEventListener('change', sync);
@@ -749,7 +742,7 @@ function openUpload() {
     const type = form.type.value;
     const fail = (msg) => { $('#upErr').textContent = msg; };
     if (!file) return fail('Scegli un file.');
-    if (type !== 'estratto' && !/\.pdf$/i.test(file.name)) return fail('Le bollette e le buste paga devono essere file PDF.');
+    if (!/\.pdf$/i.test(file.name)) return fail('Le bollette e le buste paga devono essere file PDF.');
     const params = new URLSearchParams({ type, name: form.name.value });
     if (type === 'bolletta') { params.set('kind', form.kind.value); params.set('place', form.place.value); }
     const go = $('#upGo');
@@ -759,7 +752,7 @@ function openUpload() {
     try {
       const r = await api(`/api/upload?${params}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, raw: file });
       dlg.close();
-      if (r.type === 'estratto') toast(`Movimenti aggiunti: ${r.added}${r.duplicates ? ` (${r.duplicates} già presenti)` : ''}.${r.warning ? ` Attenzione: ${r.warning}.` : ''}`, r.warning ? 9000 : 4500);
+      if (r.type === 'estratto') toast(r.found ? `Rate del prestito trovate: ${r.found}, nuove ${r.added}.` : `Nessuna rata del prestito trovata${r.bank ? ` (estratto ${r.bank})` : ''}: si leggono solo gli estratti UniCredit.`, 6000);
       else if (r.doc.status === 'ok') toast(`Caricato: ${KINDS.find((k) => k.id === r.doc.kind)?.label ?? ''} ${MONTHS[r.doc.month - 1]} ${r.doc.year}, ${money(r.doc.amount)}.`);
       else toast(`Caricato, ma da controllare: non ho letto ${r.doc.missing.join(', ')}. Apri Modifica nell'elenco.`, 9000);
       await Promise.all([loadDocs(), loadGrid(), loadBank()]);
@@ -778,18 +771,34 @@ async function loadDocs() {
   state.docs = await api('/api/docs');
   const bad = state.docs.filter((d) => d.status === 'incompleto').length;
   document.querySelectorAll('.docbadge').forEach((badge) => { badge.hidden = !bad; badge.textContent = bad; });
-  $('#docsEmpty').hidden = state.docs.length > 0;
-  $('#docTable').hidden = state.docs.length === 0;
+  state.settings = await api('/api/settings').catch(() => state.settings);
+  const set_ = state.settings ?? {};
   const kindLabel = (id) => KINDS.find((k) => k.id === id)?.label ?? '—';
-  $('#docTable').innerHTML = state.docs.length ? `<thead><tr><th>File</th><th>Tipo</th><th>Periodo</th><th class="num">Importo</th><th>Stato</th><th></th></tr></thead><tbody>${
-    state.docs.map((d, i) => `<tr>
+  const row = (d, i) => `<tr>
       <td class="fname" title="${esc(d.name)}">${esc(d.name)}</td>
       <td>${kindLabel(d.kind)}</td>
       <td>${d.year && d.month ? `${MONTHS[d.month - 1]} ${d.year}` : '—'}</td>
       <td class="num">${money(d.amount) || '—'}</td>
       <td>${d.status === 'ok' ? '<span class="pill ok">Letto</span>' : d.status === 'ignorato' ? '<span class="pill edit">Ignorato</span>' : `<span class="pill warn" title="Manca: ${esc(d.missing.join(', '))}">Da controllare</span>`}${d.edited ? ' <span class="pill edit">Corretto</span>' : ''}</td>
-      <td><button type="button" class="link" data-doc="${i}">Modifica</button></td></tr>`).join('')}</tbody>` : '';
+      <td><button type="button" class="link" data-doc="${i}">Modifica</button></td></tr>`;
+  const table = (list) => (list.length
+    ? `<div class="tablewrap"><table class="atable doctable"><thead><tr><th>File</th><th>Tipo</th><th>Periodo</th><th class="num">Importo</th><th>Stato</th><th></th></tr></thead><tbody>${list.map(([d, i]) => row(d, i)).join('')}</tbody></table></div>`
+    : '<p class="muted">Nessun documento ancora: indica qui sopra dove si trovano e premi <b>Aggiorna</b>.</p>');
+  const sections = DOC_SECTIONS.map((sec) => `<section class="docsec" data-sec="${sec.id}">
+    <h2>${sec.title}</h2>
+    <form class="docsrc" data-setting="${sec.setting}"><label class="grow">Indirizzo<input name="url" value="${esc(set_[sec.setting] ?? '')}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label><button class="ghost">Salva</button></form>
+    <p class="muted">${sec.hint}</p>
+    ${sec.pick ? table(state.docs.map((d, i) => [d, i]).filter(([d]) => sec.pick(d))) : ''}
+  </section>`).join('');
+  $('#docsBody').innerHTML = sections;
 }
+
+// Le tre sezioni della scheda Documenti: ognuna ha il suo indirizzo (link Seafile pubblico o percorso locale) in cima.
+const DOC_SECTIONS = [
+  { id: 'bills', title: 'Bollette', setting: 'billsSource', pick: (d) => d.source !== 'busta', hint: 'PDF delle bollette (acqua, luce, gas, wifi). Le sottocartelle si leggono in automatico; la prima cartella è la casa.' },
+  { id: 'payslips', title: 'Buste paga', setting: 'payslipsSource', pick: (d) => d.source === 'busta', hint: 'PDF delle buste paga: l\'app legge il netto in busta e il mese. Le sottocartelle si leggono in automatico.' },
+  { id: 'statements', title: 'Estratti conto', setting: 'statementsSource', pick: null, hint: 'Estratti conto PDF di UniCredit: se ne legge soltanto la rata del prestito (spesa fissa). I movimenti arrivano dalle banche collegate, dal 1 ottobre 2026.' },
+];
 
 function openDoc(index) {
   const d = state.docs[index];
@@ -850,25 +859,20 @@ async function openSettings() {
   const dlg = $('#settingsDlg');
   dlg.innerHTML = `<form class="dlg" method="dialog">
     <div class="dlghead"><button type="button" class="back" data-act="close" aria-label="Indietro" title="Indietro">←</button><h2>Impostazioni</h2></div>
-    <details class="fs"><summary>Dove si trovano i documenti</summary><div class="fsbody">
-      <label>Buste paga<input name="payslipsSource" value="${esc(s.payslipsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
-      <label>Bollette<input name="billsSource" value="${esc(s.billsSource)}" placeholder="Link Seafile (…/d/xxxx/) o percorso locale" autocomplete="off"></label>
-      <small>Le sottocartelle vengono lette in automatico. I link Seafile devono essere pubblici, senza password. I movimenti arrivano dalla banca collegata (Collega le banche); gli estratti conto più vecchi si caricano a mano da Documenti → Carica documento.</small>
-    </div></details>
     <details class="fs"><summary>Affitto</summary><div class="fsbody">
       <div class="row">
-        <label>Importo mensile (€)<input name="rentAmount" inputmode="decimal" value="${inputValue(s.rentAmount || null)}" placeholder="0"></label>
-        <label>Dal mese<input name="rentFrom" type="month" value="${esc(s.rentFrom)}"></label>
+        <label>Importo totale (€)<input name="rentAmount" inputmode="decimal" value="${inputValue(s.rentAmount || null)}" placeholder="0"></label>
+        <label>La mia quota (%)<input name="rentShare" inputmode="decimal" value="${inputValue(s.rentShare ?? 100)}" placeholder="100"></label>
       </div>
-      <small>Viene aggiunto automaticamente ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
+      <div class="row">
+        <label>Dal mese<input name="rentFrom" type="month" value="${esc(s.rentFrom)}"></label>
+        <label>Risultato (€ al mese)<output id="rentResult" class="rentresult"></output></label>
+      </div>
+      <small>Importo totale × la tua quota = quello che conta ogni mese, senza PDF. Nella tabella si segna pagato con un clic.</small>
     </div></details>
     <details class="fs"><summary>Bollette</summary><div class="fsbody">
       <label>La mia quota di acqua, luce, gas e wifi (%)<input name="billShare" inputmode="decimal" value="${inputValue(s.billShare ?? 50)}" placeholder="50"></label>
-      <div class="row">
-        <label>Nome della casa 1<input name="place1" value="${esc(s.placeNames?.casa1 ?? '')}" placeholder="Casa 1" maxlength="40" autocomplete="off"></label>
-        <label>Nome della casa 2<input name="place2" value="${esc(s.placeNames?.casa2 ?? '')}" placeholder="Casa 2" maxlength="40" autocomplete="off"></label>
-      </div>
-      <small>Il nome della casa è quello della cartella delle bollette (es. «Casa 1/2026/Luce 2026.03.pdf»). Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
+      <small>Se dividi le bollette con qualcuno (di norma 50%) l'app conta solo la tua parte: nelle uscite, nel «Da pagare», nel widget e nel budget. I PDF restano interi.</small>
     </div></details>
     <details class="fs" id="docsBox"><summary>Documenti <span class="badge warn docbadge" hidden></span></summary><div class="fsbody" id="docsHost"></div></details>
     ${window.Native?.serverAddress?.() ? `<details class="fs"><summary>Server</summary><div class="fsbody"><p class="muted">${esc(window.Native.serverAddress())}</p><button type="button" class="ghost" data-act="server-reset">Cambia server</button><small>Esci dal server attuale: l'app chiederà di nuovo l'indirizzo.</small></div></details>` : ''}
@@ -879,14 +883,21 @@ async function openSettings() {
     <div class="foot sticky" id="setFoot" hidden><button class="primary">Salva le modifiche</button></div>
   </form>`;
   const form = dlg.querySelector('form');
-  // La sezione Documenti (carica, aggiorna, elenco) vive qui dentro finché il pannello è aperto, poi torna al suo posto.
+  // La sezione Documenti (tre sezioni con i loro indirizzi, carica, aggiorna, elenco) vive qui dentro finché il pannello è aperto, poi torna al suo posto.
   const docs = $('#docs');
   $('#docsHost').appendChild(docs);
   docs.hidden = false;
   loadDocs().catch(() => {});
   dlg.addEventListener('close', () => { docs.hidden = true; $('main').appendChild(docs); }, { once: true });
   // «Salva» compare solo se un campo è diverso da com'era all'apertura; tornare indietro con modifiche chiede conferma.
-  const watched = ['payslipsSource', 'billsSource', 'rentAmount', 'rentFrom', 'billShare'];
+  const watched = ['rentAmount', 'rentShare', 'rentFrom', 'billShare'];
+  const rentResult = () => {
+    const total = parseInput(form.rentAmount.value) || 0;
+    const share = parseInput(form.rentShare.value);
+    $('#rentResult').textContent = money(Math.round(total * (Number.isFinite(share) && share > 0 ? Math.min(100, share) : 100)) / 100);
+  };
+  rentResult();
+  form.addEventListener('input', rentResult);
   const snapshot = () => watched.map((k) => form[k].value).join('\u0001');
   const initial = snapshot();
   const dirty = () => snapshot() !== initial;
@@ -912,12 +923,10 @@ async function openSettings() {
       await api('/api/settings', {
         method: 'PUT',
         body: {
-          payslipsSource: form.payslipsSource.value,
-          billsSource: form.billsSource.value,
           rentAmount: parseInput(form.rentAmount.value) ?? 0,
+          rentShare: parseInput(form.rentShare.value) ?? 100,
           rentFrom: form.rentFrom.value,
           billShare: parseInput(form.billShare.value) ?? 50,
-          placeNames: { casa1: form.place1.value, casa2: form.place2.value },
         },
       });
       dlg.close();
@@ -939,7 +948,7 @@ const BUDGET_COLORS = { spese: 'var(--viz-spesa)', svago: 'var(--viz-svago)', ca
 
 // Medie e spese del mese si calcolano qui, dagli stessi dati della Panoramica (/api/grid): così coincidono con le sue cifre e con quelle del widget,
 // qualunque sia la versione del server. Il server dà solo i budget impostati.
-function budgetFromGrids(grids, now) {
+function budgetFromGrids(grids, now, cutoff) {
   const round2 = (n) => Math.round(n * 100) / 100;
   const index = (y, m) => y * 12 + m - 1;
   const current = index(now.getFullYear(), now.getMonth() + 1);
@@ -948,17 +957,22 @@ function budgetFromGrids(grids, now) {
     for (const r of g.rows) {
       const spend = Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, r.cells[id]?.amount ?? 0]));
       const variable = Object.values(spend).reduce((a, b) => a + b, 0);
-      // spese fisse = tutte le uscite del mese (bollette, affitto, prestito, tasse…) tranne le tre voci col budget
+      // spese fisse = bollette, affitto e rata del prestito: le uscite del mese tranne le tre voci col budget
       months.push({ i: index(g.year, r.month), income: r.income ?? 0, spend, variable, fixed: Math.max(0, (r.spent ?? 0) - variable) });
     }
   }
   const closed = months.filter((m) => m.i < current).sort((a, b) => a.i - b.i);
-  const used = closed.filter((m) => m.variable > 0).slice(-3);
+  // Le uscite si contano dal 1 ottobre 2026 (o dalla data scelta): prima non ci sono movimenti. Le entrate usano gli ultimi 3 mesi chiusi.
+  const from = /^(\d{4})-(\d{2})/.exec(cutoff ?? '2026-10-01');
+  const firstIndex = from ? index(+from[1], +from[2]) : 0;
+  const used = closed.filter((m) => m.variable > 0 && m.i >= firstIndex).slice(-3);
   const incomeUsed = closed.filter((m) => m.income > 0).slice(-3);
   const ym = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
   const mean = (list, get) => (list.length ? round2(list.reduce((a, m) => a + get(m), 0) / list.length) : null);
   const income = mean(incomeUsed, (m) => m.income);
-  const fixed = mean(used, (m) => m.fixed);
+  // Spese fisse (bollette, affitto, rata del prestito): media degli ultimi 3 mesi chiusi, come le entrate.
+  const fixedUsed = closed.filter((m) => m.fixed > 0).slice(-3);
+  const fixed = mean(fixedUsed, (m) => m.fixed);
   const average = used.length ? Object.fromEntries(BUDGET_KINDS.map(([id]) => [id, mean(used, (m) => m.spend[id])])) : null;
   const estimate = {
     months: used.length, from: used.length ? ym(used[0].i) : null, to: used.length ? ym(used.at(-1).i) : null,
@@ -976,7 +990,7 @@ async function loadBudget() {
     api(`/api/grid?year=${now.getFullYear() - 1}`).catch(() => null),
     api(`/api/grid?year=${now.getFullYear()}`),
   ]);
-  state.budget = { budgets: saved.budgets, ...budgetFromGrids([before, thisYear].filter(Boolean), now) };
+  state.budget = { budgets: saved.budgets, ...budgetFromGrids([before, thisYear].filter(Boolean), now, thisYear.cutoff) };
   renderBudgetTab();
 }
 
@@ -1013,7 +1027,7 @@ function renderBudgetParts() {
   const duo = (title, a, b, sub, cls = '') => `<div class="card duo ${cls}"><div class="k">${title}</div><div class="pairs"><div><small>${a[0]}</small><div class="v ${a[2] ?? ''}">${a[1]}</div></div><div><small>${b[0]}</small><div class="v ${b[2] ?? ''}">${b[1]}</div></div></div><div class="sub">${sub}</div></div>`;
   $('#bgSummary').innerHTML = [
     duo('Medie al mese', ['Entrate', hasIncome ? money(e.income) : '—', 'good'], ['Spese fisse', e.fixed == null ? '—' : money(e.fixed), 'bad'],
-      hasIncome ? `entrate degli ultimi ${e.incomeMonths} mesi chiusi · spese fisse: bollette, affitto, prestito, tasse…` : 'Nessuna entrata nei mesi chiusi'),
+      hasIncome ? `entrate degli ultimi ${e.incomeMonths} mesi chiusi · spese fisse degli ultimi 3 mesi chiusi: bollette, affitto e rata` : 'Nessuna entrata nei mesi chiusi'),
     duo('Il tuo budget', ['Budget', money(total)], [ok ? 'Risparmio' : 'Sfori di', saving == null ? '—' : money(Math.abs(saving)), ok ? 'good' : ''],
       saving == null ? amounts.map((x) => `${x.label} ${money(x.value)}`).join(' · ') : ok ? 'entrate − spese fisse − budget' : 'sopra le entrate medie', saving == null ? '' : ok ? 'bgok' : 'bgbad'),
   ].join('');
@@ -1362,7 +1376,7 @@ window.__back = () => {
 
 // Dalla Panoramica ai Movimenti: stesso anno e mese della cella; Entrate e Uscite mostrano solo quel verso.
 function openMovesOf(kind, month) {
-  Object.assign(state.bank, { year: state.year, month, cat: '', q: '', flow: kind === 'entrate' ? 'in' : kind === 'uscite' ? 'out' : '' });
+  Object.assign(state.bank, { year: state.year, month, cat: '', q: '', flow: kind === 'entrate' ? 'in' : kind === 'uscite' ? 'out' : '', due: null });
   $('#moveSearch').value = '';
   showTab('moves');
 }
@@ -1375,6 +1389,7 @@ function showTab(name) {
   for (const id of ['overview', 'moves', 'analysis', 'banks', 'budget']) $(`#${id}`).hidden = id !== name;
   $('#years').hidden = name !== 'overview';
   if (name === 'moves' || name === 'analysis') loadBank().catch((err) => toast(err.message));
+  document.activeElement?.blur?.(); // dopo un tocco il titolo non resta colorato
   if (name === 'banks') banks.load().catch((err) => toast(err.message));
   if (name === 'budget') loadBudget().catch((err) => { budgetBox.innerHTML = `<p class="error">${esc(err.message)}</p>`; });
 }
@@ -1384,12 +1399,14 @@ document.addEventListener('click', (e) => {
   if (!t) return;
   if (t.dataset.sort) { setSort(t.dataset.sort); return; }
   if (t.classList.contains('f-reset')) { resetBank(); return; }
-  if (t.classList.contains('catcard')) { state.bank.cat = t.dataset.cat; showTab('moves'); return; }
-  if (t.dataset.clearcat) { state.bank.cat = ''; renderBank(); return; }
+  if (t.classList.contains('catcard')) { state.bank.cat = t.dataset.cat; if (t.dataset.cat === 'prestito') state.bank.year = 0; showTab('moves'); return; }
+  if (t.dataset.clearcat) { setCat(''); return; }
   if (t.dataset.clearflow) { state.bank.flow = ''; renderBank(); return; }
   if (t.dataset.expand) { toggleExpand(t.dataset.expand); return; }
   if (t.dataset.payallEverything) payEverything().catch((err) => toast(err.message));
-  else if (t.dataset.payall) payAll(t.dataset.payall).catch((err) => toast(err.message));
+  else if (t.dataset.duecol) { Object.assign(state.bank, { year: state.year, month: 0, cat: '', q: '', flow: '', due: t.dataset.duecol }); showTab('moves'); }
+  else if (t.dataset.cleardue) { state.bank.due = null; renderBank(); }
+  else if (t.dataset.payall) payAll(t.dataset.payall).then(() => renderBank()).catch((err) => toast(err.message));
   else if (t.dataset.doc !== undefined) openDoc(Number(t.dataset.doc));
   else if (t.dataset.tab) showTab(t.dataset.tab);
 });
@@ -1430,19 +1447,27 @@ document.addEventListener('change', (e) => {
     renderMoves();
     return;
   }
-  if (e.target.id === 'catSelect') { state.bank.cat = e.target.value; renderBank(); return; }
+  if (e.target.id === 'catSelect') { setCat(e.target.value); return; }
   if (e.target.id === 'yearSelect') { state.year = Number(e.target.value); loadGrid().catch((err) => toast(err.message)); return; }
   if (e.target.dataset.move || e.target.dataset.amove || e.target.dataset.moves) setCategory(e.target).catch((err) => toast(err.message));
   if (e.target.classList.contains('expense-input')) saveExpense(e.target).catch((err) => toast(err.message));
 });
 $('#uploadBtn').addEventListener('click', openUpload);
+$('#docsBody').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form.docsrc');
+  if (!form) return;
+  e.preventDefault();
+  try {
+    await api('/api/settings', { method: 'PUT', body: { [form.dataset.setting]: form.url.value } });
+    toast('Indirizzo salvato. Premi Aggiorna per leggere i documenti.');
+  } catch (err) { toast(err.message, 8000); }
+});
 let searchTimer;
 $('#moveSearch').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => { state.bank.q = e.target.value; renderBank(); }, 150);
 });
 // Clic su una riga dei movimenti: mostra o nasconde i dettagli (non quando si usa il menu o un link).
-$('#movesBody').addEventListener('toggle', (e) => { if (e.target.classList?.contains('transfers')) state.bank.transfersOpen = e.target.open; }, true);
 $('#movesBody').addEventListener('click', (e) => {
   const row = e.target.closest('.mvrow, .mvsub');
   if (!row || e.target.closest('select, a, button')) return;

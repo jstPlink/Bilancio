@@ -1,7 +1,7 @@
 // Analisi dei dati originali letti dalle banche (copia in db.banking.snapshots) per la scheda «Banche».
 // Solo lettura: niente qui crea o cambia movimenti, categorie o totali dell'app.
 import { BANKS, SYNCS_PER_DAY, bankingState, mapTransaction } from './banking.js';
-import { CATEGORY_KIND, NOT_COUNTED } from './statements.js';
+import { CATEGORY_KIND, NOT_COUNTED, cutoffOf } from './statements.js';
 
 const DAY = 86400000;
 const round = (n) => Math.round(n * 100) / 100;
@@ -154,6 +154,8 @@ export function buildExplore(db, now = Date.now()) {
       const dates = a.booked.map(dateOf).filter(Boolean).sort();
       for (const [status, list] of [['BOOK', a.booked], ['PDNG', a.pending]]) {
         for (const tx of list) {
+          // Prima del 1 ottobre 2026 (o della data scelta) i movimenti non si mostrano.
+          if (dateOf(tx) && dateOf(tx) < cutoffOf(db.settings)) continue;
           // Per i sospesi: sono già nei dati dell'app (Panoramica, Movimenti, widget)? E con quale categoria, contano nelle somme?
           let inApp = null;
           if (status === 'PDNG') {

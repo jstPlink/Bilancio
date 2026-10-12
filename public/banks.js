@@ -84,7 +84,7 @@ export function mountBanks(host, api, toast, onMerged = () => {}) {
   };
 
   // Un pagamento in sospeso è nell'app (Panoramica, Movimenti, widget)? Conta nelle somme? Dipende dalla categoria.
-  const CAT_NAMES = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', donazioni: 'Donazioni', tasse: 'Tasse', bollette: 'Bollette', giroconti: 'Giroconto', sospesi: 'Da suddividere', altro: 'Altro', entrate: 'Entrate' };
+  const CAT_NAMES = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', prestito: 'Prestito', altro: 'Altro' };
   const inAppPill = (a) => {
     if (!a) return '';
     if (a.state === 'assente') return ' <span class="pill err" title="Non è ancora nei dati dell\'app: premi Aggiorna">non ancora nell\'app</span>';

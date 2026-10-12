@@ -2,14 +2,14 @@ import { CATEGORY_KIND } from './statements.js';
 
 // Costruisce la vista aggregata a partire da documenti, movimenti bancari, spunte e importi manuali.
 
-export const KINDS = ['stipendio', 'entrate', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese', 'svago', 'carburante', 'donazioni', 'tasse'];
-// Entrate: lo stipendio dalle buste paga e le altre entrate dai movimenti bancari.
-export const INCOME_KINDS = new Set(['stipendio', 'entrate']);
+export const KINDS = ['stipendio', 'acqua', 'luce', 'gas', 'wifi', 'affitto', 'prestito', 'spese', 'svago', 'carburante'];
+// Entrate: solo lo stipendio, dalle buste paga (i movimenti della banca contano solo come spese).
+export const INCOME_KINDS = new Set(['stipendio']);
 export const EXPENSE_KINDS = KINDS.filter((k) => !INCOME_KINDS.has(k));
 // Voci che si compilano dai movimenti dell'estratto conto (o a mano, per correggere il totale).
 export const SPENDING_KINDS = new Set(['spese', 'svago', 'carburante']);
-// Voci senza stato "pagato": le entrate e le spese che vengono dalla banca (comprese tasse e rata del prestito, già addebitate).
-export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'donazioni', 'tasse', 'prestito']);
+// Voci senza stato "pagato": le entrate e le spese che vengono dalla banca (compresa la rata del prestito, già addebitata).
+export const NO_PAYMENT = new Set([...INCOME_KINDS, ...SPENDING_KINDS, 'prestito']);
 
 // Le bollette di utenze possono riguardare più case: si distinguono dalla prima cartella del percorso.
 // Tutto il resto (stipendio, affitto, spese…) appartiene alla casa di base.
@@ -63,9 +63,10 @@ export function buildCells(db, now = new Date()) {
     c.files.push({ key, name: d.name });
   }
 
-  // Affitto: importo fisso mensile dalla data di inizio fino al mese corrente. (La rata del prestito invece si legge dagli estratti conto.)
+  // Affitto: importo fisso mensile dalla data di inizio fino al mese corrente. 
   const fixed = [
-    ['affitto', db.settings.rentAmount, db.settings.rentFrom],
+    // L'affitto è l'importo totale: conta la quota dell'utente (rentShare, di base 100%).
+    ['affitto', round((Number(db.settings.rentAmount) || 0) * Math.min(100, Math.max(0, Number(db.settings.rentShare ?? 100))) / 100), db.settings.rentFrom],
   ];
   for (const [kind, amount, from] of fixed) {
     const start = /^(\d{4})-(\d{2})$/.exec(from ?? '');
@@ -86,7 +87,7 @@ export function buildCells(db, now = new Date()) {
     if (!kind || !m) continue;
     const c = get(kind, +m[1], +m[2]);
     // Le uscite hanno importo negativo; un rimborso (positivo) riduce la spesa. Le entrate si sommano.
-    c.auto = round((c.auto ?? 0) + (kind === 'entrate' ? t.amount : -t.amount));
+    c.auto = round((c.auto ?? 0) - t.amount);
   }
 
   for (const [k, amount] of Object.entries(db.manual)) {
@@ -104,9 +105,8 @@ export function buildCells(db, now = new Date()) {
 const avg = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 const sum = (xs) => round(xs.reduce((a, b) => a + b, 0));
 
-// Luce e gas hanno una colonna per casa (ognuna col suo documento e la sua spunta "pagato");
-// le altre voci, acqua e wifi compresi, sommano le case e mostrano il dettaglio nella cella.
-export const SPLIT_KINDS = new Set(['luce', 'gas']);
+// Nessuna voce ha una colonna per casa: ogni voce somma le case e mostra il dettaglio nella cella (ognuna con la sua spunta "pagato").
+export const SPLIT_KINDS = new Set(); // nessuna colonna per casa: luce e gas sommano le case (il dettaglio resta nella cella)
 export const COLUMNS = KINDS.flatMap((kind) => (SPLIT_KINDS.has(kind)
   ? PLACES.map((place) => ({ id: `${kind}:${place}`, kind, place }))
   : [{ id: kind, kind, place: null }]));

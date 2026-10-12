@@ -1,4 +1,5 @@
 import { buildCells, EXPENSE_KINDS, INCOME_KINDS, SPENDING_KINDS } from './grid.js';
+import { cutoffOf } from './movements.js';
 
 // Budget mensile per le spese correnti (spesa, svago, carburante) e stima fatta dall'app sui mesi già chiusi.
 // Il budget sta nelle impostazioni (`settings.budgets`, `settings.savingsGoal`); la stima si ricalcola a ogni richiesta.
@@ -32,6 +33,9 @@ export function estimateBudget(db, { now = new Date(), savings = db.settings?.sa
   const goal = Math.max(0, Number(savings) || 0);
   const index = (y, m) => y * 12 + m - 1;
   const current = index(now.getFullYear(), now.getMonth() + 1);
+  // Le uscite si contano dal 1 ottobre 2026 (o dalla data scelta); le entrate medie usano gli ultimi 3 mesi chiusi.
+  const first = /^(\d{4})-(\d{2})/.exec(cutoffOf(db.settings));
+  const firstIndex = first ? index(+first[1], +first[2]) : 0;
 
   const months = new Map();
   for (const c of buildCells(db, now).values()) {
@@ -45,8 +49,11 @@ export function estimateBudget(db, { now = new Date(), savings = db.settings?.sa
     else if (EXPENSE_KINDS.includes(c.kind)) m.fixed += c.amount;
   }
   // I mesi che contano sono quelli in cui c'è almeno una spesa corrente: prima non c'erano ancora movimenti della banca.
+  // Spese fisse (bollette, affitto, rata del prestito): la media degli ultimi 3 mesi chiusi con spese fisse.
+  const fixedUsed = [...months.entries()].filter(([, m]) => m.fixed > 0).sort((a, b) => a[0] - b[0]).slice(-INCOME_MONTHS);
+  const fixed = fixedUsed.length ? round(sum(fixedUsed.map(([, m]) => m.fixed)) / fixedUsed.length) : null;
   const used = [...months.entries()]
-    .filter(([, m]) => BUDGET_KINDS.some((k) => m.spend[k] > 0))
+    .filter(([i, m]) => i >= firstIndex && BUDGET_KINDS.some((k) => m.spend[k] > 0))
     .sort((a, b) => a[0] - b[0]).slice(-window);
   const ym = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
 
@@ -57,27 +64,27 @@ export function estimateBudget(db, { now = new Date(), savings = db.settings?.sa
   const result = {
     incomeMonths: incomeUsed.length, income,
     months: used.length, from: used.length ? ym(used[0][0]) : null, to: used.length ? ym(used.at(-1)[0]) : null,
-    average: null, fixed: null, savings: goal,
+    average: null, fixed, savings: goal,
     available: null, savingsNoCuts: null, suggested: null, expectedSavings: null, reachable: true,
   };
   if (!used.length) return result;
 
   const n = used.length;
   const average = Object.fromEntries(BUDGET_KINDS.map((k) => [k, round(sum(used.map(([, m]) => m.spend[k])) / n)]));
-  const fixed = round(sum(used.map(([, m]) => m.fixed)) / n);
   const usual = sum(Object.values(average));
-  Object.assign(result, { average, fixed });
+  Object.assign(result, { average });
 
   if (income == null) {
     // Senza entrate non si può dire quanto resta: si consiglia la media.
     result.suggested = { ...average };
     return result;
   }
-  result.available = round(income - fixed - goal);
-  result.savingsNoCuts = round(income - fixed - usual);
+  const fixedCost = fixed ?? 0;
+  result.available = round(income - fixedCost - goal);
+  result.savingsNoCuts = round(income - fixedCost - usual);
   const factor = usual > 0 ? Math.min(1, Math.max(0, result.available / usual)) : 1;
   result.suggested = Object.fromEntries(BUDGET_KINDS.map((k) => [k, factor === 1 ? average[k] : Math.round(average[k] * factor)]));
-  result.expectedSavings = round(income - fixed - sum(Object.values(result.suggested)));
+  result.expectedSavings = round(income - fixedCost - sum(Object.values(result.suggested)));
   result.reachable = result.available >= 0;
   return result;
 }

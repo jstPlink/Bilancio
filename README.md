@@ -2,7 +2,7 @@
 
 Buste paga, bollette e spese di casa, in ordine.
 
-Bilancio legge i PDF di buste paga e bollette e gli estratti conto della banca da una cartella (o da un link Seafile),
+Bilancio legge i PDF di buste paga e bollette da una cartella (o da un link Seafile) e i movimenti dalle banche collegate (dal 1 ottobre 2026),
 ne ricava tipo, mese e importo e li mostra in una panoramica per anno: entrate, uscite, bilancio mensile e quanto resta
 da pagare. Si usa dal browser, anche dal telefono, e i dati restano sul tuo computer o sul tuo server.
 
@@ -18,51 +18,27 @@ Di norma il localhost va collegato al tuo server: vedi «Localhost che punta al 
 
 ## Le schede
 
-- **Panoramica.** La tabella ha tutte le celle scure come lo sfondo; solo i titoli **Entrate, Uscite e Bilancio** e la colonna dei **mesi** sono leggermente colorati, tutti dello stesso colore. In alto le medie: **entrate medie in verde**, **uscite medie in rosso**, **bilancio medio verde o rosso** secondo il segno. Una tabella per anno (si sceglie dalla tendina *Anno*) con quattro colonne: **Mese**, **Entrate** (stipendio più altre
-  entrate in banca), **Uscite** e **Bilancio**. Sotto le uscite del mese compare quante voci restano da pagare. Su schermo largo le **Uscite** sono sempre aperte
-  nelle loro voci: *Bollette* (acqua, luce, gas e wifi; le voci della *Casa 2* in una sola
-  colonna), *Affitto*, *Prestito*, *Spesa*, *Svago*, *Carburante*, *Donazioni*, *Tasse*. In fondo ci sono la media e l'importo ancora
-  da pagare di ogni colonna; il riquadro **Da pagare** in alto salda tutto con un clic.
-  - Le celle che vengono da un documento (bollette, affitto) sono **verdi se pagate e rosse se da pagare**. Un clic cambia lo stato;
-    passandoci sopra con il mouse la cella si divide: a sinistra **Apri** il PDF originale, a destra segni pagato o da pagare.
-  - Gli importi non si modificano a mano: arrivano dai documenti, dall'affitto fisso nelle impostazioni e dalla banca. Fanno eccezione
-    *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
-- **Movimenti.** I movimenti della banca collegata e degli estratti conto caricati, in un solo elenco. Un solo pulsante **Filtra** (col numero dei filtri attivi) apre anno, mese, categoria, ricerca e «Ordina per», più il checkbox **Unisci le transazioni ripetute**: spento (predefinito) ogni transazione è una riga a sé, acceso quelle con lo stesso ente si accorpano in una riga «×n» che si apre sui singoli pagamenti (la scelta resta sul dispositivo). Ogni movimento è un riquadro: in alto **data, importo
-  e, a destra, il menu della categoria**; sotto la **descrizione**. I pagamenti allo stesso ente (stessa descrizione) sono accorpati in un riquadro con «×n» e la somma: un tocco lo apre sui singoli pagamenti. Toccando un movimento si apre il **dettaglio completo** dentro lo stesso riquadro:
-  giorno della settimana e ora, metodo (carta, bonifico, prelievo…), commissione e valuta, saldo dopo il pagamento, testo completo della banca, gli altri pagamenti con la stessa
-  descrizione e i link per cercarla su Google e su Maps. Dal menu si cambia la categoria: l'app la ricorda per tutte le descrizioni uguali. I pagamenti ancora in sospeso hanno l'etichetta «in sospeso» e una **linea arancione sul bordo sinistro**; la riga sopra l'elenco dice quanti ce ne sono e che sono già contati. **Contano nei totali solo se la loro categoria conta** (Spesa, Svago, Carburante…): un pagamento in «Altro» si vede ma non si somma, finché non cambi la categoria.
-  **Giroconti:** i giri di denaro tra i tuoi conti e pocket non sono nell'elenco: stanno nella sezione «Giroconti tra i tuoi conti» in fondo alla scheda, e non entrano in nessun
-  totale né in Panoramica e Statistiche (vedi «Riconoscimento automatico»).
-- **Statistiche.** I riquadri per categoria (spesa, svago, carburante, prestito, donazioni, tasse…; i giroconti non ci sono): un tocco apre i movimenti di quella categoria. Poi i grafici: stipendio contro uscite mese per mese, dove va il denaro della banca per categoria, le 10 voci più pesanti,
-  e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
-- **Banche** (anche sul telefono e nell'app Android). Tutto il blocco di ogni banca è **collassabile** (clic sul nome). Dentro: consenso, letture di oggi e **Aggiorna** (a destra, nella riga della banca, che ha un bordo per far capire dove si clicca), poi **una finestra per ogni conto e per ogni pocket**, **chiusa** di norma:
-  da chiusa mostra **nome e saldo**; aperta aggiunge l'**IBAN**, **quanti movimenti ci sono e in che periodo** e **Rinomina** (niente grafici). Il saldo **comprende i pagamenti in sospeso** (saldo contabile + sospesi, con scritto «di cui in sospeso»); se la banca dà solo saldi «disponibili»,
-  che di norma li contengono già, si usa quello. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario; l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta (resta sul server).
-  In fondo l'elenco dei movimenti, registrati e in sospeso, con il record originale della banca (clic sulla riga) e un pulsante **Filtra** (conto, stato, ricerca).
-  **I dati della banca sono i dati dell'app.** **Aggiorna** (come **Aggiorna ora** in Impostazioni → Collega le banche) fa **una sola lettura**: aggiorna saldi e movimenti qui e li porta anche in Panoramica, Movimenti e Statistiche, con le categorie di sempre.
-  **In sospeso:** un pagamento in sospeso conta subito, anche in Movimenti e nelle somme di Panoramica (con l'etichetta «in sospeso»). A ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso: se la banca **rifiuta** il pagamento sparisce da solo,
-  se lo **registra** ricompare come registrato (senza doppioni). Se la banca non dà i sospesi, restano quelli letti l'ultima volta. Un sospeso senza nessuna data conta dal giorno in cui lo si legge.
-  **Perché un sospeso non conta?** Nell'elenco dei movimenti della scheda Banche, accanto a ogni pagamento in sospeso c'è un'etichetta (calcolata dal server sui dati dell'app, quindi serve il server alla 0.40.4 o successivo):
-  **«contato · Spesa»** (è nei dati dell'app e conta nelle somme), **«non contato · Altro»** (è in Movimenti ma la categoria non conta: contano solo Spesa, Svago, Carburante, Prestito, Donazioni, Tasse ed Entrate; «Altro», «Bollette», «Giroconto»
-  e «Da suddividere» no — cambia la categoria in Movimenti e l'app se la ricorda), **«non ancora nell'app»** (la copia della scheda Banche non è ancora passata nei dati dell'app: premi **Aggiorna**) e **«non leggibile»** (la banca non ha dato un importo che l'app riesce a leggere).
-  **Estratti conto e banca insieme:** un movimento visto da tutte e due le parti (stesso importo, stessa data o un giorno di scarto, abbinati uno a uno) **si conta una volta sola e vince quello della banca**; la categoria scelta a mano sul movimento dell'estratto passa a quello della banca.
-  **Storico:** le banche concedono pochi mesi (Revolut, di norma, solo 90 giorni; l'app ne chiede 12 e, se la banca rifiuta, lo scrive sotto al conto con il motivo).
-  Ad ogni lettura i movimenti già letti restano nella copia e si aggiungono i nuovi, quindi lo storico cresce nel tempo; quello precedente alla prima lettura
-  non si può recuperare dalla banca (per i mesi più vecchi servono gli estratti PDF o CSV).
-  I collegamenti con le banche stanno sul server, quindi la scheda funziona solo se anche il **server** è alla versione che la include (dalla 0.30.0):
-  altrimenti compare «Il server non ha ancora questa funzione». Per vederla prima dell'aggiornamento c'è la demo (vedi «Banche collegate»).
-- **Budget** (quinta scheda). Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget); si salva da solo. **Il risparmio non si imposta: è un risultato**,
-  calcolato come entrate medie − spese fisse medie − totale dei budget. In alto, sempre visibili: le **entrate medie mensili** (media degli **ultimi 3 mesi chiusi** con entrate), le spese fisse medie
-  (bollette, affitto, prestito, donazioni, tasse), il **totale dei tre budget** e il **risparmio al mese** (o, se superi le entrate, di quanto sfori; lo stesso vale per «se spendi come al solito» nella nota sotto la tabella): **a ogni cifra che scrivi tutto si aggiorna**.
-  Una **barra a colori** divide l'entrata media tra spese fisse, Spesa, Svago, Carburante e ciò che avanza (verde: il risparmio); se il totale supera le entrate, un segno nero mostra dove finiscono le entrate.
-  Per ogni voce una **barra che si riempie da destra verso sinistra** mostra **quanto hai già speso questo mese** rispetto al budget (arancione da 80%, rosso oltre); il widget parte dagli stessi dati ma mostra il **residuo** e il suo liquido scende.
-  Medie e spese del mese si calcolano nell'app dagli stessi dati della Panoramica, quindi coincidono con le sue cifre qualunque sia la versione del server. Accanto a ogni voce c'è la «Media» delle spese degli **ultimi 3 mesi chiusi**
-  (il mese in corso non conta), e «Parti dalle medie» copia le medie nei budget. In alto due riquadri: entrate e spese fisse medie in una riga, budget e risparmio nell'altra.
-  La tabella dei budget sta sempre nella larghezza dello schermo, senza scorrimento, anche sul telefono.
-- **Documenti** (in **Impostazioni → Documenti**, non è più una scheda; un numero sull'ingranaggio dice quanti sono da controllare). **Carica documento** (in alto): scegli il file, il nome e che cosa è: *estratto conto* (CSV o PDF: i movimenti vanno in Movimenti),
-  *bolletta* (PDF: scegli utenza e casa, si legge l'importo; se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09») o *busta paga* (PDF).
-  I file caricati restano sul server (`data/uploads`) e non vengono tolti dall'aggiornamento. Sotto, l'elenco dei PDF letti. Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo
-  (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora** per i file che non c'entrano.
+- **Panoramica.** Una tabella per anno (tendina *Anno*) con le colonne **Mese**, **Entrate**, **Uscite** e **Bilancio**. Le **entrate** sono lo stipendio, letto dalle **buste paga**. Le **uscite** si aprono (su schermo largo sono sempre aperte) nelle loro voci:
+  *Bollette* (acqua, luce, gas e wifi, ognuna una colonna che somma le case: il dettaglio per casa sta nella cella) e *Affitto* dai documenti, e *Spesa*, *Svago* e *Carburante* dai **movimenti della banca**, **solo dal 1 ottobre 2026**. **Dagli estratti conto si legge una cosa sola: la rata del prestito** (estratti PDF di UniCredit, Impostazioni → Documenti), che è una spesa fissa e compare nella colonna *Prestito*; nessun altro movimento viene da lì.
+  In alto le medie (entrate in verde, uscite in rosso, bilancio verde o rosso); in fondo la media e l'importo ancora da pagare di ogni colonna. Il riquadro **Da pagare** in alto salda tutto con un clic; la **cifra in fondo a una colonna** apre invece i Movimenti con **solo le voci da pagare** (pastiglia «Da pagare» e linea arancione; da lì si può segnare tutto pagato). Un clic su una cella **Entrate** mostra solo i movimenti in entrata, su **Uscite** solo quelli in uscita. Le celle non hanno bordo colorato a sinistra.
+  - Le celle che vengono da un documento (bollette, affitto) sono **verdi se pagate e rosse se da pagare**. Un clic cambia lo stato; passandoci sopra la cella si divide: a sinistra **Apri** il PDF, a destra segni pagato o da pagare.
+  - Gli importi non si modificano a mano, tranne *Spesa*, *Svago* e *Carburante*, dove si può correggere il totale del mese.
+- **Movimenti.** Tutti i movimenti delle banche **dal 1 ottobre 2026** (registrati e in sospeso), che l'app **legge e salva** a ogni lettura dalle banche; quelli prima di quella data non si leggono né si salvano. Un solo pulsante **Filtra** apre anno, mese, tag (Spesa, Svago, Carburante, Prestito, Altro), ricerca e «Ordina per», più **Unisci le transazioni ripetute**. Il filtro **Prestito** mostra anche le rate degli estratti UniCredit (di tutti gli anni, prima di ottobre compreso).
+  Ogni movimento è un riquadro: **data, importo e, a destra, il tag**; sotto la **descrizione**; toccandolo si apre il dettaglio completo (ora, metodo, commissione, saldo dopo, testo della banca, link a Google e Maps). I pagamenti in sospeso hanno l'etichetta «in sospeso» e una linea arancione sul bordo.
+  **Tag:** lo decide il **pocket di provenienza**: **01 Spesa → spesa**, **Svago → svago**, **Carburante → carburante**; **tutto ciò che non viene da questi pocket è «altro»**, da smistare a mano dal menu, e **non conta in nessuna statistica, media o totale**. Una scelta a mano vale per quel solo movimento.
+- **Statistiche.** I riquadri per tag (spesa, svago, carburante; «altro» c'è ma è grigio e non conta): un tocco apre i movimenti. Poi i grafici: stipendio contro uscite mese per mese (bollette e affitto dai documenti, spesa, svago e carburante dai movimenti dal 1 ottobre 2026), le uscite dei tre pocket, le 10 voci più pesanti e la tabella dei numeri. Un clic su un mese lo imposta come filtro.
+- **Banche** (anche sul telefono e nell'app Android). Serve ad **aggiornare lo stato con le banche**. Ogni banca è collassabile: consenso, letture di oggi e **Aggiorna** (una sola lettura che porta saldi e movimenti in tutta l'app), poi **una finestra per ogni conto e pocket**, chiusa di norma (nome e saldo; aperta aggiunge IBAN, quanti movimenti e **Rinomina**).
+  Il saldo comprende i pagamenti in sospeso. **Nome dei pocket:** la banca dà a ogni pocket il nome dell'intestatario; l'app prova a ricavare il nome vero dai movimenti (Revolut scrive «Accredita EUR 01 Spesa da EUR») e con **Rinomina** lo scrivi tu, una volta: **è quel nome a decidere il tag** (01 Spesa, Svago, Carburante).
+  In fondo l'elenco dei movimenti registrati e in sospeso con il record originale della banca (clic sulla riga: la riga e il suo dettaglio hanno **un solo contorno colorato**) e il pulsante **Filtra**. Un sospeso conta subito; a ogni lettura i sospesi di prima si tolgono e si rimettono quelli di adesso (se la banca li rifiuta spariscono da soli, se li registra ricompaiono come registrati).
+  Accanto a ogni sospeso: **«contato · Spesa»** (conta nelle somme), **«non contato · Altro»** (non viene da un pocket Spesa, Svago o Carburante: smistalo in Movimenti), **«non ancora nell'app»** (premi **Aggiorna**) o **«non leggibile»**.
+  Le banche concedono pochi mesi di storico (Revolut, di norma, 90 giorni) e ad ogni lettura i movimenti già letti restano: solo quelli dal 1 ottobre 2026 entrano nei dati dell'app. La scheda funziona solo se anche il **server** è aggiornato; per vederla prima c'è la demo (vedi «Banche collegate»).
+- **Budget.** Quanto vuoi spendere al mese in *Spesa*, *Svago* e *Carburante* (vuoto = nessun budget); si salva da solo. **Il risparmio non si imposta: è un risultato**, cioè entrate medie − spese fisse medie − totale dei budget. Le **entrate medie** sono la media degli **ultimi 3 mesi chiusi** con entrate (buste paga);
+  le **uscite** (spese fisse: bollette e affitto, e le medie di spesa, svago e carburante) si calcolano **solo dai mesi chiusi dal 1 ottobre 2026**, quindi la prima stima compare a novembre. Una barra divide l'entrata media tra spese fisse, le tre voci e il risparmio; per ogni voce una barra mostra quanto hai già speso questo mese rispetto al budget
+  (arancione da 80%, rosso oltre; il widget mostra invece il residuo). «Parti dalle medie» copia le medie nei budget. A ogni cifra scritta tutto si aggiorna.
+- **Documenti** (in **Impostazioni → Documenti**; un numero sull'ingranaggio dice quanti sono da controllare). Tre sezioni: **Bollette**, **Buste paga** ed **Estratti conto**, ognuna con **il proprio indirizzo in cima** (link Seafile pubblico o percorso locale) e il pulsante *Salva*. In alto **Carica documento** e **Aggiorna** (legge solo i file nuovi o modificati; Maiusc + clic rilegge tutto).
+  Carica documento: scegli il file, il nome e che cosa è: *bolletta* (PDF: utenza e casa, se il mese non è nel PDF scrivilo nel nome, es. «Luce 2026.09»), *busta paga* (PDF) o *estratto conto UniCredit* (PDF: se ne legge solo la rata del prestito).
+  I file caricati restano sul server (`data/uploads`). Quelli letti male sono segnati *Da controllare*: con **Modifica** correggi tipo, periodo e importo (la correzione sopravvive agli aggiornamenti) oppure scegli **Ignora**. Sul telefono ogni documento è un riquadro: nessuno scorrimento laterale.
+- **Impostazioni → Affitto**: **importo totale**, **la tua quota (%)** e **dal mese**; il **risultato** (totale × quota) è quello che conta ogni mese. Non ci sono più i nomi delle case: le case sono «Casa 1» e «Casa 2» (le cartelle delle bollette si chiamano così).
 
 Sul telefono la tabella resta una tabella a colonne con le sole voci compatte (Mese, Entrate, Uscite, Bilancio); il dettaglio delle
 uscite resta per lo schermo largo. L'intestazione mostra solo la versione, e *Esci* sta nelle Impostazioni. Anche Movimenti mostra un riquadro per ogni pagamento e i grafici stanno nella larghezza dello schermo.
@@ -130,35 +106,17 @@ con la chiave di debug dell'SDK: per aggiornare l'app installata serve sempre la
    lo script di importazione) compare una fascia gialla con i dati parziali che si aggiornano da soli.
 3. Controlla **Impostazioni → Documenti** per i file *Da controllare*.
 
-## Riconoscimento automatico di nome e datore di lavoro
+## Come si smistano i movimenti
 
-Non va scritto nulla e non ha una sezione nelle Impostazioni (lavora in silenzio): a ogni aggiornamento (e dopo un caricamento o la lettura delle banche) `src/identity.js` lo ricava dai dati.
-- **Chi ti paga lo stipendio**: il bonifico in entrata con lo stesso importo del netto di una busta paga, per almeno due mesi, entro il 20 del mese dopo.
-- **Il tuo nome**: un'uscita che ricompare identica come entrata su un altro conto (entro 3 giorni), con lo stesso nome come destinatario e come mittente, almeno due volte.
-Con questi nomi i bonifici dello stipendio e i giri tra i tuoi conti diventano *Giroconti* (non contati) e lo stipendio compare come una sola voce in Movimenti.
-- **Giri visti dai due lati**: le banche registrano un trasferimento tra conti o pocket due volte, in uscita su un conto e in entrata sull'altro. Se un'uscita e un'entrata hanno lo
-  stesso importo, cadono entro 3 giorni, stanno su conti diversi (o hanno parole da pocket nella descrizione), almeno una delle due sembra un trasferimento (bonifico, top-up, transfer…)
-  e c'è una sola abbinabile, **entrambe diventano Giroconti**. Le coppie dubbie restano com'erano; se ne sbaglia una, cambia la categoria in Movimenti (la scelta a mano non si tocca più).
-I nomi si aggiungono a quelli già salvati e le categorie scelte a mano non si toccano. Se qualcosa è classificato male, cambia la categoria in Movimenti.
+Non ci sono parole chiave né regole imparate: il tag di un movimento dipende solo dal **pocket da cui arriva** (il nome che vedi nella scheda Banche, anche se dato a mano con *Rinomina*):
 
-## Estratti conto (spese)
+- pocket **01 Spesa** → **spesa**; pocket **Svago** → **svago**; pocket **Carburante** → **carburante** (il numero davanti e le maiuscole non contano);
+- la **rata del prestito** (UniCredit) è il tag **prestito**: una spesa fissa;
+- **tutto il resto → altro**: si smista a mano, e **non conta in nessuna statistica, media o totale**. Anche le entrate sono «altro»: l'unica entrata dell'app è lo stipendio, dalle buste paga;
+- una scelta a mano vale per quel solo movimento e non cambia gli altri. Solo le **uscite** dei tre pocket prendono il tag in automatico (le ricariche in entrata sul pocket restano «altro»).
 
-Le spese arrivano dalla **banca collegata** (vedi sotto). Per i mesi **precedenti al collegamento** si caricano a mano gli estratti da **Impostazioni → Documenti → Carica documento** (Revolut: Conti → Estratti → Excel/CSV; gli estratti in PDF di UniCredit e Revolut si leggono
-anche loro; per UniCredit l'app confronta le uscite lette con il riepilogo della banca; per un'altra banca serve un nuovo lettore in `src/pdfstatements.js`). Ricaricare lo stesso file non duplica nulla, e i movimenti che la banca ha già non si contano due volte (vedi «Banche»).
-**Non c'è più l'indirizzo degli estratti conto nelle Impostazioni**: quando c'è una banca collegata, l'indirizzo eventuale si toglie una volta sola all'avvio del server (resta in `settings.statementsSourceOld`, fuori dall'interfaccia) e i movimenti già letti restano.
-
-Del CSV Revolut l'app conserva anche orario, tipo di operazione, conto, commissione, valuta e saldo dopo il pagamento: servono a capire
-di che pagamento si tratta. I movimenti già salvati si completano da soli alla lettura successiva, senza toccare le categorie.
-
-Le uscite si categorizzano con parole chiave in `src/statements.js`:
-
-- **spesa** (cibo, bevande, casa) va nella colonna *Spesa*; **svago** e **carburante** nelle loro colonne;
-- **prestito** (la rata del mutuo) alimenta la colonna *Prestito*; **donazioni** e **tasse** hanno le loro;
-- **giroconti** (soldi tra i propri conti), **bollette pagate** (addebiti già contati nei documenti) e **da suddividere** (es. addebiti PayPal)
-  non contano in nessun dato; **altro** resta fuori dalla tabella e si vede nella scheda Movimenti.
-
-Le entrate ricevute (bonifici da terzi) compaiono come **Altre entrate**; i giri tra i propri conti, le ricariche e le entrate dal datore di
-lavoro (già nelle buste paga) sono ignorati.
+I nomi dei pocket si cambiano con `pockets: { spesa, svago, carburante }` nelle impostazioni (`PUT /api/settings`); la data di inizio dei movimenti (di base `2026-10-01`) con `cutoff` (sempre il primo di un mese).
+I movimenti vecchi (estratti conto, date prima di ottobre 2026) restano nel database ma l'app **li ignora**; nulla è stato cancellato.
 
 ## Banche collegate (UniCredit, Revolut)
 
@@ -184,11 +142,9 @@ subito dopo aver collegato una banca, perché è il solo momento in cui alcune b
 Alla undicesima l'app rifiuta con «massimo 10 letture al giorno» senza chiamare la banca. Il tetto normale delle banche è 4 al giorno (PSD2, art. 36 delle norme tecniche RTS) e vale per gli accessi **senza l'utente presente**; per le letture fatte a mano l'app invia
 le intestazioni «PSU» (`Psu-Ip-Address`, `Psu-User-Agent`, `Psu-Accept-Language`… ricavate dalla richiesta del browser o dell'app) che dichiarano alla banca che la lettura l'ha chiesta una persona in quel momento. Se la banca le rifiuta, l'app riprova subito senza.
 **Non è garantito che ogni banca accetti più di 4 letture**: se Revolut o UniCredit rispondono con un errore di limite, il messaggio compare nell'app e vale il tetto della banca. Il consenso dura al massimo 180 giorni (meno se la banca lo riduce): a scadenza si ricollega con un tocco.
-I movimenti degli estratti CSV/PDF che la banca ha già si contano una volta sola (vince la banca), anche se importi un estratto *dopo* aver collegato la banca.
 
 **Movimenti Revolut che «mancano» dopo la lettura.** Cause possibili, in ordine di probabilità: (1) fino alla 0.38 «Leggi dalla banca» aggiornava solo la scheda Banche; dalla 0.39.0 aggiorna tutta l'app;
-(2) i pagamenti con la carta restano **in sospeso** per uno o due giorni: dalla 0.38.0 contano subito (in Movimenti con l'etichetta «in sospeso», nel saldo di Banche e nel widget Saldo) e spariscono se la banca li rifiuta; (3) sono stati riconosciuti come **giroconti** (soldi tra i tuoi conti o pocket) e stanno nella sezione
-«Giroconti» in fondo a Movimenti; (4) lo stesso importo nella stessa data è in un estratto CSV/PDF: si conta una volta sola, vince la banca; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0).
+(2) i pagamenti con la carta restano **in sospeso** per uno o due giorni: dalla 0.38.0 contano subito (in Movimenti con l'etichetta «in sospeso», nel saldo di Banche e nel widget Saldo) e spariscono se la banca li rifiuta; (3) sono di prima del **1 ottobre 2026** (non si leggono); (4) non vengono da un pocket Spesa, Svago o Carburante: sono «altro» e non contano, ma stanno in Movimenti; (5) due pagamenti identici nello stesso giorno senza identificativo della banca venivano contati come uno (corretto dalla 0.36.0).
 
 **Demo della scheda Banche.** `npm run demo:banche` avvia la banca finta e un'app di prova su `http://localhost:4871` (password `demo-banche`) con dati inventati,
 in un database a parte (`data/demo-banche`): serve a provare la scheda anche quando il server vero non ha ancora la versione nuova. UniCredit parte già
@@ -207,14 +163,13 @@ tramite Enable Banking, in quattro fasi, ognuna da confermare prima della succes
    sul server (`db.banking.snapshots`), che nessun'altra parte dell'app legge, e si aggiornano solo premendo **Leggi dalla banca**.
    Per provarla con i dati veri: aggiorna il server, poi **Banche → Leggi dalla banca** per ogni banca. Per provarla senza toccare le banche vere
    c'è `npm run demo:banche` (vedi sopra).
-2. **Decidere** — *fatto (0.39.0)*: i dati letti dalle banche **sono** i dati dell'app (Panoramica, Movimenti, Statistiche), senza doppioni con gli estratti conto; la scheda Banche resta per saldi, conti e movimenti con il record originale.
+2. **Decidere** — *fatto (0.39.0)*: i dati letti dalle banche **sono** i dati dell'app (Panoramica, Movimenti, Statistiche); la scheda Banche resta per saldi, conti e movimenti con il record originale.
 3. **Telefono** — *fatto (0.31.0)*: la scheda Banche c'è anche nel browser del telefono e nell'app Android, con i movimenti in riquadri.
 4. **Rilascio** — *fatto con la 0.31.0*; ogni fase successiva avrà il suo.
 
 ## Più case
 
-Le bollette in sottocartelle con il nome di una casa sono tenute separate (i nomi si scelgono in **Impostazioni → Bollette**, di base «Casa 1» e «Casa 2»; chi usava i vecchi nomi di cartella lancia `node scripts/rinomina-casa.mjs casa2 <nome>` con l'app ferma, vedi CHANGELOG 0.52.0): luce e gas hanno una colonna per casa; acqua e wifi
-sommano le case e mostrano il dettaglio nella cella.
+Le bollette in sottocartelle con il nome di una casa sono tenute separate (le case si chiamano «Casa 1» e «Casa 2»; chi usava i vecchi nomi di cartella lancia `node scripts/rinomina-casa.mjs casa2 <nome>` con l'app ferma, vedi CHANGELOG 0.52.0). Nella tabella nessuna voce ha una colonna per casa: ogni voce somma le case e mostra il dettaglio nella cella.
 
 ## Come legge i PDF
 
@@ -258,14 +213,6 @@ curl -O https://raw.githubusercontent.com/jstPlink/Bilancio/main/docker-compose.
 docker compose -f docker-compose.build.yml up -d --build
 ```
 
-**Portare sul server i dati già compilati in locale.** Con il server avviato e vuoto, dalla cartella del progetto (serve Node 24):
-
-```bash
-node scripts/importa-su-server.mjs https://indirizzo-del-server
-```
-
-Lo script copia le impostazioni, fa rileggere al server documenti ed estratti conto, riporta correzioni, categorie scelte a mano e spunte "pagato", poi confronta i totali. Se il server ha login, aggiungi `utente:password`. In alternativa copia a mano `data/bilancino.db` (vedi sotto).
-
 **Dati.** Il database e la cache OCR stanno in `./data` (montato su `/data`): fanne il backup. Per portare sul server i dati
 che hai in locale, chiudi l'app e copia `data/bilancino.db` nella cartella `./data` accanto al file compose: dentro ci sono
 anche le Impostazioni (link dei documenti, nome, datore di lavoro) e le categorie corrette a mano. Senza database, al primo
@@ -297,7 +244,7 @@ docker compose stop && docker compose run --rm --no-deps bilancio node scripts/r
 **Password fissata dall'ambiente (facoltativo).** Se preferisci non crearla dall'app, imposta `BILANCIO_PASSWORD`: nel file compose,
 sotto `environment`, oppure in locale in un file `.env` (copia `.env.example`). Ha la precedenza su quella creata nell'app.
 
-**Script.** `scripts/importa-su-server.mjs` e simili usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
+**Script.** Gli script che parlano col server usano l'autenticazione HTTP Basic: `utente:password`, dove l'utente può essere
 qualsiasi nome e conta solo la password.
 
 ## Localhost che punta al server
@@ -324,9 +271,9 @@ conto salva) hanno effetto completo solo dopo aver aggiornato anche il server.
 ```
 public/        pagine (index.html, app.js, charts.js, style.css, login.html)
 src/           server Express: server.js, banking.js (banche collegate), uploads.js (documenti caricati), grid.js (tabella), scanner.js (lettura dei file), parsers.js (PDF),
-               statements.js e pdfstatements.js (banca), bankexplorer.js (scheda Banche: saldi, andamento, nomi dei pocket), billmatch.js, identity.js (nome e datore di lavoro, giroconti visti dai due lati),
+               statements.js (movimento e tag) e movements.js (movimenti dal 1 ottobre 2026 col tag del pocket), bankexplorer.js (scheda Banche: saldi, andamento, nomi dei pocket),
                budget.js (budget di spesa e stime sul server), ocr.js, sources.js (cartelle e Seafile), auth.js, store.js, proxy-server.js (localhost collegato al server)
-scripts/       importa-su-server.mjs, reimposta-password.mjs, build-apk.mjs, genera-icone.mjs, genera-widget.mjs (layout del widget «Questo mese 2» e della sua anteprima), banca-finta.mjs e demo-banche.mjs (banca e demo con dati finti)
+scripts/       reimposta-password.mjs, build-apk.mjs, genera-icone.mjs, genera-widget.mjs (layout del widget «Questo mese 2» e della sua anteprima), banca-finta.mjs e demo-banche.mjs (banca e demo con dati finti)
 android/       app Android (manifest, codice Java: MainActivity, widget MonthWidget (Questo mese 2), BankWidget (Saldo), Due, Month…; script che inietta le chiamate al server)
 test/          node --test; free-port.js sceglie porte libere per i test che avviano un server vero
 ```

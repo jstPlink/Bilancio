@@ -3,8 +3,7 @@ import { openPdf } from './pdf.js';
 import { parseDocument } from './parsers.js';
 import { listSource } from './sources.js';
 import { createOcr } from './ocr.js';
-import { parseStatement, addOrEnrich } from './statements.js';
-import { parsePdfStatement } from './pdfstatements.js';
+import { readLoanRates, saveLoanRates } from './loanstatements.js';
 
 const SOURCES = [
   { setting: 'payslipsSource', tag: 'busta', label: 'Buste paga' },
@@ -50,35 +49,19 @@ async function inParallel(items, limit, fn) {
 
 // Rilegge le sorgenti configurate e aggiorna `db.docs`.
 // Un PDF già letto e non modificato viene saltato, a meno di `force`.
-// Estratti conto (PDF UniCredit e Revolut, oppure CSV) dalla cartella/link configurato: solo file nuovi o modificati, movimenti senza duplicati.
-// Versione del lettore: quando cambia (es. ora legge anche le entrate) gli estratti conto si rileggono una volta.
-const STATEMENT_PARSER = 3;
-
+// Estratti conto UniCredit (PDF) dalla cartella/link configurato: solo file nuovi o modificati; se ne legge soltanto la rata del prestito.
 async function readStatements(db, report, force) {
   const value = db.settings.statementsSource;
   if (!value?.trim()) { report.sources.push({ label: 'Estratti conto', skipped: true }); return; }
   try {
-    const files = await listSource(value, /\.(pdf|csv)$/i);
+    const files = await listSource(value, /\.pdf$/i);
     report.sources.push({ label: 'Estratti conto', files: files.length });
     db.statementFiles ??= {};
-    db.transactions ??= {};
-    if (db.statementParser !== STATEMENT_PARSER) { db.statementFiles = {}; db.statementParser = STATEMENT_PARSER; }
     for (const file of files) {
       if (!force && db.statementFiles[file.key] === file.version) continue;
       try {
-        let items;
-        if (/\.pdf$/i.test(file.name)) {
-          const parsed = await parsePdfStatement(await file.read(), db.rules);
-          items = parsed.items;
-          const c = parsed.check;
-          // Controllo con il riepilogo della banca: se non torna, meglio dirlo.
-          if (c && (Math.abs(c.parsedOut - c.statedOut) > 0.005 || Math.abs(c.parsedIn - c.statedIn) > 0.005)) {
-            report.errors.push({ source: file.name, message: `le uscite lette (${c.parsedOut}) non tornano col riepilogo della banca (${c.statedOut})` });
-          }
-        } else {
-          items = parseStatement((await file.read()).toString('utf8'), db.rules);
-        }
-        for (const t of items) if (addOrEnrich(db.transactions, t, file.name) === 'added') report.transactions++;
+        const r = await readLoanRates(await file.read());
+        report.transactions += saveLoanRates(db, r.items, file.name);
         db.statementFiles[file.key] = file.version;
       } catch (e) {
         report.errors.push({ source: file.name, message: e.message });

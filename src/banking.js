@@ -2,7 +2,7 @@
 // Il servizio è gratuito per uso personale se si collegano i propri conti. Le credenziali dell'applicazione
 // (ID e chiave privata) le crei tu su enablebanking.com e le inserisci nelle Impostazioni: restano solo sul server.
 import crypto from 'node:crypto';
-import { makeTransaction } from './statements.js';
+import { makeTransaction, cutoffOf } from './statements.js';
 
 // ENABLE_BANKING_API permette di provare l'app con una banca finta (vedi scripts/banca-finta.mjs).
 export const API = (process.env.ENABLE_BANKING_API || 'https://api.enablebanking.com').replace(/\/+$/, '');
@@ -188,6 +188,7 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map(), pendi
   const party = String((credit ? tx.debtor?.name : tx.creditor?.name) ?? '').trim();
   const remittance = (tx.remittance_information ?? []).join(' ').replace(/\s+/g, ' ').trim();
   const description = party || remittance.slice(0, 120) || 'Movimento bancario';
+  const noParty = !party; // senza controparte (titolo «–»): di solito un giro tra i propri pocket
   const iban = (credit ? tx.debtor_account?.iban : tx.creditor_account?.iban) ?? '';
   const detail = [remittance && remittance !== description ? remittance : '', iban ? `IBAN ${iban}` : ''].filter(Boolean).join(' · ');
   let key = tx.transaction_id ?? tx.entry_reference ?? tx.reference_number;
@@ -205,7 +206,7 @@ export function mapTransaction(tx, conn, account, rules, seen = new Map(), pendi
   const after = tx.balance_after_transaction?.amount;
   const t = makeTransaction({
     id, date, description, detail, amount: signed,
-    extra: { account: account.uid, currency: tx.transaction_amount?.currency, balance: after != null ? Number(after) : undefined, product: account.name || BANKS[conn.bank]?.label },
+    extra: { noParty: noParty ? true : '', account: account.uid, currency: tx.transaction_amount?.currency, balance: after != null ? Number(after) : undefined, product: account.name || BANKS[conn.bank]?.label },
   }, rules, seen);
   t.source = 'banca';
   return t;
@@ -225,15 +226,15 @@ async function fetchAccount(client, uid, dateFrom, status = 'BOOK') {
   return out;
 }
 
-// Porta nei dati dell'app i movimenti di un conto: registrati (nuovi) e in sospeso. Il dato della banca ha la precedenza su quello degli estratti conto:
-// i movimenti dei file con lo stesso importo e la stessa data vengono tolti da `reconcileBankAndFiles` (src/reconcile.js), quindi qui non si scarta nulla.
-// In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
+// Porta nei dati dell'app i movimenti di un conto: registrati (nuovi) e in sospeso. // In sospeso: contano subito (spese e saldo). Si tolgono quelli letti la volta prima e si rimettono quelli di adesso: i pagamenti rifiutati
 // spariscono da soli e quelli che la banca ha registrato ricompaiono come registrati. Con `pendingList` nullo (la banca non li dà) si tengono quelli di prima.
 function ingestAccount({ db, conn, account, booked, pendingList, seen, report, today }) {
   const label = BANKS[conn.bank]?.label ?? conn.bank;
   const all = (db.transactions ??= {});
-  const items = booked.map((tx) => mapTransaction(tx, conn, account, db.rules ?? {}, seen)).filter(Boolean);
-  items.sort((a, b) => a.date.localeCompare(b.date));
+  // Si salvano solo i movimenti dal 1 ottobre 2026 (o dalla data scelta nelle impostazioni).
+  const from = cutoffOf(db.settings);
+  const keep = (t) => t && t.date >= from;
+  const items = booked.map((tx) => mapTransaction(tx, conn, account, {}, seen)).filter(keep);
   for (const t of items) {
     report.found++;
     if (all[t.id]) { report.duplicates++; continue; }
@@ -244,8 +245,8 @@ function ingestAccount({ db, conn, account, booked, pendingList, seen, report, t
     for (const id of Object.keys(all)) if (all[id].pendingAcct === account.uid) delete all[id];
     const pseen = new Map();
     for (const tx of pendingList) {
-      const t = mapTransaction(tx, conn, account, db.rules ?? {}, pseen, true, today);
-      if (!t) continue;
+      const t = mapTransaction(tx, conn, account, {}, pseen, true, today);
+      if (!keep(t)) continue;
       all[t.id] = { ...t, file: `Collegamento ${label}`, pending: true, pendingAcct: account.uid };
       report.pending++;
     }

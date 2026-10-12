@@ -6,7 +6,7 @@ const NOW = new Date(2026, 9, 3); // 3 ottobre 2026: i mesi chiusi sono fino a s
 
 // Tre mesi (lug-set): stipendio 2000, affitto 600, e ogni mese spesa 400, svago 100, carburante 100.
 function sample() {
-  const db = { settings: { rentAmount: 600, rentFrom: '2026-07', budgets: {}, savingsGoal: 0 }, docs: {}, paid: {}, manual: {}, transactions: {} };
+  const db = { settings: { rentAmount: 600, rentFrom: '2026-07', cutoff: '2026-07-01', budgets: {}, savingsGoal: 0 }, docs: {}, paid: {}, manual: {}, transactions: {} };
   for (const month of [7, 8, 9, 10]) {
     db.docs[`busta-${month}`] = { name: `Busta ${month}`, kind: 'stipendio', year: 2026, month, amount: 2000 };
     const day = `2026-${String(month).padStart(2, '0')}-10`;
@@ -110,4 +110,22 @@ test('entrate medie: solo gli ultimi 3 mesi chiusi con entrate', () => {
 test('budgetOverview: spese del mese in corso, per le barre', () => {
   const o = budgetOverview(sample(), { now: NOW });
   assert.deepEqual(o.spent, { spese: 400, svago: 100, carburante: 100 });
+});
+
+test('le uscite si contano dal 1 ottobre 2026: i mesi prima non entrano nella stima, le entrate sì', () => {
+  const db = sample();
+  delete db.settings.cutoff;
+  const e = estimateBudget(db, { now: new Date(2026, 11, 3) }); // 3 dicembre: mesi chiusi fino a novembre
+  assert.equal(e.months, 1); // solo ottobre: novembre non ha movimenti
+  assert.equal(e.from, '2026-10');
+  assert.equal(e.income, 2000);
+});
+
+test('spese fisse: media delle bollette, affitto e rata degli ultimi 3 mesi chiusi', () => {
+  const db = sample();
+  db.docs['luce-7'] = { name: 'Luce', kind: 'luce', year: 2026, month: 7, amount: 200 };
+  db.transactions.rata9 = { id: 'rata9', date: '2026-09-05', amount: -300, category: 'prestito', description: 'Rata' };
+  const e = estimateBudget(db, { now: NOW });
+  // lug: 600 + 100 (metà di 200), ago: 600, set: 600 + 300 → (700 + 600 + 900) / 3
+  assert.equal(e.fixed, 733.33);
 });
