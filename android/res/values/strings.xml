@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="widget_bank_description">Saldo Revolut e ultimo movimento dall\'ultima lettura (non in tempo reale). Per una griglia 3×1.</string>
-    <string name="widget_month3_description">Da pagare, spese, svago e carburante dal primo del mese, con la barra del mese e la banca. Per una griglia 5×2.</string>
-</resources>

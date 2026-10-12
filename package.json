@@ -1,24 +1,6 @@
 {
-  "name": "bilancio",
-  "version": "0.55.5",
-  "description": "Buste paga e bollette di casa, in ordine.",
-  "type": "module",
-  "main": "src/server.js",
-  "scripts": {
-    "start": "node --env-file-if-exists=.env src/start.js",
-    "dev": "node --watch --env-file-if-exists=.env src/start.js",
-    "test": "node --test \"test/**/*.test.js\"",
-    "demo:banche": "node scripts/demo-banche.mjs",
-    "apk": "node scripts/build-apk.mjs",
-    "apk:installa": "node scripts/build-apk.mjs --install"
-  },
-  "license": "UNLICENSED",
+  "name": "mybank",
+  "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@napi-rs/canvas": "^1.0.9",
-    "express": "^5.2.1",
-    "pdfjs-dist": "^6.1.200",
-    "tesseract.js": "^7.0.0",
-    "unpdf": "^1.8.1"
-  }
+  "description": "MyBank: nuova app, ripartita da zero (la vecchia Bilancio è archiviata nel ramo archivio/bilancio)"
 }
