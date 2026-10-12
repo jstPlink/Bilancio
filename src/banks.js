@@ -8,10 +8,23 @@ export const BANKS = {
 };
 
 const DAY = 86400000;
+
+// Si memorizzano solo i movimenti dal 1 ottobre 2026 (per ora): quelli prima non si leggono, non si salvano e non si mostrano.
+// La data si può cambiare con `settings.cutoff` (AAAA-MM-GG).
+export const MOVEMENTS_FROM = '2026-10-01';
+export const cutoffOf = (db) => (/^\d{4}-\d{2}-\d{2}$/.test(db.settings?.cutoff ?? '') ? db.settings.cutoff : MOVEMENTS_FROM);
+
+/** Toglie dai dati i movimenti precedenti alla data di inizio (e le scelte a mano che li riguardavano). Restituisce quanti ne ha tolti. */
+export function applyCutoff(db) {
+  const from = cutoffOf(db);
+  let removed = 0;
+  for (const [id, t] of Object.entries(db.transactions)) if (t.date < from) { delete db.transactions[id]; removed++; }
+  for (const id of Object.keys(db.overrides)) if (!db.transactions[id]) delete db.overrides[id];
+  return removed;
+}
 export const CONSENT_DAYS = 180;       // durata del consenso richiesto (la banca può ridurla)
 export const AUTO_PER_DAY = 4;         // accessi automatici al giorno concessi dalle banche (PSD2: senza l'utente presente)
 export const MANUAL_PER_DAY = 10;      // letture a mano: l'utente è presente e la richiesta lo dichiara con le intestazioni PSU
-const FIRST_SYNC_DAYS = 365;           // storico richiesto al primo collegamento (si ripiega su 90 giorni se la banca non lo consente)
 const FALLBACK_SYNC_DAYS = 90;
 const OVERLAP_DAYS = 7;                // ogni lettura riparte qualche giorno prima, per non perdere i movimenti registrati in ritardo
 const PENDING_MS = 60 * 60 * 1000;
@@ -134,7 +147,10 @@ export async function syncConnection({ client, db, conn, auto = false, now = Dat
   if (auto ? left.auto <= 0 : left.manual <= 0) throw new Error(`${label}: raggiunto il limite di ${auto ? AUTO_PER_DAY : MANUAL_PER_DAY} letture al giorno. Riprova più tardi.`);
   conn.calls.push({ t: now, auto });
 
-  const since = conn.lastSync ? Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY : now - FIRST_SYNC_DAYS * DAY;
+  const from = cutoffOf(db);
+  const fromMs = Date.parse(`${from}T00:00:00Z`);
+  // si parte dalla data di inizio (o da qualche giorno prima dell'ultima lettura)
+  const since = conn.lastSync ? Math.max(fromMs, Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY) : fromMs;
   const report = { found: 0, added: 0, pending: 0 };
   const seen = new Map();
   for (const account of conn.accounts) {
@@ -142,14 +158,14 @@ export async function syncConnection({ client, db, conn, auto = false, now = Dat
     try { booked = await fetchAccount(client, account.uid, isoDay(since)); }
     catch (e) {
       if (conn.lastSync) throw e;
-      booked = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY)); // la banca non concede uno storico così lungo
+      booked = await fetchAccount(client, account.uid, isoDay(Math.max(fromMs, now - FALLBACK_SYNC_DAYS * DAY))); // la banca non concede uno storico così lungo
     }
     let pendingList = null;
     try { pendingList = await fetchAccount(client, account.uid, isoDay(now - FALLBACK_SYNC_DAYS * DAY), 'PDNG'); } catch { /* sospesi non disponibili: si tengono quelli di prima */ }
 
     for (const tx of booked) {
       const t = mapTransaction(tx, conn, account, { seen });
-      if (!t) continue;
+      if (!t || t.date < from) continue;
       report.found++;
       if (!db.transactions[t.id]) report.added++;
       db.transactions[t.id] = t;
@@ -159,12 +175,13 @@ export async function syncConnection({ client, db, conn, auto = false, now = Dat
       const pseen = new Map();
       for (const tx of pendingList) {
         const t = mapTransaction(tx, conn, account, { seen: pseen, pending: true, today: isoDay(now) });
-        if (!t) continue;
+        if (!t || t.date < from) continue;
         db.transactions[t.id] = t;
         report.pending++;
       }
     }
   }
+  applyCutoff(db);
   conn.lastSync = new Date(now).toISOString();
   return report;
 }
@@ -183,7 +200,7 @@ export function publicState(db, now = Date.now()) {
     appId: b.app?.appId ?? '',
     hasKey: Boolean(b.app?.privateKey),
     banks: Object.entries(BANKS).map(([key, v]) => ({ key, label: v.label })),
-    lastSync, lastAuto: b.lastAuto,
+    lastSync, lastAuto: b.lastAuto, since: cutoffOf(db),
     connections: b.connections.map((c) => {
       const until = Date.parse(c.validUntil);
       return {

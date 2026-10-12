@@ -6,6 +6,8 @@ Monitora i movimenti delle tue banche (**UniCredit** e **Revolut**, collegate co
 
 ## Cosa fa
 
+**Da quando.** Per ora MyBank memorizza e mostra solo i movimenti **dal 1 ottobre 2026**: quelli di prima non si leggono né si salvano.
+
 **Tag dei movimenti.** Revolut è la banca principale ed è divisa in pocket. Ogni movimento in uscita prende il tag del **pocket da cui parte**:
 
 | Pocket Revolut | Tag |
@@ -37,14 +39,16 @@ Serve Node 24.
 
 ```bash
 npm install
-cp .env.example .env     # poi imposta MYBANK_PASSWORD
-npm start                # http://127.0.0.1:4870
+cp .env.example .env     # poi imposta MYBANK_PASSWORD (per il server)
+npm run server           # il server, su http://127.0.0.1:4870
+npm start                # il localhost: solo frontend, sceglie il server al login
 ```
 
 `MYBANK_PASSWORD` è la password **iniziale**: la cambi dalla scheda Opzioni e da quel momento il valore nel file non conta più. Senza `MYBANK_PASSWORD` il server parte solo su `127.0.0.1` (accesso libero, per provare in locale); su altri indirizzi (`HOST=0.0.0.0`) la password è obbligatoria.
-I dati stanno in `data/` (`mybank.json` e la chiave di firma `secret.key`; non finiscono mai su GitHub).
+I dati del server stanno in `data/` (`mybank.json` e la chiave di firma `secret.key`; non finiscono mai su GitHub).
 
-**Localhost che punta al server:** con `MYBANK_SERVER=https://<il tuo server>` nel file `.env`, `npm start` non usa dati locali: le pagine sono quelle di questa cartella (le modifiche al codice si vedono subito) ma dati e login arrivano dal server, quindi password e dati sono quelli veri e in locale non si legge né si scrive nulla. Se il server non ha ancora una funzione nuova, la chiamata dà un errore finché non lo aggiorni. La stessa variabile finisce nell'APK (`npm run apk`).
+**Localhost = solo frontend.** `npm start` non avvia un server: serve soltanto le pagine di questa cartella (le modifiche al codice si vedono subito) e **non ha dati né logica**. Nella pagina di accesso scegli **a quale server collegarti** (indirizzo https, oppure di casa come `192.168.1.20:4870`) e inserisci la password; ogni chiamata (`/api/…`) viene inoltrata a quel server, quindi dati, banche, aggiornamenti e password sono sempre quelli del server e in locale non si legge né si scrive nulla. Il server scelto si ricorda nel browser; **Opzioni → Cambia server** lo cambia. Con `MYBANK_SERVER` nel file `.env` l'indirizzo è già compilato. Se il server non ha ancora una funzione nuova, la chiamata dà un errore finché non lo aggiorni.
+Il **server vero** (anche in locale, per sviluppo) si avvia con `npm run server`; è quello che gira nel container Docker.
 
 **Provare senza banche vere:** `npm run demo` avvia una banca finta e un'app con dati inventati su `http://localhost:4871` (database a parte in `data/demo`).
 
@@ -74,7 +78,7 @@ Stile tipografico da giornale svizzero: **carta e inchiostro** (chiaro e scuro c
 ## Come è fatta
 
 ```
-src/       server.js (API), start.js (avvio), eb.js (client Enable Banking), banks.js (collegamento, letture, limiti),
+src/       server.js (API), start.js (avvio del server), local.js e proxy.js (localhost solo frontend), eb.js (client Enable Banking), banks.js (collegamento, letture, limiti),
            tags.js (tag e giroconti), stats.js (storico, budget, widget), auth.js (password e gettone), schedule.js (orari), store.js (dati)
 public/    pagine web: index.html, style.css, app.js (nessuna dipendenza)
 android/   app e widget (Java, senza Gradle): MainActivity, MyBankWidget, WidgetData, Server

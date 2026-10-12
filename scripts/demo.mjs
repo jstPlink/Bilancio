@@ -19,6 +19,7 @@ const bank = createFakeBank();
 await bank.listen(bankPort);
 process.env.ENABLE_BANKING_API = `http://127.0.0.1:${bankPort}`;
 process.env.MYBANK_NO_AUTO = '1';
+process.env.MYBANK_DEMO = '1'; // le pagine mostrano che i dati sono inventati
 
 const { createApp } = await import('../src/server.js');
 const { app, db, store } = createApp({ dir, password: '' });

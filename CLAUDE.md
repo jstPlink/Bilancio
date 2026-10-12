@@ -20,9 +20,9 @@ Node 24 + Express 5, dati in un file JSON (`data/mybank.json`), pagine web in HT
 ## Provare l'app
 
 - `npm run demo` (banca finta + dati inventati su `http://localhost:4871`, database a parte in `data/demo`): per vedere la grafica e provare i flussi senza banche vere. Fermalo a fine prova; mai riempire di dati di prova il database vero (`data/mybank.json`) o il server dell'utente.
-- **Il localhost deve poter puntare al server dell'utente**: con `MYBANK_SERVER=<indirizzo>` nel file `.env`, `npm start` serve le pagine di questa cartella e inoltra dati e login al server (`src/proxy.js`). Quando lanci l'app in localhost per l'utente usa `npm start`; se `.env` manca o non ha `MYBANK_SERVER`, chiedi l'indirizzo una volta sola, scrivilo in `.env` e non riscriverlo altrove (mai in codice, documentazione, commit o messaggi di commit).
+- **Il localhost è solo frontend e punta a un server**: `npm start` (`src/local.js`, `src/proxy.js`) serve le pagine di questa cartella e inoltra dati e login al server che l'utente sceglie nella pagina di accesso (o a `MYBANK_SERVER` del file `.env`, che precompila il campo). Tutta la logica sta nel server (`src/server.js`, avviato con `npm run server` e da Docker): non aggiungere logica o dati al frontend locale. Quando lanci l'app in localhost per l'utente usa `npm start`; l'indirizzo del server lo sceglie l'utente al login (se vuoi precompilarlo scrivilo in `.env`, una volta sola, e mai in codice, documentazione, commit o messaggi di commit).
 - Se il server non ha ancora una funzione nuova (la chiamata dà errore), per far provare la grafica usa `npm run demo` su una porta a parte; non toccare il localhost collegato al server. Un processo di sfondo si ferma da solo dopo un po': se serve di nuovo, rilancialo.
-- Senza `MYBANK_SERVER`, `npm start` avvia il server completo con i dati locali in `data/` (solo per sviluppo).
+- `npm run server` avvia il server completo con i dati locali in `data/` (solo per sviluppo).
 
 ## Estetica (regole uniche, vedi README «Estetica»)
 

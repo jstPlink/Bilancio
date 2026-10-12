@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuth } from './auth.js';
-import { AUTO_PER_DAY, BANKS, startLink, finishLink, syncConnection, publicState } from './banks.js';
+import { AUTO_PER_DAY, BANKS, applyCutoff, startLink, finishLink, syncConnection, publicState } from './banks.js';
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, widgetData, yearSummary } from './stats.js';
@@ -15,9 +15,11 @@ const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
 /** Crea l'app: `dir` è la cartella dei dati, `password` la password di accesso (vuota = accesso libero, solo in locale). */
-export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch } = {}) {
+export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '' } = {}) {
   const store = openStore(dir);
   const { db } = store;
+  if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 ottobre 2026 (vedi banks.js)
+  if (applyCutoff(db)) store.save(); // quelli di prima si tolgono dai dati
   const auth = createAuth({ dir, password });
   const app = express();
   app.set('trust proxy', true);
@@ -39,7 +41,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   app.post('/api/password', auth.middleware, (req, res) => auth.changePassword(req, res));
   app.get('/api/session', (req, res) => {
     if (!auth.isAuthed(req)) return res.status(401).json({ ok: false, open: auth.open });
-    res.json({ ok: true, open: auth.open, token: auth.refresh(), version: VERSION });
+    res.json({ ok: true, open: auth.open, token: auth.refresh(), version: VERSION, demo: Boolean(process.env.MYBANK_DEMO) });
   });
 
   // Ritorno dalla banca dopo l'autorizzazione: si conclude il collegamento e si torna alla scheda Banche (non serve il login: vale lo «state»).

@@ -2,6 +2,17 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.6.0
+- **Movimenti solo dal 1 ottobre 2026** (per ora): quelli precedenti non si leggono dalla banca, non si salvano e non si mostrano; all'avvio il server toglie dai dati quelli già presenti. La data di inizio è `settings.cutoff` (di base `2026-10-01`).
+- **Orari di aggiornamento in verticale**, uno sotto l'altro; si tocca un orario per cambiarlo direttamente (menu) e si toglie con «Togli».
+- Elenco a discesa leggibile nel tema scuro (testo chiaro su fondo scuro).
+- Freccia dei blocchi collassabili uguale per Enable Banking, UniCredit e Revolut.
+- Testo della versione dimezzato; tolte le note in fondo allo Storico.
+- Demo: avviso rosso «Dati di prova inventati» in alto, per non scambiarli per movimenti veri; la banca finta ora ha dati recenti.
+- **Widget**: anteprima con i dati reali nella lista dei widget (Android 15+); prima resta quella con dati di esempio.
+- **Localhost solo frontend**: `npm start` serve soltanto le pagine e non ha dati né logica; nella pagina di accesso si sceglie il server a cui collegarsi (ricordato nel browser, «Opzioni → Cambia server» lo cambia) e ogni chiamata va a quel server. Il server vero si avvia con `npm run server` (e da Docker, invariato).
+- Frecce dei blocchi collassabili grandi il doppio; testo della versione +35% e poi +20% (13px); orari di aggiornamento tolti con un quadratino con la × rossa.
+
 ## 0.5.0
 - **Orari di aggiornamento modificabili** (scheda Banche → Aggiornamento): si tolgono con la × e se ne aggiungono con il menu, da 1 a 4 (le banche concedono 4 accessi automatici al giorno); salvati sul server, il prossimo aggiornamento si ricalcola subito. Quelli di base restano 5, 11, 14 e 19.
 - **Password da almeno 5 caratteri** (prima 8).

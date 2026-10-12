@@ -45,19 +45,19 @@ export function createFakeBank({ today = new Date() } = {}) {
     const rows = [];
     const add = (daysAgo, amount, party, extra = {}) => rows.push({ daysAgo, amount, party, extra });
     for (let m = 0; m < 14; m++) {
-      const base = m * 30 + 2;
+      const base = m * 30 + 1; // ogni «mese» sta in 11 giorni: il mese in corso è fatto di movimenti recenti
       if (uid === 'unicredit-1') {
-        add(base + 4, 1800, 'Azienda Esempio Srl', { remittance: ['STIPENDIO MESE'] });
-        add(base + 6, -600, 'Locatore Casa Srl', { remittance: ['AFFITTO MENSILE'], iban: 'IT28W8000000292100645211208' });
-        add(base + 9, -(45 + Math.round(rnd() * 40)), 'Energia Luce Spa', { remittance: ['FATTURA ' + (1000 + m)], iban: 'IT60X0542811101000000123457' });
-        add(base + 12, -300, 'Mario Rossi', { remittance: ['Ricarica Revolut'], iban: IBAN.revolut }); // giro verso il mio conto Revolut
+        add(base + 2, 1800, 'Azienda Esempio Srl', { remittance: ['STIPENDIO MESE'] });
+        add(base + 3, -600, 'Locatore Casa Srl', { remittance: ['AFFITTO MENSILE'], iban: 'IT28W8000000292100645211208' });
+        add(base + 4, -(45 + Math.round(rnd() * 40)), 'Energia Luce Spa', { remittance: ['FATTURA ' + (1000 + m)], iban: 'IT60X0542811101000000123457' });
+        add(base + 5, -300, 'Mario Rossi', { remittance: ['Ricarica Revolut'], iban: IBAN.revolut }); // giro verso il mio conto Revolut
       } else if (uid === 'revolut-1') {
-        add(base + 12, 300, 'Mario Rossi', { remittance: ['Ricarica da UniCredit'], iban: IBAN.unicredit });
-        for (const p of ['01 Spesa', '02 Svago', '03 Carburante', '04 Altro']) add(base + 13, -(50 + Math.round(rnd() * 50)), p, { remittance: [`A EUR ${p}`] });
+        add(base + 5, 300, 'Mario Rossi', { remittance: ['Ricarica da UniCredit'], iban: IBAN.unicredit });
+        for (const p of ['01 Spesa', '02 Svago', '03 Carburante', '04 Altro']) add(base + 6, -(50 + Math.round(rnd() * 50)), p, { remittance: [`A EUR ${p}`] });
       } else {
         const pocket = acc.pocket;
-        add(base + 13, 150, 'Mario Rossi', { remittance: [`Accredita EUR ${pocket} da EUR`] });
-        for (let k = 0; k < (pocket === 'Risparmi' ? 1 : 5); k++) add(base + 14 + k * 4, -(5 + Math.round(rnd() * 4500) / 100), pick(SPEND[pocket]), { mcc: '5411' });
+        add(base + 6, 150, 'Mario Rossi', { remittance: [`Accredita EUR ${pocket} da EUR`] });
+        for (let k = 0; k < (pocket === 'Risparmi' ? 1 : 4); k++) add(base + 7 + k, -(5 + Math.round(rnd() * 4500) / 100), pick(SPEND[pocket]), { mcc: '5411' });
       }
     }
     if (uid === 'revolut-1') add(1, -3.2, 'Bar Centrale', { mcc: '5814' });

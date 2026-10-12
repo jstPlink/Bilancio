@@ -14,7 +14,7 @@ async function setup(t, { password = 'segreta' } = {}) {
   const bankPort = await bank.listen(0);
   process.env.ENABLE_BANKING_API = `http://127.0.0.1:${bankPort}`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mybank-'));
-  const made = createApp({ dir, password });
+  const made = createApp({ dir, password, cutoff: '2000-01-01' }); // i test usano tutto lo storico della banca finta
   const server = await new Promise((r) => { const s = made.app.listen(0, '127.0.0.1', () => r(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => { server.close(); await bank.close(); fs.rmSync(dir, { recursive: true, force: true }); });
@@ -222,4 +222,36 @@ test("la password può avere 5 caratteri", async (t) => {
   assert.equal((await api("POST", "/api/password", { current: "segreta", next: "abcd" })).status, 400);
   assert.equal((await api("POST", "/api/password", { current: "segreta", next: "abcde" })).status, 200);
   assert.equal((await api("POST", "/api/login", { password: "abcde" })).status, 200);
+});
+
+test("si memorizzano solo i movimenti dal 1 ottobre 2026: quelli di prima non si leggono e non si mostrano", async (t) => {
+  const bank = createFakeBank();
+  process.env.ENABLE_BANKING_API = `http://127.0.0.1:${await bank.listen(0)}`;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(async () => { await bank.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const made = createApp({ dir, password: "" }); // nessun cutoff: vale quello di base
+  made.db.banking.app = { appId: "x", privateKey };
+  const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const { url } = await (await fetch(`${base}/api/banks/link`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bank: "unicredit" }) })).json();
+  await fetch((await fetch(url, { redirect: "manual" })).headers.get("location"), { redirect: "manual" });
+  const all = (await (await fetch(`${base}/api/transactions`)).json()).transactions;
+  assert.ok(all.length > 0);
+  assert.ok(all.every((x) => x.date >= "2026-10-01"));
+  assert.equal((await (await fetch(`${base}/api/banks`)).json()).since, "2026-10-01");
+  const sum = await (await fetch(`${base}/api/summary?year=2026`)).json();
+  assert.ok(sum.months.slice(0, 9).every((m) => m.entrate === 0 && m.uscite === 0)); // gennaio-settembre vuoti
+});
+
+test("all'avvio i movimenti precedenti alla data di inizio si tolgono dai dati", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  fs.writeFileSync(path.join(dir, "mybank.json"), JSON.stringify({
+    transactions: { a: { id: "a", date: "2026-09-30", amount: -5, account: "x", bank: "revolut", description: "Prima" }, b: { id: "b", date: "2026-10-01", amount: -7, account: "x", bank: "revolut", description: "Dopo" } },
+    overrides: { a: "svago", b: "spesa" },
+  }));
+  const { db } = createApp({ dir, password: "" });
+  assert.deepEqual(Object.keys(db.transactions), ["b"]);
+  assert.deepEqual(Object.keys(db.overrides), ["b"]);
+  fs.rmSync(dir, { recursive: true, force: true });
 });

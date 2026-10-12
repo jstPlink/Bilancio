@@ -12,9 +12,22 @@ const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, 
 
 // ------------------------------------------------------------------ rete
 
+// Frontend locale (`npm start`): la pagina non ha dati né logica, ogni chiamata va al server scelto nella pagina di accesso.
+// Sul server vero (e nell'app Android) questa modalità è spenta e le chiamate vanno allo stesso indirizzo della pagina.
+const local = { on: false, server: '' };
+const SERVER_KEY = 'mybank.server';
+const normServer = (raw) => {
+  const s = String(raw ?? '').trim().replace(/\/+$/, '');
+  if (!s) return '';
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) return s;
+  // senza «https://»: https, tranne per gli indirizzi di casa (localhost, 192.168…, 10…, .local), che di norma sono http
+  return /^(localhost([:/]|$)|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|[^/:]+\.local([:/]|$))/i.test(s) ? `http://${s}` : `https://${s}`;
+};
+
 class Unauthorized extends Error {}
 async function api(method, url, body) {
-  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const headers = { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(local.on && local.server ? { 'X-MyBank-Server': local.server } : {}) };
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   if (res.status === 401) throw new Unauthorized();
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
@@ -33,7 +46,13 @@ const fail = (e) => { if (e instanceof Unauthorized) return showLogin(); toast(e
 
 // ------------------------------------------------------------------ accesso
 
-function showLogin() { $('#app').hidden = true; $('#login').hidden = false; $('#password').focus(); }
+function showLogin() {
+  $('#app').hidden = true;
+  $('#login').hidden = false;
+  $('#serverRow').hidden = !local.on;
+  if (local.on) $('#serverUrl').value = local.server;
+  (local.on && !local.server ? $('#serverUrl') : $('#password')).focus();
+}
 
 async function enter(session) {
   // l'app Android tiene il gettone per il widget
@@ -41,6 +60,7 @@ async function enter(session) {
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#version').textContent = `v${session.version}`;
+  $('#demoBar').hidden = !session.demo;
   state.session = session;
   const fromBank = new URLSearchParams(location.search).get('banca');
   if (fromBank) {
@@ -55,7 +75,12 @@ $('#loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('#loginError').textContent = '';
   try {
+    if (local.on) {
+      local.server = normServer($('#serverUrl').value);
+      if (!local.server) { $('#loginError').textContent = 'Scrivi l\'indirizzo del server.'; return; }
+    }
     const r = await api('POST', '/api/login', { password: $('#password').value });
+    if (local.on) { try { localStorage.setItem(SERVER_KEY, local.server); } catch { /* senza archivio del browser vale per questa sessione */ } }
     $('#password').value = '';
     await enter({ ...(await api('GET', '/api/session')), token: r.token });
   } catch (err) { $('#loginError').textContent = err instanceof Unauthorized ? 'Password errata.' : err.message; }
@@ -71,9 +96,16 @@ async function loadOptions() {
   $('#pwCurrent').required = !s.open; // con l'accesso libero non c'è una password attuale
   $('#sessionNote').textContent = s.open ? 'Accesso libero: nessuna password richiesta (solo in locale).' : 'Il login resta valido 180 giorni su questo dispositivo.';
   $('#aboutText').textContent = `MyBank v${s.version} · aggiornamenti automatici alle ${banks.auto.hours.map((h) => `${String(h).padStart(2, '0')}:00`).join(', ')} (ora italiana).`;
-  $('#serverBox').hidden = !window.Native?.changeServer;
+  $('#serverBox').hidden = !(window.Native?.changeServer || local.on);
+  $('#serverNote').textContent = local.on ? `Collegato a ${new URL(local.server).host}. Questa pagina è solo il frontend: dati e logica sono sul server.` : 'Solo nell\'app Android.';
 }
-$('#changeServerBtn').addEventListener('click', () => window.Native?.changeServer?.());
+$('#changeServerBtn').addEventListener('click', async () => {
+  if (window.Native?.changeServer) return window.Native.changeServer();
+  await api('POST', '/api/logout').catch(() => {});
+  local.server = '';
+  try { localStorage.removeItem(SERVER_KEY); } catch { /* niente da togliere */ }
+  showLogin();
+});
 $('#pwOpen').addEventListener('click', () => { $('#pwForm').reset(); $('#pwError').textContent = ''; $('#pwDialog').showModal(); $('#pwCurrent').focus(); });
 $('#pwCancel').addEventListener('click', () => $('#pwDialog').close());
 $('#pwForm').addEventListener('submit', async (e) => {
@@ -212,16 +244,19 @@ async function loadBanks() {
   TAGS = d.tags ?? TAGS;
   const auto = d.lastAuto;
   const hrs = d.auto.hours;
-  const chips = hrs.map((h) => `<span class="chip">${String(h).padStart(2, '0')}:00<button class="x" data-hour-del="${h}" aria-label="Togli le ${h}" ${hrs.length <= 1 ? 'disabled' : ''}>×</button></span>`).join('');
-  const free = Array.from({ length: 24 }, (_, h) => h).filter((h) => !hrs.includes(h));
+  const pad = (h) => `${String(h).padStart(2, '0')}:00`;
+  const options = (list, sel) => list.map((h) => `<option value="${h}" ${h === sel ? 'selected' : ''}>${pad(h)}</option>`).join('');
+  const all = Array.from({ length: 24 }, (_, h) => h);
+  const rows = hrs.map((h) => `<div class="hour"><select data-hour-edit="${h}" aria-label="Orario ${pad(h)}: cambia">${options(all.filter((x) => x === h || !hrs.includes(x)), h)}</select>
+    <button class="x" data-hour-del="${h}" aria-label="Togli l'orario ${pad(h)}" title="Togli" ${hrs.length <= 1 ? 'disabled' : ''}>×</button></div>`).join('');
   const adder = hrs.length < d.auto.max
-    ? `<select id="hourAdd" aria-label="Aggiungi un orario">${free.map((h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}</select><button class="ghost" id="hourAddBtn">Aggiungi</button>`
-    : `<span class="muted">Massimo ${d.auto.max}: le banche non concedono più accessi automatici al giorno.</span>`;
+    ? `<div class="hour"><select id="hourAdd" aria-label="Aggiungi un orario">${options(all.filter((x) => !hrs.includes(x)), -1)}</select><button class="ghost" id="hourAddBtn">Aggiungi</button></div>`
+    : `<p class="muted">Massimo ${d.auto.max}: le banche non concedono più accessi automatici al giorno.</p>`;
   $('#syncPanel').innerHTML = `
     <h2>Aggiornamento</h2>
-    <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b>.</p>
-    <div><p class="muted">Aggiornamento automatico ogni giorno alle (ora italiana, al massimo ${d.auto.max}):</p>
-      <div class="hours">${chips}${adder}</div>
+    <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b>. Si memorizzano i movimenti dal ${fmtDate(d.since)}.</p>
+    <div><p class="muted">Aggiornamento automatico ogni giorno a questi orari (ora italiana, al massimo ${d.auto.max}). Tocca un orario per cambiarlo:</p>
+      <div class="hours">${rows}${adder}</div>
       <p class="muted">Prossimo: ${fmtDateTime(d.auto.next)}${d.lastAuto ? ` · ultimo automatico: ${fmtDateTime(d.lastAuto.at)}, ${d.lastAuto.added} nuovi movimenti${d.lastAuto.errors.length ? ` (errori: ${esc(d.lastAuto.errors.join(' · '))})` : ''}` : ''}</p></div>
     <div class="foot"><button class="primary" id="syncBtn" ${d.connections.length ? '' : 'disabled'}><span class="spin" hidden></span><span>Aggiorna ora</span></button>
       <span class="muted">Per gli aggiornamenti in più durante la giornata.</span></div>`;
@@ -244,13 +279,21 @@ async function loadBanks() {
   }).join('');
 }
 
+$('#syncPanel').addEventListener('change', async (e) => {
+  const el = e.target;
+  if (!el.dataset?.hourEdit) return;
+  const current = [...document.querySelectorAll('[data-hour-edit]')].map((x) => Number(x.dataset.hourEdit));
+  const hours = current.map((h) => (h === Number(el.dataset.hourEdit) ? Number(el.value) : h));
+  try { await api('PUT', '/api/banks/schedule', { hours }); toast('Orario cambiato.'); } catch (err) { fail(err); }
+  loadBanks().catch(fail);
+});
 $('#bankList').addEventListener('toggle', (e) => { const k = e.target.dataset?.bank; if (k) state.bankOpen[k] = e.target.open; }, true);
 $('#banche').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   try {
     if (t.dataset.hourDel || t.id === 'hourAddBtn') {
-      const current = [...document.querySelectorAll('[data-hour-del]')].map((b) => Number(b.dataset.hourDel));
+      const current = [...document.querySelectorAll('[data-hour-edit]')].map((x) => Number(x.dataset.hourEdit));
       const hours = t.id === 'hourAddBtn' ? [...current, Number($('#hourAdd').value)] : current.filter((h) => h !== Number(t.dataset.hourDel));
       await api('PUT', '/api/banks/schedule', { hours });
       await loadBanks();
@@ -293,5 +336,16 @@ $('#ebForm').addEventListener('submit', async (e) => {
 // ------------------------------------------------------------------ avvio
 
 (async () => {
-  try { await enter(await api('GET', '/api/session')); } catch (e) { if (e instanceof Unauthorized) showLogin(); else toast(e.message); }
+  try {
+    const c = await fetch('/local-config.json');
+    if (c.ok && (c.headers.get('content-type') ?? '').includes('json')) {
+      const cfg = await c.json();
+      local.on = Boolean(cfg.local);
+      let saved = '';
+      try { saved = localStorage.getItem(SERVER_KEY) ?? ''; } catch { /* nessun valore salvato */ }
+      local.server = normServer(saved || cfg.server);
+    }
+  } catch { /* sul server vero non c'è: modalità normale */ }
+  if (local.on && !local.server) return showLogin(); // prima si sceglie il server
+  try { await enter(await api('GET', '/api/session')); } catch (e) { if (e instanceof Unauthorized || local.on) showLogin(); else toast(e.message); }
 })();

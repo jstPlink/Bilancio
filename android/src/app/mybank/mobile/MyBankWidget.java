@@ -133,5 +133,21 @@ public class MyBankWidget extends AppWidgetProvider {
         Intent open = new Intent(c, MainActivity.class);
         v.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(c, 1, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         m.updateAppWidget(ids, v);
+        if (d.ok) updatePreview(c, m, v);
+    }
+
+    /**
+     * Anteprima «vera» nella lista dei widget (Android 15 e successivi): l'ultimo aspetto con i dati reali. Prima di Android 15 vale
+     * l'anteprima statica con dati di esempio (previewLayout). Il sistema limita le richieste: al massimo una l'ora e senza errori.
+     */
+    private static void updatePreview(Context c, AppWidgetManager m, RemoteViews v) {
+        if (android.os.Build.VERSION.SDK_INT < 35) return;
+        android.content.SharedPreferences p = c.getSharedPreferences("anteprima", Context.MODE_PRIVATE);
+        long now = System.currentTimeMillis();
+        if (now - p.getLong("quando", 0) < 3600000L) return;
+        try {
+            m.setWidgetPreview(new ComponentName(c, MyBankWidget.class), android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN, v);
+            p.edit().putLong("quando", now).apply();
+        } catch (Throwable e) { /* limite di richieste o non supportato: resta l'anteprima statica */ }
     }
 }

@@ -1,8 +1,6 @@
 // Avvio del server: node src/start.js (variabili: PORT, HOST, MYBANK_DATA, MYBANK_PASSWORD, MYBANK_PUBLIC_URL, MYBANK_NO_AUTO).
-// Con MYBANK_SERVER (file .env) il localhost non ha dati suoi: pagine di questa cartella, dati e login inoltrati a quel server (vedi proxy.js).
-if (process.env.MYBANK_SERVER) {
-  await import('./proxy.js');
-} else {
+// Questo è il SERVER (usato anche da Docker). Il localhost per vedere le pagine è `npm start` (src/local.js): solo frontend, punta a un server.
+{
   const path = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const { createApp, VERSION } = await import('./server.js');

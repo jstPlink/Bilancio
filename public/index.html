@@ -13,6 +13,7 @@
     <form id="loginForm" class="panel login">
       <h1>MyBank</h1>
       <p class="muted">Inserisci la password per entrare.</p>
+      <label id="serverRow" hidden>Server <input id="serverUrl" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="mybank.miodominio.it"></label>
       <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
       <p id="loginError" class="error" role="alert"></p>
       <button class="primary" type="submit">Entra</button>
@@ -24,6 +25,8 @@
       <div class="brand"><h1><i></i>MyBank</h1></div>
       <div class="top-actions"><span class="version" id="version"></span><button class="ghost" id="optionsBtn">Opzioni</button></div>
     </header>
+
+    <div class="demo" id="demoBar" hidden>Dati di prova inventati: non sono i tuoi movimenti.</div>
 
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="storico" aria-selected="true">Storico</button>
@@ -39,7 +42,6 @@
         </div>
         <div class="cards" id="yearCards"></div>
         <div class="tablewrap"><table id="yearTable"></table></div>
-        <p class="muted note">Entrate e uscite di tutte le banche collegate. I giroconti (denaro che sposti tra i tuoi conti e pocket) non contano. Tocca un mese per vedere le uscite per tag.</p>
       </section>
 
       <section id="movimenti" hidden>
@@ -88,7 +90,7 @@
         <div class="panel">
           <h2>Informazioni</h2>
           <p class="muted" id="aboutText"></p>
-          <div class="foot" id="serverBox" hidden><button class="ghost" id="changeServerBtn">Cambia server</button><span class="muted">Solo nell'app Android.</span></div>
+          <div class="foot" id="serverBox" hidden><button class="ghost" id="changeServerBtn">Cambia server</button><span class="muted" id="serverNote"></span></div>
         </div>
         <div class="panel">
           <h2>Sessione</h2>
