@@ -1,24 +1,30 @@
 # MyBank
 
-Nuova app, ripartita da zero. Il codice della precedente (Bilancio) non va riusato per abitudine: sta nel ramo `archivio/bilancio` e si consulta solo se serve.
-
-## Punto di partenza
-
-- **Cosa fa l'app non è ancora scritto.** Quando l'utente descrive i requisiti, scrivili in `README.md` (cosa fa, come si avvia, come si configura) prima o insieme al codice, e tieni questo file e il README allineati.
-- Scegli lo stack più semplice che soddisfa i requisiti e dichiaralo qui sotto in «Tecnologia» appena deciso. Non ereditare scelte da Bilancio (Node/Express, Android, Docker/NAS) senza che i requisiti le richiedano.
-- Lingua dell'interfaccia, dei commenti e della documentazione: italiano.
+App per monitorare i movimenti di UniCredit e Revolut (via Enable Banking) dal web e da Android, con budget, tag per pocket e widget.
+Vedi README.md per le schede, i tag, l'avvio e la struttura. Riscrittura da zero di Bilancio (archiviata nel ramo `archivio/bilancio`: non riusarne il codice per abitudine).
 
 ## Tecnologia
 
-_Da decidere con i requisiti._
+Node 24 + Express 5, dati in un file JSON (`data/mybank.json`), pagine web in HTML/CSS/JS senza dipendenze (`public/`), app Android in Java costruita senza Gradle (`scripts/build-apk.mjs`). Lingua dell'interfaccia, dei commenti e della documentazione: italiano.
 
 ## Regole di rilascio
 
 - **Commit e push solo quando l'utente li chiede.**
-- **Ad ogni modifica**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`), aggiungi la voce in `CHANGELOG.md`, esegui i test se esistono.
-- **Quando l'utente chiede commit e push**: committa tutto, crea il tag `mybank-vX.Y.Z` della versione corrente e pusha anche i tag (i tag `vX.Y.Z` sono tutti della vecchia app Bilancio: non vanno riusati).
+- **Ad ogni modifica dell'app**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`), aggiungi la voce in `CHANGELOG.md`, esegui `npm test` e, se il telefono è collegato col debug wireless, aggiorna l'app con `npm run apk:installa`
+  (l'SDK si trova da solo in `~/Android/Sdk` o `%LOCALAPPDATA%\Android\Sdk`; `adb` sta in `platform-tools` dell'SDK, non nel PATH; se il telefono non risponde prova `adb mdns services` e `adb devices -l`, e se resta muto dillo all'utente).
+- **Quando l'utente chiede commit e push**: committa tutto, crea il tag `mybank-vX.Y.Z` della versione corrente e pusha anche i tag (i tag `vX.Y.Z` sono tutti della vecchia app Bilancio: non vanno riusati). Il server (NAS) si aggiorna a parte: `docker compose pull && docker compose up -d` dopo che GitHub ha costruito l'immagine.
 - Semver: patch per correzioni, minor per nuove funzioni, major per cambi incompatibili.
-- Non committare mai dati personali (`data/`), file `.env`, chiavi, password o link privati.
+- Non committare mai `data/`, `.env`, chiavi, password o indirizzi privati (sono in `.gitignore`): l'indirizzo del server e le password non vanno in codice, documentazione, commit o messaggi di commit.
+- Dopo modifiche a `src/` esegui `npm test`.
+
+## Provare l'app
+
+- `npm run demo` (banca finta + dati inventati su `http://localhost:4871`, database a parte in `data/demo`): per vedere la grafica e provare i flussi senza banche vere. Fermalo a fine prova; mai riempire di dati di prova il database vero (`data/mybank.json`) o il server dell'utente.
+- `npm start` per il server vero (richiede `.env`, vedi `.env.example`).
+
+## Estetica (regole uniche, vedi README «Estetica»)
+
+Carta e inchiostro, un solo rosso vermiglio, angoli vivi, filetti da 1px (2px a inizio sezione), serif per numeri e titoli, monospazio maiuscolo per le etichette. Scala del testo 11/13/15/22/34. Pulsanti e campi alti `--h`. Nuove schermate e il widget seguono le stesse regole: niente colori o forme nuove senza aggiornare queste righe e il README.
 
 ## Prima di fare domande
 

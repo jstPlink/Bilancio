@@ -1,0 +1,20 @@
+# Avvio sul server con l'immagine già pronta, costruita da GitHub:
+#   docker compose up -d
+# Aggiornamento alla versione più recente:
+#   docker compose pull && docker compose up -d
+services:
+  mybank:
+    image: ghcr.io/jstplink/mybank:latest
+    container_name: mybank
+    restart: unless-stopped
+    ports:
+      - "4870:4870"
+    environment:
+      TZ: Europe/Rome
+      # Obbligatoria: la password di accesso (web, app e widget).
+      MYBANK_PASSWORD: "scegli-una-password-lunga"
+      # Indirizzo pubblico https del server, quello registrato su Enable Banking come ritorno dalla banca (aggiungi /api/banks/callback).
+      # Facoltativo: se manca si ricava dall'indirizzo con cui apri il sito.
+      # MYBANK_PUBLIC_URL: "https://mybank.miodominio.it"
+    volumes:
+      - ./data:/data

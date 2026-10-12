@@ -1,0 +1,10 @@
+node_modules
+data
+.git
+.github
+android
+test
+scripts
+*.log
+.env
+docker-compose*.yml

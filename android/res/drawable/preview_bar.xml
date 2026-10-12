@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barra del mese dell'anteprima: a due terzi, con le tacche delle domeniche -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><solid android:color="#3A3733" /></shape></item>
+    <item android:right="40dp"><shape android:shape="rectangle"><solid android:color="#F3F0EA" /></shape></item>
+    <item android:left="30dp" android:right="97dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
+    <item android:left="66dp" android:right="61dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
+</layer-list>

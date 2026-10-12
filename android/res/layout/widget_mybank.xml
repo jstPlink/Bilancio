@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget MyBank 5x1: a sinistra la barra del mese (tacche sulle domeniche, giorni che restano) e l'ultimo aggiornamento delle banche;
+     poi Spesa, Svago e Carburante: residuo del budget, spesa giornaliera stimata e reale.  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="6dp"
+    android:paddingRight="6dp"
+    android:background="@drawable/widget_bg">
+    <LinearLayout
+        android:id="@+id/widget_month_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1.45"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <ImageView
+                android:id="@+id/widget_bar"
+                android:layout_width="0dp"
+                android:layout_height="12dp"
+                android:layout_weight="1"
+                android:scaleType="fitXY" />
+            <TextView
+                android:id="@+id/widget_days"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="6dp"
+                android:textColor="#F3F0EA"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textStyle="bold"
+                android:singleLine="true" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/widget_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:textColor="#A8A298"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+    </LinearLayout>
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:background="#3A3733" />
+    <LinearLayout
+        android:id="@+id/widget_spesa_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp">
+        <TextView
+            android:id="@+id/widget_spesa_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="9.5sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_spesa_left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#F3F0EA"
+            android:textSize="17sp"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_spesa_est"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_spesa_real"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#5CCB8A"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+    </LinearLayout>
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:background="#3A3733" />
+    <LinearLayout
+        android:id="@+id/widget_svago_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp">
+        <TextView
+            android:id="@+id/widget_svago_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="9.5sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_svago_left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#F3F0EA"
+            android:textSize="17sp"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_svago_est"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_svago_real"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#5CCB8A"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+    </LinearLayout>
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:background="#3A3733" />
+    <LinearLayout
+        android:id="@+id/widget_carburante_cell"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingLeft="4dp"
+        android:paddingRight="4dp">
+        <TextView
+            android:id="@+id/widget_carburante_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="9.5sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_carburante_left"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#F3F0EA"
+            android:textSize="17sp"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_carburante_est"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#A8A298"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <TextView
+            android:id="@+id/widget_carburante_real"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#5CCB8A"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

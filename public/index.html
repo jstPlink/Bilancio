@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#131211">
+  <title>MyBank</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="login" hidden>
+    <form id="loginForm" class="panel login">
+      <h1>MyBank</h1>
+      <p class="muted">Inserisci la password per entrare.</p>
+      <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+      <p id="loginError" class="error" role="alert"></p>
+      <button class="primary" type="submit">Entra</button>
+    </form>
+  </main>
+
+  <div id="app" hidden>
+    <header class="top">
+      <div class="brand"><h1><i></i>MyBank</h1><span class="version" id="version"></span></div>
+      <div class="top-actions"><span class="muted" id="lastSync"></span><button class="ghost" id="logoutBtn" hidden>Esci</button></div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="storico" aria-selected="true">Storico</button>
+      <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
+      <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
+      <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
+    </nav>
+
+    <main>
+      <section id="storico">
+        <div class="bar">
+          <label>Anno <select id="yearSelect"></select></label>
+        </div>
+        <div class="cards" id="yearCards"></div>
+        <div class="tablewrap"><table id="yearTable"></table></div>
+        <p class="muted note">Entrate e uscite di tutte le banche collegate. I giroconti (denaro che sposti tra i tuoi conti e pocket) non contano. Tocca un mese per vedere le uscite per tag.</p>
+      </section>
+
+      <section id="movimenti" hidden>
+        <div class="bar">
+          <label>Anno <select id="mvYear"></select></label>
+          <label>Mese <select id="mvMonth"></select></label>
+          <label>Tag <select id="mvTag"></select></label>
+          <label class="grow">Cerca <input id="mvSearch" type="search" placeholder="Descrizione o importo…" autocomplete="off"></label>
+        </div>
+        <p class="muted" id="mvSummary"></p>
+        <div id="mvList" class="mvlist"></div>
+      </section>
+
+      <section id="budget" hidden>
+        <form id="budgetForm" class="panel">
+          <h2>Budget mensile</h2>
+          <p class="muted">Quanto vuoi spendere al mese in ogni categoria. Il widget mostra il residuo: budget meno speso nel mese.</p>
+          <div class="fields" id="budgetFields"></div>
+          <div class="foot"><button class="primary" type="submit">Salva budget</button><span class="muted" id="budgetMsg"></span></div>
+        </form>
+        <h2 class="section">Questo mese</h2>
+        <div class="cards" id="budgetCards"></div>
+      </section>
+
+      <section id="banche" hidden>
+        <div class="panel" id="syncPanel"></div>
+        <div id="bankList"></div>
+        <details class="panel" id="ebPanel">
+          <summary>Enable Banking <span class="muted" id="ebStatus"></span></summary>
+          <form id="ebForm">
+            <p class="muted">Crea l'applicazione su <a href="https://enablebanking.com" target="_blank" rel="noopener noreferrer">enablebanking.com</a> (gratis per uso personale), registra come indirizzo di ritorno quello qui sotto e incolla l'ID e la chiave privata. Restano solo sul server.</p>
+            <label>Indirizzo di ritorno <input id="ebRedirect" readonly></label>
+            <label>ID dell'applicazione <input id="ebAppId" autocomplete="off" required></label>
+            <label>Chiave privata (file .pem) <textarea id="ebKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+            <p class="error" id="ebError" role="alert"></p>
+            <div class="foot"><button class="primary" type="submit">Salva</button></div>
+          </form>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" role="status"></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

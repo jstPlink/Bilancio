@@ -1,6 +1,20 @@
 {
   "name": "mybank",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "MyBank: i movimenti di UniCredit e Revolut, il budget e il widget, dal web e da Android.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/start.js",
+    "dev": "node --watch --env-file-if-exists=.env src/start.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "demo": "node scripts/demo.mjs",
+    "apk": "node scripts/build-apk.mjs",
+    "apk:installa": "node scripts/build-apk.mjs --install"
+  },
+  "license": "UNLICENSED",
   "private": true,
-  "description": "MyBank: nuova app, ripartita da zero (la vecchia Bilancio è archiviata nel ramo archivio/bilancio)"
+  "dependencies": {
+    "express": "^5.2.1"
+  }
 }
