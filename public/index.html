@@ -22,7 +22,7 @@
   <div id="app" hidden>
     <header class="top">
       <div class="brand"><h1><i></i>MyBank</h1><span class="version" id="version"></span></div>
-      <div class="top-actions"><span class="muted" id="lastSync"></span><button class="ghost" id="logoutBtn" hidden>Esci</button></div>
+      <div class="top-actions"><span class="muted" id="lastSync"></span></div>
     </header>
 
     <nav class="tabs" role="tablist">
@@ -30,6 +30,7 @@
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
       <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
+      <button role="tab" data-tab="opzioni" aria-selected="false">Opzioni</button>
     </nav>
 
     <main>
@@ -78,6 +79,29 @@
             <div class="foot"><button class="primary" type="submit">Salva</button></div>
           </form>
         </details>
+      </section>
+
+      <section id="opzioni" hidden>
+        <form id="pwForm" class="panel">
+          <h2>Password dell'account</h2>
+          <p class="muted">La password con cui entri dal web e dall'app. Cambiandola, gli altri accessi (altri browser, altri telefoni) devono rifare il login; questo resta attivo. Da qui in poi vale quella che scegli, non più quella scritta nel file del server.</p>
+          <div class="fields">
+            <label>Password attuale <input id="pwCurrent" type="password" autocomplete="current-password" required></label>
+            <label>Nuova password <input id="pwNew" type="password" autocomplete="new-password" minlength="8" required></label>
+            <label>Ripeti la nuova password <input id="pwRepeat" type="password" autocomplete="new-password" minlength="8" required></label>
+          </div>
+          <p class="error" id="pwError" role="alert"></p>
+          <div class="foot"><button class="primary" type="submit">Cambia password</button><span class="muted">Almeno 8 caratteri.</span></div>
+        </form>
+        <div class="panel">
+          <h2>Sessione</h2>
+          <div class="foot"><button class="ghost" id="logoutBtn">Esci</button><span class="muted" id="sessionNote"></span></div>
+        </div>
+        <div class="panel">
+          <h2>Informazioni</h2>
+          <p class="muted" id="aboutText"></p>
+          <div class="foot" id="serverBox" hidden><button class="ghost" id="changeServerBtn">Cambia server</button><span class="muted">Solo nell'app Android.</span></div>
+        </div>
       </section>
     </main>
   </div>

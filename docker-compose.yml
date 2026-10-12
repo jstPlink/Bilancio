@@ -11,7 +11,7 @@ services:
       - "4870:4870"
     environment:
       TZ: Europe/Rome
-      # Obbligatoria: la password di accesso (web, app e widget).
+      # Obbligatoria: la password INIZIALE di accesso (web, app e widget). Si cambia poi dalla scheda Opzioni dell'app: da quel momento questo valore non conta più.
       MYBANK_PASSWORD: "scegli-una-password-lunga"
       # Indirizzo pubblico https del server, quello registrato su Enable Banking come ritorno dalla banca (aggiungi /api/banks/callback).
       # Facoltativo: se manca si ricava dall'indirizzo con cui apri il sito.

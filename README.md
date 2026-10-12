@@ -24,6 +24,7 @@ Un giroconto si riconosce da: testo del giro tra pocket, IBAN della controparte 
 - **Storico** (principale): l'anno scelto, mese per mese, **entrate**, **uscite** e **bilancio**, con il totale. Un tocco su un mese mostra le uscite per tag.
 - **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. I pagamenti ancora in sospeso contano subito e hanno una barra rossa a sinistra.
 - **Budget**: il budget mensile di Spesa, Svago e Carburante e, per il mese in corso, residuo, spesa giornaliera stimata e reale.
+- **Opzioni**: **cambio della password dell'account** (serve quella attuale; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), uscita dall'account e informazioni; nell'app Android anche «Cambia server».
 - **Banche**: collegamento di UniCredit e Revolut, **aggiornamento** (4 automatici al giorno alle **5, 11, 14 e 19**, ora italiana, più il pulsante **Aggiorna ora** per quelli in più), rinomina dei pocket e credenziali di Enable Banking.
 
 **Widget Android 5×1**, quattro celle: a sinistra la **barra del mese** (tacca rossa a fine di ogni domenica, giorni che restano) e sotto l'**ora dell'ultimo aggiornamento** delle banche; poi **Spesa**, **Svago** e **Carburante** con il **residuo del budget** (budget meno speso nel mese), sotto la **spesa giornaliera stimata** (budget diviso i giorni del mese) e sotto la **reale** (speso diviso i giorni passati, oggi compreso; verde se è pari o migliore della stima, rossa se peggiore). Si aggiorna ogni mezz'ora e quando apri l'app o premi «Aggiorna ora».
@@ -40,14 +41,14 @@ cp .env.example .env     # poi imposta MYBANK_PASSWORD
 npm start                # http://127.0.0.1:4870
 ```
 
-Senza `MYBANK_PASSWORD` il server parte solo su `127.0.0.1` (accesso libero, per provare in locale); su altri indirizzi (`HOST=0.0.0.0`) la password è obbligatoria.
+`MYBANK_PASSWORD` è la password **iniziale**: la cambi dalla scheda Opzioni e da quel momento il valore nel file non conta più. Senza `MYBANK_PASSWORD` il server parte solo su `127.0.0.1` (accesso libero, per provare in locale); su altri indirizzi (`HOST=0.0.0.0`) la password è obbligatoria.
 I dati stanno in `data/` (`mybank.json` e la chiave di firma `secret.key`; non finiscono mai su GitHub).
 
 **Provare senza banche vere:** `npm run demo` avvia una banca finta e un'app con dati inventati su `http://localhost:4871` (database a parte in `data/demo`).
 
 ### Collegare le banche
 1. Su [enablebanking.com](https://enablebanking.com) crea un'applicazione (gratis per uso personale) e registra come **indirizzo di ritorno** quello mostrato in *Banche → Enable Banking* (`https://<il tuo server>/api/banks/callback`; per Enable Banking serve https, tranne in prova).
-2. In *Banche → Enable Banking* incolla l'**ID** e la **chiave privata** (file `.pem`): restano solo sul server.
+2. In *Banche → Enable Banking* incolla l'**ID** e la **chiave privata** (file `.pem`): restano solo sul server. La chiave si scarica **una sola volta**, quando crei l'applicazione sul sito di Enable Banking, e non si può rivedere; se la perdi crea una nuova applicazione (o una nuova chiave) e aggiorna ID e chiave qui.
 3. Premi **Collega UniCredit** / **Collega Revolut**: si apre il sito della banca per autorizzare la sola lettura; al ritorno MyBank legge lo storico (un anno, o 90 giorni se la banca non lo concede).
 
 ### Sul server (NAS, Docker)

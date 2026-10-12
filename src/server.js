@@ -36,6 +36,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   app.get('/api/version', (req, res) => res.json({ version: VERSION }));
   app.post('/api/login', (req, res) => auth.login(req, res));
   app.post('/api/logout', (req, res) => auth.logout(req, res));
+  app.post('/api/password', auth.middleware, (req, res) => auth.changePassword(req, res));
   app.get('/api/session', (req, res) => {
     if (!auth.isAuthed(req)) return res.status(401).json({ ok: false, open: auth.open });
     res.json({ ok: true, open: auth.open, token: auth.refresh(), version: VERSION });

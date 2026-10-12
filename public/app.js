@@ -41,7 +41,7 @@ async function enter(session) {
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#version').textContent = `v${session.version}`;
-  $('#logoutBtn').hidden = Boolean(session.open);
+  state.session = session;
   const fromBank = new URLSearchParams(location.search).get('banca');
   if (fromBank) {
     const [kind, ...rest] = fromBank.split(':');
@@ -62,16 +62,41 @@ $('#loginForm').addEventListener('submit', async (e) => {
 });
 $('#logoutBtn').addEventListener('click', async () => { await api('POST', '/api/logout').catch(() => {}); showLogin(); });
 
+// ------------------------------------------------------------------ opzioni
+
+async function loadOptions() {
+  const [session, banks] = await Promise.all([api('GET', '/api/session'), api('GET', '/api/banks')]);
+  const s = session;
+  $('#logoutBtn').hidden = Boolean(s.open);
+  $('#pwCurrent').required = !s.open; // con l'accesso libero non c'è una password attuale
+  $('#sessionNote').textContent = s.open ? 'Accesso libero: nessuna password richiesta (solo in locale).' : 'Il login resta valido 180 giorni su questo dispositivo.';
+  $('#aboutText').textContent = `MyBank v${s.version} · aggiornamenti automatici alle ${banks.auto.hours.map((h) => `${String(h).padStart(2, '0')}:00`).join(', ')} (ora italiana).`;
+  $('#serverBox').hidden = !window.Native?.changeServer;
+}
+$('#changeServerBtn').addEventListener('click', () => window.Native?.changeServer?.());
+$('#pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#pwError');
+  err.textContent = '';
+  if ($('#pwNew').value !== $('#pwRepeat').value) { err.textContent = 'Le due password nuove non coincidono.'; return; }
+  try {
+    const r = await api('POST', '/api/password', { current: $('#pwCurrent').value, next: $('#pwNew').value });
+    try { if (window.Native?.saveToken && r.token) window.Native.saveToken(r.token); } catch { /* fuori dall'app non c'è */ }
+    e.target.reset();
+    toast('Password cambiata.');
+  } catch (ex) { if (ex instanceof Unauthorized) return fail(ex); err.textContent = ex.message; }
+});
+
 // ------------------------------------------------------------------ schede
 
-const TABS = ['storico', 'movimenti', 'budget', 'banche'];
+const TABS = ['storico', 'movimenti', 'budget', 'banche', 'opzioni'];
 function show(tab) {
   if (!TABS.includes(tab)) tab = 'storico';
   state.tab = tab;
   history.replaceState(null, '', `#${tab}`);
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
 }
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
 

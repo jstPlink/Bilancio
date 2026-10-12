@@ -148,3 +148,39 @@ test('scollegare una banca toglie i suoi movimenti', async (t) => {
   assert.equal(after.json.connections.length, 1);
   assert.ok((await api('GET', '/api/transactions')).json.transactions.every((x) => x.bank === 'revolut'));
 });
+
+test("cambio password: serve quella attuale, la nuova vale subito, i vecchi accessi decadono", async (t) => {
+  const { base, api } = await setup(t);
+  const first = await api("POST", "/api/login", { password: "segreta" });
+  const oldToken = first.json.token;
+
+  assert.equal((await api("POST", "/api/password", { current: "sbagliata", next: "nuova-password" })).status, 400);
+  assert.equal((await api("POST", "/api/password", { current: "segreta", next: "corta" })).status, 400);
+
+  const changed = await api("POST", "/api/password", { current: "segreta", next: "nuova-password" });
+  assert.equal(changed.status, 200);
+  // chi ha cambiato la password resta dentro; il gettone di prima non vale più
+  assert.equal((await api("GET", "/api/summary")).status, 200);
+  assert.equal((await fetch(`${base}/api/summary`, { headers: { Authorization: `Bearer ${oldToken}` } })).status, 401);
+  assert.equal((await fetch(`${base}/api/summary`, { headers: { Authorization: `Bearer ${changed.json.token}` } })).status, 200);
+  // la vecchia password (anche quella dell'ambiente) non entra più, la nuova sì
+  assert.equal((await api("POST", "/api/login", { password: "segreta" })).status, 401);
+  assert.equal((await api("POST", "/api/login", { password: "nuova-password" })).status, 200);
+});
+
+test("la password cambiata resta anche dopo il riavvio del server", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const first = createApp({ dir, password: "segreta" });
+  const s1 = await new Promise((r) => { const s = first.app.listen(0, "127.0.0.1", () => r(s)); });
+  const post = (port, url, body) => fetch(`http://127.0.0.1:${port}${url}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const login = await (await post(s1.address().port, "/api/login", { password: "segreta" })).json();
+  const res = await fetch(`http://127.0.0.1:${s1.address().port}/api/password`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${login.token}` }, body: JSON.stringify({ current: "segreta", next: "dopo-il-riavvio" }) });
+  assert.equal(res.status, 200);
+  s1.close();
+  const second = createApp({ dir, password: "segreta" });
+  const s2 = await new Promise((r) => { const s = second.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => s2.close());
+  assert.equal((await post(s2.address().port, "/api/login", { password: "segreta" })).status, 401);
+  assert.equal((await post(s2.address().port, "/api/login", { password: "dopo-il-riavvio" })).status, 200);
+});
