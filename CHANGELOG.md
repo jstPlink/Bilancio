@@ -2,6 +2,49 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.14.0
+- **Banche → Movimenti**: un tocco su una riga di conto o pocket (anche di Revolut) apre la scheda Movimenti filtrata per quel conto o pocket; sopra l'elenco compare «Conto o pocket: …» con «Togli il filtro». Il filtro si somma agli altri (tag, mese, ricerca) e sparisce toccando la scheda Movimenti. API: `GET /api/transactions?account=<uid>` (serve il server alla 0.14.0).
+
+## 0.13.1
+- **Widget**: ripristinata la stessa larghezza per le quattro celle (la prima non è più stretta); restano le barre larghe 14 dp, i testi su due righe nella prima cella e il tocco che apre il Budget.
+
+## 0.13.0
+- **Nuova scheda Statistiche** (tra Movimenti e Budget): le **uscite** dell'anno (o di un mese) divise per **categoria** con quota e importo, **mese per mese** con le barre divise per categoria (un tocco su un mese lo filtra, un secondo tocco torna a tutto l'anno) e **dove vanno i soldi** (le otto controparti che pesano di più). Contano solo le uscite: giroconti ed entrate no. API: `GET /api/stats?year=&month=` (serve il server alla 0.13.0).
+- **Widget**: barre più larghe del 25% (14 dp); la prima cella (mese) è più stretta del 35% e mostra «AGG.» e l'ora su due righe; **un tocco sulla prima cella apre il Budget**.
+- **Banche → orari**: sul telefono occupano tutta la larghezza dello schermo (quattro in una riga).
+- **Storico**: testi di entrate, uscite e bilancio più grandi del 20% (etichette e numeri); **versione** dell'app più grande del 20%.
+
+## 0.12.0
+- **Widget**: le barre sono più larghe del 50% (11,25 dp); le barre dei pocket (Spesa, Svago, Carburante) hanno tre tacche, al 25%, 50% e 75% dell'altezza, per leggere meglio lo stato; la spesa giornaliera **reale** migliore della stima è **bianca** (non più verde), peggiore resta rossa.
+
+## 0.11.0
+- **Versione**: nell'app Android in alto compare sempre la versione dell'app (e del suo frontend), non più quella del server; si alza a ogni modifica.
+- **Storico**: i numeri di entrate, uscite e bilancio sono più grandi del 30%.
+- **Budget sul telefono**: i tre campi del budget stanno nelle stesse tre colonne dei riquadri sotto, senza uscire dallo schermo.
+- **Banche**: gli orari stanno su una sola riga (menu senza freccia, più stretti; anche con quattro orari sul telefono).
+- **Opzioni**: tolti i testi «la password con cui entri…», «MyBank vX · aggiornamenti automatici alle…», «solo nell'app Android» e «il login resta valido 180 giorni…»; il pannello del server compare solo nell'app e nel localhost.
+- **Widget**: barre più spesse del 50%; la barra del mese ora sale dal basso: i giorni già trascorsi sono in basso, in bianco, e il vuoto delle domeniche segue lo stesso verso.
+
+## 0.10.0
+- **Il frontend sta nell'APK**: pagina, script, stile e icona dell'app Android sono quelli dell'APK (`assets/www`, copiati da `public/` a ogni build) e la WebView li serve al posto di quelli del server; le chiamate ai dati (`/api/…`) e il resto vanno al server, che ha tutta la logica. Così l'app sul telefono mostra sempre la grafica della sua versione (prima mostrava quella del server, anche vecchia: icona e righe non aggiornate), e basta `npm run apk:installa` per aggiornarla. Il sito nel browser continua a usare le pagine del server; in alto l'app mostra la propria versione.
+- **Widget**: le barre sono verticali, a sinistra di ogni cella, e si svuotano dall'alto verso il basso (mese: i giorni che restano, con un vuoto a fine di ogni domenica; categorie: il residuo del budget).
+- **Banche → orari**: uno accanto all'altro in orizzontale (si va a capo se non c'è spazio), con la × più vicina all'orario; vale per web e telefono.
+
+## 0.9.0
+- **Widget** (telefono): le quattro celle hanno la stessa larghezza; un solo carattere (sans-serif) in tutto il widget; **nessuna riga rossa sulle domeniche**: la barra del mese lascia un vuoto a fine di ogni domenica; i **giorni che restano stanno sopra la barra**; ogni cella di categoria ha una **barra del residuo** (si accorcia man mano che si spende, rossa quando resta il 20% o meno) e **il nome della categoria** (prima il nome non compariva: il codice non lo scriveva); un tocco su **Spesa, Svago o Carburante apre i Movimenti del mese filtrati per quella categoria**, sulla cella del mese apre Banche, altrove l'app.
+- **Web**: l'icona dell'app sta all'estrema sinistra, prima del nome; gli indirizzi come `#movimenti:spesa` aprono i Movimenti del mese filtrati per quel tag (li usa il widget) e la pagina segue i cambi di indirizzo.
+
+## 0.8.0
+- **Icona**: di nuovo le tre barre di dimensioni diverse con quella in basso rossa (senza cerchio e quadrato), sul sito, in alto a destra nell'app web e nell'APK.
+- **Banche → Aggiornamento**: tolti i testi «si memorizzano i movimenti dal…», «massimo 4, tocca un orario per cambiarlo», «le banche non concedono più accessi…», «prossimo…» e «per gli aggiornamenti in più…». Restano l'ultimo aggiornamento, gli orari e «Aggiorna ora»; gli errori dell'ultimo aggiornamento automatico compaiono solo se ci sono.
+- **Movimenti**: la barra rossa dei pagamenti in sospeso non cambia più la spaziatura (le altre righe hanno lo stesso margine, trasparente). Sul telefono i dati stanno su tre colonne: data, titolo con sotto il destinatario, importo con sotto la categoria.
+
+## 0.7.0
+- **Logo** (proposta B): un quadrato e un cerchio in contorno attorno a tre barre che si accorciano, l'ultima rossa, su fondo inchiostro. È l'icona dell'app Android, l'icona del sito e compare in alto a destra nell'app web (i quattro mockup e la scelta sono in `design/`).
+- **Widget**: corretto il «Problema nel caricamento del widget». I separatori erano `<View>`, che il launcher non accetta nei widget (solo FrameLayout, LinearLayout, ImageView, TextView…): ora sono LinearLayout. Un test controlla che i layout dei widget usino solo view ammesse.
+- **Storico e Budget su tre colonne**: entrate, uscite e bilancio dell'anno, i tre campi del budget e i tre riquadri del mese stanno sempre affiancati, anche sul telefono.
+- **Movimenti sul web** (non sul telefono): a sinistra la data (giorno e mese, sotto l'anno), poi il titolo (la causale se c'è) e sotto il destinatario e il conto, poi l'importo e infine la categoria.
+
 ## 0.6.0
 - **Movimenti solo dal 1 ottobre 2026** (per ora): quelli precedenti non si leggono dalla banca, non si salvano e non si mostrano; all'avvio il server toglie dai dati quelli già presenti. La data di inizio è `settings.cutoff` (di base `2026-10-01`).
 - **Orari di aggiornamento in verticale**, uno sotto l'altro; si tocca un orario per cambiarlo direttamente (menu) e si toglie con «Togli».

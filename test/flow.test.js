@@ -255,3 +255,53 @@ test("all'avvio i movimenti precedenti alla data di inizio si tolgono dai dati",
   assert.deepEqual(Object.keys(db.overrides), ["b"]);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("statistiche di spesa: per categoria, mese per mese e dove vanno i soldi (senza giroconti ed entrate)", async (t) => {
+  const ctx = await setup(t);
+  const { api } = ctx;
+  await api("POST", "/api/login", { password: "segreta" });
+  await api("PUT", "/api/banks/app", { appId: "app-di-prova", privateKey });
+  await link(ctx, "unicredit");
+  await link(ctx, "revolut");
+
+  const year = new Date().getFullYear();
+  const st = (await api("GET", `/api/stats?year=${year}`)).json;
+  assert.ok(st.total > 0 && st.count > 0);
+  // la somma delle categorie è il totale; le quote fanno cento
+  assert.ok(Math.abs(st.byTag.reduce((a, e) => a + e.total, 0) - st.total) < 0.05);
+  assert.ok(Math.abs(st.byTag.reduce((a, e) => a + e.share, 0) - 100) < 0.5);
+  assert.ok(st.byTag.every((e, i, all) => i === 0 || all[i - 1].total >= e.total)); // dalla più pesante
+  assert.ok(st.byTag.every((e) => e.tag !== "giroconto" && e.tag !== "entrata"));
+  // coincide con le uscite dello Storico
+  const sum = (await api("GET", `/api/summary?year=${year}`)).json;
+  assert.ok(Math.abs(sum.total.uscite - st.total) < 0.05);
+  // mese per mese: dodici mesi, la somma è il totale dell'anno
+  assert.equal(st.months.length, 12);
+  assert.ok(Math.abs(st.months.reduce((a, m) => a + m.total, 0) - st.total) < 0.05);
+  // dove vanno i soldi: fino a 8 voci, dalla più pesante
+  assert.ok(st.top.length > 0 && st.top.length <= 8);
+  assert.ok(st.top.every((p, i, all) => i === 0 || all[i - 1].total >= p.total));
+  // un mese solo: il totale è quello di quel mese, il grafico resta di tutto l'anno
+  const busy = st.months.filter((m) => m.total > 0).at(-1);
+  const one = (await api("GET", `/api/stats?year=${year}&month=${busy.month}`)).json;
+  assert.equal(one.total, busy.total);
+  assert.equal(one.months.length, 12);
+});
+
+test("movimenti di un solo conto o pocket (tocco su una riga di Banche)", async (t) => {
+  const ctx = await setup(t);
+  const { api } = ctx;
+  await api("POST", "/api/login", { password: "segreta" });
+  await api("PUT", "/api/banks/app", { appId: "app-di-prova", privateKey });
+  await link(ctx, "revolut");
+  const all = (await api("GET", "/api/transactions")).json;
+  assert.equal(all.account, null);
+  const spesa = (await api("GET", "/api/transactions?account=revolut-2")).json;
+  assert.deepEqual(spesa.account, { uid: "revolut-2", name: "01 Spesa" });
+  assert.ok(spesa.transactions.length > 0 && spesa.transactions.length < all.transactions.length);
+  assert.ok(spesa.transactions.every((x) => x.account === "revolut-2"));
+  // i filtri si sommano: stesso pocket, solo le uscite taggate Spesa
+  const only = (await api("GET", "/api/transactions?account=revolut-2&tag=spesa")).json;
+  assert.ok(only.transactions.length > 0 && only.transactions.every((x) => x.tag === "spesa" && x.account === "revolut-2"));
+  assert.equal((await api("GET", "/api/transactions?account=non-esiste")).json.transactions.length, 0);
+});

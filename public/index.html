@@ -22,7 +22,7 @@
 
   <div id="app" hidden>
     <header class="top">
-      <div class="brand"><h1><i></i>MyBank</h1></div>
+      <div class="brand"><img class="logo" src="icon.svg" width="38" height="38" alt=""><h1>MyBank</h1></div>
       <div class="top-actions"><span class="version" id="version"></span><button class="ghost" id="optionsBtn">Opzioni</button></div>
     </header>
 
@@ -31,6 +31,7 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="storico" aria-selected="true">Storico</button>
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
+      <button role="tab" data-tab="statistiche" aria-selected="false">Statistiche</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
       <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
     </nav>
@@ -51,8 +52,23 @@
           <label>Tag <select id="mvTag"></select></label>
           <label class="grow">Cerca <input id="mvSearch" type="search" placeholder="Descrizione o importo…" autocomplete="off"></label>
         </div>
+        <p class="catfilter" id="mvAccount" hidden></p>
         <p class="muted" id="mvSummary"></p>
         <div id="mvList" class="mvlist"></div>
+      </section>
+
+      <section id="statistiche" hidden>
+        <div class="bar">
+          <label>Anno <select id="stYear"></select></label>
+          <label>Mese <select id="stMonth"></select></label>
+        </div>
+        <div class="cards" id="stCards"></div>
+        <h2 class="section">Per categoria</h2>
+        <div id="stTags"></div>
+        <h2 class="section">Mese per mese</h2>
+        <div id="stMonths"></div>
+        <h2 class="section">Dove vanno i soldi</h2>
+        <div id="stTop"></div>
       </section>
 
       <section id="budget" hidden>
@@ -85,16 +101,15 @@
       <section id="opzioni" hidden>
         <div class="panel">
           <h2>Account</h2>
-          <div class="foot"><button class="primary" id="pwOpen">Cambia password</button><span class="muted">La password con cui entri dal web e dall'app.</span></div>
+          <div class="foot"><button class="primary" id="pwOpen">Cambia password</button></div>
         </div>
-        <div class="panel">
-          <h2>Informazioni</h2>
-          <p class="muted" id="aboutText"></p>
-          <div class="foot" id="serverBox" hidden><button class="ghost" id="changeServerBtn">Cambia server</button><span class="muted" id="serverNote"></span></div>
+        <div class="panel" id="serverPanel" hidden>
+          <h2>Server</h2>
+          <div class="foot"><button class="ghost" id="changeServerBtn">Cambia server</button></div>
         </div>
         <div class="panel">
           <h2>Sessione</h2>
-          <div class="foot"><button class="ghost" id="logoutBtn">Esci</button><span class="muted" id="sessionNote"></span></div>
+          <div class="foot"><button class="ghost" id="logoutBtn">Esci</button></div>
         </div>
       </section>
     </main>

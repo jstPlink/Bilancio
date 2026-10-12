@@ -1,6 +1,7 @@
 // Costruisce l'APK dell'app Android senza Gradle: node scripts/build-apk.mjs [--install]
 // Serve l'SDK Android (build-tools + una piattaforma) e Java 17. Se nel file .env c'è MYBANK_SERVER, l'indirizzo finisce nell'APK
 // (android/build/, escluso da Git: non va mai nel codice); altrimenti l'app lo chiede alla prima apertura.
+// Le pagine di public/ vengono incluse nell'APK (assets/www): la grafica dell'app è quella dell'APK, la logica quella del server.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -30,6 +31,8 @@ const versionCode = major * 10000 + minor * 100 + patch;
 fs.rmSync(build, { recursive: true, force: true });
 for (const d of ['assets', 'classes', 'dex', 'gen']) fs.mkdirSync(path.join(build, d), { recursive: true });
 fs.writeFileSync(path.join(build, 'assets', 'config.json'), JSON.stringify({ server, version: pkg.version }));
+// Il frontend (pagine, script, stile, icona) sta nell'APK: l'app mostra sempre la grafica della sua versione; i dati e la logica restano sul server.
+fs.cpSync(path.join(root, 'public'), path.join(build, 'assets', 'www'), { recursive: true });
 
 // Risorse e manifest.
 run(exe('aapt2'), ['compile', '--dir', path.join(android, 'res'), '-o', path.join(build, 'res.zip')]);

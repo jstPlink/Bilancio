@@ -24,12 +24,18 @@ Un giroconto si riconosce da: testo del giro tra pocket, IBAN della controparte 
 
 **Le schede**
 - **Storico** (principale): l'anno scelto, mese per mese, **entrate**, **uscite** e **bilancio**, con il totale. Un tocco su un mese mostra le uscite per tag.
-- **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. I pagamenti ancora in sospeso contano subito e hanno una barra rossa a sinistra.
+- **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. Ogni riga è: **data** (giorno e mese, sotto l'anno), **titolo** (la causale se c'è) con sotto il **destinatario** e il conto, **importo**, **categoria**: sul web in quattro colonne, sul telefono in tre (data, titolo e destinatario, importo con sotto la categoria). Toccando una riga di conto o pocket nella scheda Banche si arriva ai Movimenti filtrati per quel conto o pocket (con «Togli il filtro»). I pagamenti in sospeso hanno una targhetta e una barra rossa a sinistra; le altre righe hanno lo stesso margine, quindi la spaziatura non cambia. I pagamenti ancora in sospeso contano subito e hanno una barra rossa a sinistra.
+- **Statistiche**: le uscite dell'anno o di un mese **per categoria** (importo e quota), **mese per mese** (barre divise per categoria; un tocco su un mese lo filtra) e **dove vanno i soldi** (le otto controparti che pesano di più). Contano solo le uscite: giroconti ed entrate no.
 - **Budget**: il budget mensile di Spesa, Svago e Carburante e, per il mese in corso, residuo, spesa giornaliera stimata e reale.
 - **Opzioni** (pulsante in alto a destra, accanto alla versione): in cima **Cambia password** (finestra con la password attuale e due volte la nuova; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), poi le informazioni (nell'app Android anche «Cambia server») e in fondo **Esci**.
 - **Banche**: collegamento di UniCredit e Revolut (ogni banca si chiude e si apre; Revolut, con i suoi pocket, parte chiusa), **aggiornamento** (fino a 4 automatici al giorno, di base alle **5, 11, 14 e 19** ora italiana: gli orari si cambiano dalla scheda stessa, togliendoli con la × e aggiungendone con il menu; più il pulsante **Aggiorna ora** per quelli in più), rinomina dei pocket e credenziali di Enable Banking.
 
-**Widget Android 5×1**, quattro celle: a sinistra la **barra del mese** (tacca rossa a fine di ogni domenica, giorni che restano) e sotto l'**ora dell'ultimo aggiornamento** delle banche; poi **Spesa**, **Svago** e **Carburante** con il **residuo del budget** (budget meno speso nel mese), sotto la **spesa giornaliera stimata** (budget diviso i giorni del mese) e sotto la **reale** (speso diviso i giorni passati, oggi compreso; verde se è pari o migliore della stima, rossa se peggiore). Si aggiorna ogni mezz'ora e quando apri l'app o premi «Aggiorna ora».
+**Widget Android 5×1**, quattro celle **di uguale larghezza** (un solo carattere, sans-serif; fondo inchiostro, testo carta, rosso come accento):
+- Le quattro celle hanno la stessa larghezza; un tocco sulla prima (mese) apre il **Budget**.
+- In ogni cella, a sinistra, una **barra verticale** (larga 14 dp): nelle categorie si svuota dall'alto verso il basso e ha tre tacche, al 25%, 50% e 75%.
+- **Mese**: i **giorni che restano** e l'**ora dell'ultimo aggiornamento** delle banche; la barra è il tempo che passa: i giorni già trascorsi sono **in basso, in bianco**, e salgono col mese, con un vuoto a fine di ogni domenica (senza righe colorate); un tocco apre il Budget.
+- **Spesa, Svago, Carburante**: il **nome** della categoria, il **residuo del budget** (budget meno speso nel mese; la barra verticale è il residuo e diventa rossa quando resta il 20% o meno), sotto la **spesa giornaliera stimata** (budget diviso i giorni del mese) e la **reale** (speso diviso i giorni passati, oggi compreso; bianca se è pari o migliore della stima, rossa se peggiore). Un tocco apre i **Movimenti del mese filtrati per quella categoria**.
+Si aggiorna ogni mezz'ora e quando apri l'app o premi «Aggiorna ora»; un tocco fuori dalle celle apre l'app.
 
 **Limiti delle banche.** Le banche concedono 4 accessi al giorno senza l'utente presente (PSD2): sono esattamente i 4 automatici. Le letture a mano (fino a 10 al giorno per banca) dichiarano alla banca che c'è una persona presente (intestazioni «PSU») e contano a parte. Il consenso dura al massimo 180 giorni: alla scadenza si ricollega con un tocco.
 
@@ -69,7 +75,11 @@ GitHub costruisce l'immagine `ghcr.io/jstplink/mybank` a ogni push su `main` e a
 npm run apk              # costruisce android/build/MyBank-<versione>.apk
 npm run apk:installa     # costruisce e installa sul telefono (debug wireless attivo)
 ```
-Serve l'SDK Android (si trova da solo in `~/Android/Sdk` o `%LOCALAPPDATA%\Android\Sdk`) e Java 17. Se in `.env` c'è `MYBANK_SERVER` l'indirizzo finisce nell'APK; altrimenti l'app lo chiede alla prima apertura (https, oppure un indirizzo di casa come `192.168.1.20:4870`). L'app mostra le pagine del server e, dopo il login, consegna al widget il gettone di accesso. Il widget si aggiunge dal menu dei widget → MyBank.
+Serve l'SDK Android (si trova da solo in `~/Android/Sdk` o `%LOCALAPPDATA%\Android\Sdk`) e Java 17. Se in `.env` c'è `MYBANK_SERVER` l'indirizzo finisce nell'APK; altrimenti l'app lo chiede alla prima apertura (https, oppure un indirizzo di casa come `192.168.1.20:4870`). **Il frontend (pagine, script, stile, icona) sta dentro l'APK** (`assets/www`, copiato da `public/` a ogni build) e la WebView lo serve al posto di quello del server; dati e logica sono sul server (`/api/…`). Per vedere una modifica alla grafica sul telefono basta ricostruire e installare l'APK. Dopo il login l'app consegna al widget il gettone di accesso. Il widget si aggiunge dal menu dei widget → MyBank.
+
+## Logo
+
+Tre barre che si accorciano (il budget che si consuma, l'ultima rossa) su fondo inchiostro: `design/logo-scelto.svg`, usato come icona del sito `public/icon.svg`, in alto a destra nell'app web e come icona adattiva di Android `android/res/drawable/ic_foreground.xml`. Le altre proposte (compresa quella con cerchio e quadrato in contorno) sono in `design/`.
 
 ## Estetica
 
@@ -86,7 +96,7 @@ scripts/   banca-finta.mjs, demo.mjs, build-apk.mjs
 test/      schedule, tags, flow (giro completo con la banca finta)
 ```
 
-API principali (tutte dietro password, tranne login e ritorno dalla banca): `GET /api/summary?year=`, `GET /api/transactions`, `PUT /api/transactions/:id/tag`, `GET|PUT /api/budgets`, `GET /api/widget`, `GET /api/banks`, `PUT /api/banks/app`, `POST /api/banks/link`, `GET /api/banks/callback`, `POST /api/banks/sync`, `DELETE /api/banks/:id`, `PUT /api/banks/accounts/:uid/name`.
+API principali (tutte dietro password, tranne login e ritorno dalla banca): `GET /api/summary?year=`, `GET /api/stats?year=&month=`, `GET /api/transactions`, `PUT /api/transactions/:id/tag`, `GET|PUT /api/budgets`, `GET /api/widget`, `GET /api/banks`, `PUT /api/banks/app`, `POST /api/banks/link`, `GET /api/banks/callback`, `POST /api/banks/sync`, `DELETE /api/banks/:id`, `PUT /api/banks/accounts/:uid/name`.
 
 ## Archivio di Bilancio
 

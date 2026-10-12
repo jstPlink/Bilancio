@@ -8,7 +8,7 @@ const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day:
 const THIS_YEAR = new Date().getFullYear();
 let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '' } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, st: { year: THIS_YEAR, month: 0 }, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '' } };
 
 // ------------------------------------------------------------------ rete
 
@@ -59,7 +59,9 @@ async function enter(session) {
   try { if (window.Native?.saveToken && session.token) window.Native.saveToken(session.token); } catch { /* fuori dall'app non c'è */ }
   $('#login').hidden = true;
   $('#app').hidden = false;
-  $('#version').textContent = `v${session.version}`;
+  let appVersion = session.version;
+  try { appVersion = window.Native?.version?.() || appVersion; } catch { /* fuori dall'app vale quella della pagina */ }
+  $('#version').textContent = `v${appVersion}`;
   $('#demoBar').hidden = !session.demo;
   state.session = session;
   const fromBank = new URLSearchParams(location.search).get('banca');
@@ -68,7 +70,7 @@ async function enter(session) {
     toast(kind === 'ok' ? rest.join(':') : `Collegamento non riuscito: ${rest.join(':')}`);
     history.replaceState(null, '', location.pathname + location.hash);
   }
-  show((location.hash || '#storico').slice(1));
+  applyHash();
 }
 
 $('#loginForm').addEventListener('submit', async (e) => {
@@ -90,14 +92,10 @@ $('#logoutBtn').addEventListener('click', async () => { await api('POST', '/api/
 // ------------------------------------------------------------------ opzioni
 
 async function loadOptions() {
-  const [session, banks] = await Promise.all([api('GET', '/api/session'), api('GET', '/api/banks')]);
-  const s = session;
+  const s = await api('GET', '/api/session');
   $('#logoutBtn').hidden = Boolean(s.open);
   $('#pwCurrent').required = !s.open; // con l'accesso libero non c'è una password attuale
-  $('#sessionNote').textContent = s.open ? 'Accesso libero: nessuna password richiesta (solo in locale).' : 'Il login resta valido 180 giorni su questo dispositivo.';
-  $('#aboutText').textContent = `MyBank v${s.version} · aggiornamenti automatici alle ${banks.auto.hours.map((h) => `${String(h).padStart(2, '0')}:00`).join(', ')} (ora italiana).`;
-  $('#serverBox').hidden = !(window.Native?.changeServer || local.on);
-  $('#serverNote').textContent = local.on ? `Collegato a ${new URL(local.server).host}. Questa pagina è solo il frontend: dati e logica sono sul server.` : 'Solo nell\'app Android.';
+  $('#serverPanel').hidden = !(window.Native?.changeServer || local.on);
 }
 $('#changeServerBtn').addEventListener('click', async () => {
   if (window.Native?.changeServer) return window.Native.changeServer();
@@ -124,7 +122,18 @@ $('#pwForm').addEventListener('submit', async (e) => {
 
 // ------------------------------------------------------------------ schede
 
-const TABS = ['storico', 'movimenti', 'budget', 'banche', 'opzioni'];
+const TABS = ['storico', 'movimenti', 'statistiche', 'budget', 'banche', 'opzioni'];
+// Indirizzi come «#movimenti:spesa» (li usa il widget): la scheda, e per i Movimenti il tag da filtrare, sul mese in corso.
+function applyHash() {
+  const [tab, arg] = (location.hash || '#storico').slice(1).split(':');
+  if (tab === 'movimenti' && arg && TAGS[arg]) {
+    const now = new Date();
+    Object.assign(state.mv, { year: now.getFullYear(), month: now.getMonth() + 1, tag: arg, q: '', account: '' });
+    $('#mvSearch').value = '';
+  }
+  show(tab);
+}
+
 function show(tab) {
   if (!TABS.includes(tab)) tab = 'storico';
   state.tab = tab;
@@ -132,10 +141,11 @@ function show(tab) {
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
-  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, statistiche: loadStats, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
 }
-document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) show(b.dataset.tab); });
+document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') state.mv.account = ''; show(b.dataset.tab); });
 $('#optionsBtn').addEventListener('click', () => show('opzioni'));
+window.addEventListener('hashchange', () => { if (!$('#app').hidden) applyHash(); });
 
 const yearOptions = (years, current) => {
   const list = [...new Set([...years, THIS_YEAR, current])].sort((a, b) => b - a);
@@ -178,10 +188,14 @@ $('#yearTable').addEventListener('click', (e) => {
 async function loadMoves() {
   const { year, month, tag, q } = state.mv;
   const [d, sum] = await Promise.all([
-    api('GET', `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}`),
+    api('GET', `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}`),
     api('GET', `/api/summary?year=${year}`),
   ]);
   TAGS = d.tags;
+  // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
+  const bar = $('#mvAccount');
+  bar.hidden = !d.account;
+  if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
   $('#mvYear').innerHTML = `<option value="0">Tutti</option>${yearOptions(sum.years, year)}`;
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
   $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(v)}</option>`).join('')}`;
@@ -190,12 +204,22 @@ async function loadMoves() {
     ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · uscite ${money(out)} · i giroconti non contano.`
     : 'Nessun movimento. Collega una banca dalla scheda Banche.';
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
-  $('#mvList').innerHTML = d.transactions.map((t) => `
-    <div class="mv${t.pending ? ' pending' : ''}">
-      <div class="l1"><span class="date">${fmtDate(t.date)}</span>${t.pending ? '<span class="pill warn">in sospeso</span>' : ''}<span class="amt ${t.amount > 0 ? 'in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</span></div>
-      <div class="l2"><div><div class="desc">${esc(t.description)}</div><div class="where">${esc(t.bank === 'revolut' ? 'Revolut' : 'UniCredit')} · ${esc(t.accountName)}</div></div>
-        <select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select></div>
-    </div>`).join('');
+  const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  $('#mvList').innerHTML = d.transactions.map((t) => {
+    const bankName = t.bank === 'revolut' ? 'Revolut' : 'UniCredit';
+    const where = `${bankName} · ${t.accountName}`;
+    const title = t.remittance || t.description; // la causale se c'è, altrimenti il nome
+    const dest = t.party && t.party !== title ? t.party : ''; // il destinatario (o chi paga)
+    const pill = t.pending ? '<span class="pill warn">in sospeso</span>' : '';
+    const amt = `<span class="amt ${t.amount > 0 ? 'in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</span>`;
+    const select = `<select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select>`;
+    return `<div class="mv${t.pending ? ' pending' : ''}">
+      <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
+      <div class="d-main"><div class="d-title">${esc(title)}${pill}</div><div class="d-sub">${esc([dest, where].filter(Boolean).join(' · '))}</div></div>
+      <div class="d-amt">${amt}</div>
+      <div class="d-tag">${select}</div>
+    </div>`;
+  }).join('');
 }
 $('#movimenti').addEventListener('change', async (e) => {
   const el = e.target;
@@ -209,7 +233,43 @@ $('#movimenti').addEventListener('change', async (e) => {
   loadMoves().catch(fail);
 });
 let searchTimer;
+$('#movimenti').addEventListener('click', (e) => { if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); } });
 $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.mv.q = e.target.value; loadMoves().catch(fail); }, 250); });
+
+// ------------------------------------------------------------------ statistiche di spesa
+
+async function loadStats() {
+  const { year, month } = state.st;
+  const d = await api('GET', `/api/stats?year=${year}&month=${month}`);
+  $('#stYear').innerHTML = yearOptions(d.years, year);
+  $('#stMonth').innerHTML = `<option value="0">Tutto l'anno</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
+  if (!d.count) {
+    $('#stCards').innerHTML = '';
+    $('#stTags').innerHTML = $('#stTop').innerHTML = '<p class="muted">Nessuna uscita nel periodo.</p>';
+  } else {
+    $('#stCards').innerHTML = `
+      <div class="card"><div class="k">Uscite</div><div class="v neg">${money(d.total)}</div></div>
+      <div class="card"><div class="k">Movimenti</div><div class="v">${d.count}</div></div>
+      <div class="card"><div class="k">Media</div><div class="v">${money(d.average)}</div></div>`;
+    const row = (label, share, amount, extra = '') => `<div class="srow"${extra}><div class="slabel">${label}</div><div class="sbar"><i style="width:${Math.max(share, 1)}%;background:var(--bar, var(--ink))"></i></div><div class="snum">${money(amount)}<small>${String(share).replace('.', ',')}%</small></div></div>`;
+    $('#stTags').innerHTML = d.byTag.map((e) => row(`<span class="pill" style="--c:var(--t-${e.tag})">${esc(e.label)}</span>`, e.share, e.total).replace('<div class="sbar">', `<div class="sbar" style="--bar:var(--t-${e.tag})">`)).join('');
+    $('#stTop').innerHTML = d.top.map((p) => row(esc(p.name), p.share, p.total).replace('<div class="slabel">', `<div class="slabel" title="${p.count} movimenti">`)).join('');
+  }
+  const max = Math.max(1, ...d.months.map((m) => m.total));
+  $('#stMonths').innerHTML = d.months.map((m) => {
+    const segs = Object.entries(m.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i title="${esc(TAGS[k] ?? k)} ${money(v)}" style="width:${(v / max) * 100}%;background:var(--t-${k})"></i>`).join('');
+    return `<div class="mrow${m.month === month ? ' on' : ''}" data-month="${m.month}" title="Tocca per vedere solo questo mese"><div class="slabel">${MONTHS[m.month - 1].slice(0, 3)}</div><div class="sbar">${segs}</div><div class="snum">${m.total ? money(m.total) : '–'}</div></div>`;
+  }).join('');
+}
+$('#stYear').addEventListener('change', (e) => { state.st.year = Number(e.target.value); loadStats().catch(fail); });
+$('#stMonth').addEventListener('change', (e) => { state.st.month = Number(e.target.value); loadStats().catch(fail); });
+$('#stMonths').addEventListener('click', (e) => {
+  const r = e.target.closest('.mrow');
+  if (!r) return;
+  const m = Number(r.dataset.month);
+  state.st.month = state.st.month === m ? 0 : m; // un secondo tocco torna a tutto l'anno
+  loadStats().catch(fail);
+});
 
 // ------------------------------------------------------------------ budget
 
@@ -250,16 +310,15 @@ async function loadBanks() {
   const rows = hrs.map((h) => `<div class="hour"><select data-hour-edit="${h}" aria-label="Orario ${pad(h)}: cambia">${options(all.filter((x) => x === h || !hrs.includes(x)), h)}</select>
     <button class="x" data-hour-del="${h}" aria-label="Togli l'orario ${pad(h)}" title="Togli" ${hrs.length <= 1 ? 'disabled' : ''}>×</button></div>`).join('');
   const adder = hrs.length < d.auto.max
-    ? `<div class="hour"><select id="hourAdd" aria-label="Aggiungi un orario">${options(all.filter((x) => !hrs.includes(x)), -1)}</select><button class="ghost" id="hourAddBtn">Aggiungi</button></div>`
-    : `<p class="muted">Massimo ${d.auto.max}: le banche non concedono più accessi automatici al giorno.</p>`;
+    ? `<div class="hour add"><select id="hourAdd" aria-label="Aggiungi un orario">${options(all.filter((x) => !hrs.includes(x)), -1)}</select><button class="ghost" id="hourAddBtn">Aggiungi</button></div>`
+    : '';
+  const autoErrors = d.lastAuto?.errors?.length ? `<p class="error">Ultimo aggiornamento automatico (${fmtDateTime(d.lastAuto.at)}): ${esc(d.lastAuto.errors.join(' · '))}</p>` : '';
   $('#syncPanel').innerHTML = `
     <h2>Aggiornamento</h2>
-    <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b>. Si memorizzano i movimenti dal ${fmtDate(d.since)}.</p>
-    <div><p class="muted">Aggiornamento automatico ogni giorno a questi orari (ora italiana, al massimo ${d.auto.max}). Tocca un orario per cambiarlo:</p>
-      <div class="hours">${rows}${adder}</div>
-      <p class="muted">Prossimo: ${fmtDateTime(d.auto.next)}${d.lastAuto ? ` · ultimo automatico: ${fmtDateTime(d.lastAuto.at)}, ${d.lastAuto.added} nuovi movimenti${d.lastAuto.errors.length ? ` (errori: ${esc(d.lastAuto.errors.join(' · '))})` : ''}` : ''}</p></div>
-    <div class="foot"><button class="primary" id="syncBtn" ${d.connections.length ? '' : 'disabled'}><span class="spin" hidden></span><span>Aggiorna ora</span></button>
-      <span class="muted">Per gli aggiornamenti in più durante la giornata.</span></div>`;
+    <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b></p>
+    <div class="hours">${rows}${adder}</div>
+    ${autoErrors}
+    <div class="foot"><button class="primary" id="syncBtn" ${d.connections.length ? '' : 'disabled'}><span class="spin" hidden></span><span>Aggiorna ora</span></button></div>`;
   $('#ebStatus').textContent = d.configured ? '· configurato' : '· da configurare';
   $('#ebRedirect').value = d.redirectUrl;
   $('#ebAppId').value = d.appId;
@@ -273,7 +332,7 @@ async function loadBanks() {
     const status = c.expired ? '<span class="status late">Consenso scaduto</span>' : `<span class="status ok">Collegata · ${c.daysLeft} giorni</span>`;
     return wrap(status, `
       <p class="muted">Ultima lettura ${fmtDateTime(c.lastSync)} · oggi restano ${c.left.auto} accessi automatici e ${c.left.manual} letture a mano.</p>
-      ${c.accounts.map((a) => `<div class="acct"><div class="n">${esc(a.name)}<div class="s">${a.main ? `Conto${a.iban ? ` · ${esc(a.iban)}` : ''}` : `Pocket · nome ${esc(a.nameSource)}`} · ${a.movements} movimenti</div></div>
+      ${c.accounts.map((a) => `<div class="acct" data-account="${esc(a.uid)}" role="button" tabindex="0" title="Tocca per vedere i movimenti di ${esc(a.name)}"><div class="n">${esc(a.name)}<div class="s">${a.main ? `Conto${a.iban ? ` · ${esc(a.iban)}` : ''}` : `Pocket · nome ${esc(a.nameSource)}`} · ${a.movements} movimenti</div></div>
         <button class="link" data-rename="${esc(a.uid)}" data-name="${esc(a.name)}">Rinomina</button></div>`).join('')}
       <div class="foot"><button class="ghost" data-link="${b.key}">${c.expired ? 'Ricollega' : 'Rinnova il consenso'}</button><button class="link danger" data-unlink="${c.id}">Scollega</button></div>`);
   }).join('');
@@ -290,7 +349,12 @@ $('#syncPanel').addEventListener('change', async (e) => {
 $('#bankList').addEventListener('toggle', (e) => { const k = e.target.dataset?.bank; if (k) state.bankOpen[k] = e.target.open; }, true);
 $('#banche').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
-  if (!t) return;
+  if (!t) {
+    // un tocco su una riga di conto o pocket apre i Movimenti filtrati per quel conto
+    const row = e.target.closest('[data-account]');
+    if (row) { Object.assign(state.mv, { year: THIS_YEAR, month: 0, tag: '', q: '', account: row.dataset.account }); $('#mvSearch').value = ''; show('movimenti'); }
+    return;
+  }
   try {
     if (t.dataset.hourDel || t.id === 'hourAddBtn') {
       const current = [...document.querySelectorAll('[data-hour-edit]')].map((x) => Number(x.dataset.hourEdit));

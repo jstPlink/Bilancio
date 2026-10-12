@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barra verticale del residuo di esempio: resta poco, rossa; tacche al 25, 50 e 75% -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape android:shape="rectangle"><solid android:color="#3A3733" /></shape></item>
+    <item android:top="46dp"><shape android:shape="rectangle"><solid android:color="#FF5A2E" /></shape></item>
+    <item android:top="15dp" android:bottom="44dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
+    <item android:top="30dp" android:bottom="29dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
+    <item android:top="45dp" android:bottom="14dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
+</layer-list>

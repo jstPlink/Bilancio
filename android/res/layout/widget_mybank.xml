@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget MyBank 5x1: a sinistra la barra del mese (tacche sulle domeniche, giorni che restano) e l'ultimo aggiornamento delle banche;
-     poi Spesa, Svago e Carburante: residuo del budget, spesa giornaliera stimata e reale.  -->
+<!-- Widget MyBank 5x1, quattro celle di uguale larghezza; in ognuna, a sinistra, una barra verticale che si svuota dall'alto verso il basso:
+     il mese (giorni che restano, ultimo aggiornamento delle banche; vuoti a fine di ogni domenica) e Spesa, Svago, Carburante (nome, residuo del
+     budget, spesa giornaliera stimata e reale; la barra e il residuo).
+     Solo view ammesse nei RemoteViews (vedi test/android.test.js): un solo carattere, sans-serif. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -14,44 +16,45 @@
         android:id="@+id/widget_month_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1.45"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:paddingLeft="6dp"
-        android:paddingRight="6dp">
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingLeft="4dp"
+        android:paddingRight="3dp">
+        <ImageView
+            android:id="@+id/widget_bar"
+            android:layout_width="14.06dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="7dp"
+            android:layout_marginBottom="7dp"
+            android:layout_marginRight="6dp"
+            android:scaleType="fitXY" />
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center_vertical">
-            <ImageView
-                android:id="@+id/widget_bar"
-                android:layout_width="0dp"
-                android:layout_height="12dp"
-                android:layout_weight="1"
-                android:scaleType="fitXY" />
             <TextView
                 android:id="@+id/widget_days"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginLeft="6dp"
                 android:textColor="#F3F0EA"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif"
                 android:textStyle="bold"
                 android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_updated"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#A8A298"
+                android:textSize="9sp"
+                android:fontFamily="sans-serif"
+                android:layout_marginTop="4dp"
+                android:maxLines="2" />
         </LinearLayout>
-        <TextView
-            android:id="@+id/widget_updated"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="5dp"
-            android:textColor="#A8A298"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
     </LinearLayout>
-    <View
+    <LinearLayout
         android:layout_width="1dp"
         android:layout_height="match_parent"
         android:layout_marginTop="6dp"
@@ -62,45 +65,63 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="4dp">
-        <TextView
-            android:id="@+id/widget_spesa_label"
+        android:paddingRight="3dp">
+        <ImageView
+            android:id="@+id/widget_spesa_bar"
+            android:layout_width="14.06dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="7dp"
+            android:layout_marginBottom="7dp"
+            android:layout_marginRight="6dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="9.5sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_spesa_left"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#F3F0EA"
-            android:textSize="17sp"
-            android:fontFamily="serif"
-            android:textStyle="bold"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_spesa_est"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_spesa_real"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#5CCB8A"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/widget_spesa_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SPESA"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:letterSpacing="0.06"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_spesa_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_spesa_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:layout_marginTop="3dp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_spesa_real"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:singleLine="true" />
+        </LinearLayout>
     </LinearLayout>
-    <View
+    <LinearLayout
         android:layout_width="1dp"
         android:layout_height="match_parent"
         android:layout_marginTop="6dp"
@@ -111,45 +132,63 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="4dp">
-        <TextView
-            android:id="@+id/widget_svago_label"
+        android:paddingRight="3dp">
+        <ImageView
+            android:id="@+id/widget_svago_bar"
+            android:layout_width="14.06dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="7dp"
+            android:layout_marginBottom="7dp"
+            android:layout_marginRight="6dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="9.5sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_svago_left"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#F3F0EA"
-            android:textSize="17sp"
-            android:fontFamily="serif"
-            android:textStyle="bold"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_svago_est"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_svago_real"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#5CCB8A"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/widget_svago_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SVAGO"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:letterSpacing="0.06"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_svago_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_svago_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:layout_marginTop="3dp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_svago_real"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:singleLine="true" />
+        </LinearLayout>
     </LinearLayout>
-    <View
+    <LinearLayout
         android:layout_width="1dp"
         android:layout_height="match_parent"
         android:layout_marginTop="6dp"
@@ -160,42 +199,60 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="4dp">
-        <TextView
-            android:id="@+id/widget_carburante_label"
+        android:paddingRight="3dp">
+        <ImageView
+            android:id="@+id/widget_carburante_bar"
+            android:layout_width="14.06dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="7dp"
+            android:layout_marginBottom="7dp"
+            android:layout_marginRight="6dp"
+            android:scaleType="fitXY" />
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="9.5sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_carburante_left"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#F3F0EA"
-            android:textSize="17sp"
-            android:fontFamily="serif"
-            android:textStyle="bold"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_carburante_est"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#A8A298"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-        <TextView
-            android:id="@+id/widget_carburante_real"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#5CCB8A"
-            android:textSize="10sp"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+            <TextView
+                android:id="@+id/widget_carburante_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CARBURANTE"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:letterSpacing="0.06"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_carburante_left"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="15sp"
+                android:fontFamily="sans-serif"
+                android:textStyle="bold"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_carburante_est"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#A8A298"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:layout_marginTop="3dp"
+                android:singleLine="true" />
+            <TextView
+                android:id="@+id/widget_carburante_real"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#F3F0EA"
+                android:textSize="9.5sp"
+                android:fontFamily="sans-serif"
+                android:singleLine="true" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

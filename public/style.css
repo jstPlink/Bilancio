@@ -40,11 +40,10 @@ a { color: var(--ink); text-decoration-color: var(--red); text-underline-offset:
 
 /* intestazione e schede */
 .top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 18px max(16px, calc((100vw - 1040px) / 2)) 10px; padding-top: calc(18px + env(safe-area-inset-top)); }
-.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand { display: flex; align-items: center; gap: 12px; }
 .brand h1 { font: 700 var(--fs-lg)/1 var(--f-serif); letter-spacing: -.02em; }
-.brand h1 i { display: inline-block; width: .5em; height: .5em; background: var(--red); margin-right: 8px; transform: translateY(-.05em); }
 .top-actions { display: flex; align-items: center; gap: 14px; }
-.version { font: 500 calc(var(--fs-label) * 1.215)/1 var(--f-mono); letter-spacing: .04em; color: var(--mute); }
+.version { font: 500 calc(var(--fs-label) * 1.458)/1 var(--f-mono); letter-spacing: .04em; color: var(--mute); }
 .top-actions .ghost { height: 36px; min-height: 36px; padding: 0 14px; }
 #optionsBtn[aria-pressed=true] { background: var(--ink); color: var(--paper); }
 .tabs { display: flex; max-width: 1040px; margin: 0 auto; padding: 0 16px; border-bottom: 2px solid var(--ink); gap: 0; }
@@ -120,16 +119,34 @@ td.zero { color: var(--mute); }
 
 /* movimenti: righe con filetto, niente schede */
 .mvlist { border-top: 2px solid var(--ink); }
-.mv { padding: 12px 0; border-bottom: 1px solid var(--hair); display: grid; gap: 4px; }
-.mv.pending { border-left: 4px solid var(--red); padding-left: 12px; }
-.mv .l1 { display: flex; align-items: baseline; gap: 12px; }
-.mv .date { font: 500 var(--fs-label)/1 var(--f-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--mute); }
-.mv .amt { margin-left: auto; font: 600 17px/1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.mv { padding: 14px 0 14px 12px; border-bottom: 1px solid var(--hair); border-left: 4px solid transparent; display: grid; align-items: center; }
+.mv.pending { border-left-color: var(--red); } /* la barra delle righe in sospeso non cambia la spaziatura: le altre hanno lo stesso margine, trasparente */
+.mv .amt { font: 600 17px/1 var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mv .amt.in { color: var(--green); }
-.mv .l2 { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
-.mv .desc { font-weight: 600; overflow-wrap: anywhere; }
-.mv .where { color: var(--mute); font-size: var(--fs-sm); }
 .mv select { height: 32px; font-size: var(--fs-sm); font-weight: 600; padding: 0 6px; }
+.d-date b { display: block; font: 600 16px/1.1 var(--f-serif); text-transform: lowercase; white-space: nowrap; }
+.d-date small { display: block; font: 500 var(--fs-label)/1.4 var(--f-mono); letter-spacing: .06em; color: var(--mute); }
+.d-title { font-weight: 600; overflow-wrap: anywhere; }
+.d-title .pill { margin: 0 0 0 10px; }
+.d-sub { color: var(--mute); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.d-amt { text-align: right; }
+.d-tag select { width: 100%; }
+/* tre colonne anche sul telefono: data | titolo e destinatario | importo sopra e categoria sotto */
+.mv { grid-template-columns: 50px minmax(0, 1fr) 112px; column-gap: 10px; row-gap: 6px; }
+.d-date { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+.d-main { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+.d-amt { grid-column: 3; grid-row: 1; }
+.d-tag { grid-column: 3; grid-row: 2; }
+.d-tag select { font-size: 12px; }
+/* sul web quattro colonne: data | titolo e destinatario | importo | categoria */
+@media (min-width: 721px) {
+  .mv { grid-template-columns: 78px minmax(0, 1fr) 150px 190px; column-gap: 24px; }
+  .d-date, .d-main { grid-row: 1; align-self: center; }
+  .d-amt { grid-column: 3; grid-row: 1; }
+  .d-tag { grid-column: 4; grid-row: 1; }
+  .d-tag select { font-size: var(--fs-sm); }
+  .d-amt .amt { font-size: 17px; }
+}
 
 /* budget */
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
@@ -151,11 +168,11 @@ td.zero { color: var(--mute); }
 .acct .s { font: 400 var(--fs-sm) var(--f-sans); text-transform: none; letter-spacing: 0; color: var(--mute); }
 .status { font: 600 var(--fs-label)/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border: 1px solid var(--ink); }
 .status.ok { background: var(--ink); color: var(--paper); } .status.late { border-color: var(--red); color: var(--red); }
-.hours { display: grid; gap: 8px; justify-items: start; margin: 8px 0; }
-.hour { display: flex; align-items: center; gap: 14px; }
-.hour select { height: 38px; width: 130px; font: 600 15px var(--f-mono); padding: 0 8px; }
-.hour .ghost { min-height: 38px; height: 38px; padding: 0 14px; }
-.hour .x { width: 38px; height: 38px; display: inline-grid; place-items: center; background: transparent; border: 1px solid var(--ink); color: var(--red); font: 700 22px/1 var(--f-sans); padding: 0; }
+.hours { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 8px; margin: 8px 0; }
+.hour { display: inline-flex; align-items: center; gap: 2px; }
+.hour select { height: 36px; width: 78px; font: 600 13px var(--f-mono); padding: 0 4px; }
+.hour .ghost { min-height: 36px; height: 36px; padding: 0 12px; font-size: var(--fs-sm); margin-left: 4px; }
+.hour .x { width: 30px; height: 36px; display: inline-grid; place-items: center; background: transparent; border: 1px solid var(--ink); color: var(--red); font: 700 20px/1 var(--f-sans); padding: 0; }
 .hour .x:hover:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }
 .hour .x:disabled { opacity: .3; cursor: not-allowed; }
 
@@ -187,3 +204,61 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 
 /* avviso dei dati di prova */
 .demo { background: var(--red); color: #fff; text-align: center; font: 600 var(--fs-label)/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 7px 12px; }
+
+.logo { display: block; }
+
+/* Storico (entrate, uscite, bilancio) e Budget: sempre su tre colonne, anche sul telefono */
+#yearCards, #budgetCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#budgetForm .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  #yearCards, #budgetCards { gap: 0 12px; }
+  #yearCards .v, #budgetCards .v { font-size: 17px; }
+  #budgetCards .sub { font-size: 11px; }
+  #budgetForm .fields { gap: 10px; }
+  #budgetForm label { font-size: 10px; }
+}
+
+/* Storico: numeri grandi il 30% in più */
+#yearCards .v { font-size: calc(var(--fs-num) * 1.56); overflow-wrap: anywhere; line-height: 1.12; }
+#yearCards .k { font-size: calc(var(--fs-label) * 1.2); }
+@media (max-width: 720px) {
+  #yearCards .v { font-size: 26px; }
+  /* Budget: i tre campi stanno nelle tre colonne, senza uscire dallo schermo */
+  #budgetForm .fields > label { min-width: 0; }
+  #budgetForm .fields input { width: 100%; min-width: 0; padding: 0 8px; }
+}
+/* Banche: gli orari stanno su una riga (menu senza freccia, più stretti) */
+.hours { gap: 8px 5px; }
+.hour { gap: 1px; }
+.hour select { width: 52px; padding: 0; text-align: center; text-align-last: center; appearance: none; -webkit-appearance: none; background-image: none; }
+.hour .x { width: 26px; }
+
+/* Banche, telefono: gli orari occupano tutta la larghezza (quattro in una riga) */
+@media (max-width: 720px) {
+  .hours { width: 100%; }
+  .hour { flex: 1 1 22%; min-width: 0; }
+  .hour select { flex: 1 1 auto; width: auto; min-width: 0; }
+  .hour .x { flex: none; }
+  .hour.add { flex: 1 1 100%; }
+  .hour.add .ghost { flex: none; }
+}
+
+/* Statistiche di spesa */
+.srow, .mrow { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--hair); }
+.mrow { cursor: pointer; grid-template-columns: 56px minmax(0, 1fr) auto; }
+.mrow:hover, .mrow.on { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.slabel { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.slabel .pill { margin: 0; }
+.sbar { display: flex; height: 10px; background: var(--hair); }
+.sbar i { display: block; height: 100%; }
+.snum { text-align: right; font: 600 15px var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.snum small { display: block; font: 500 var(--fs-label) var(--f-mono); color: var(--mute); }
+#stTags, #stMonths, #stTop { border-top: 2px solid var(--ink); }
+@media (max-width: 720px) { .srow { grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; } .mrow { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; } .snum { font-size: 13px; } #stCards .v { font-size: 20px; } #stCards { gap: 0 12px; } }
+@media (min-width: 721px) { #stCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) { #stCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Banche: le righe di conto e pocket si toccano per vedere i loro movimenti; filtro per conto nei Movimenti */
+.acct[data-account] { cursor: pointer; }
+.acct[data-account]:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.catfilter { margin: 0 0 10px; font-size: var(--fs-sm); }

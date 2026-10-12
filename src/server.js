@@ -7,9 +7,9 @@ import { createAuth } from './auth.js';
 import { AUTO_PER_DAY, BANKS, applyCutoff, startLink, finishLink, syncConnection, publicState } from './banks.js';
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
-import { monthBudget, listTransactions, widgetData, yearSummary } from './stats.js';
+import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
 import { openStore } from './store.js';
-import { BUDGET_TAGS, TAGS } from './tags.js';
+import { accountNames, BUDGET_TAGS, TAGS } from './tags.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
@@ -66,9 +66,18 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     res.json(yearSummary(db, year));
   });
 
+  // Statistiche di spesa: per categoria, mese per mese, dove vanno i soldi.
+  app.get('/api/stats', (req, res) => {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    res.json(spendStats(db, { year, month: Number(req.query.month) || 0 }));
+  });
+
   app.get('/api/transactions', (req, res) => {
-    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q });
-    res.json({ transactions: list.slice(0, 1000), total: list.length, tags: TAGS });
+    const account = String(req.query.account ?? '');
+    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q, account });
+    // con un conto o pocket scelto (Banche → tocco su una riga) si dice anche come si chiama
+    const name = account ? accountNames(db).get(account)?.name : '';
+    res.json({ transactions: list.slice(0, 1000), total: list.length, tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
   });
 
   // Tag scelto a mano per un movimento (`null` torna a quello automatico).

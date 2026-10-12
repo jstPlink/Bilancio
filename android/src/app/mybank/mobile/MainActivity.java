@@ -15,6 +15,7 @@ import android.view.inputmethod.EditorInfo;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -23,6 +24,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * L'app MyBank: una finestra sulle pagine del server (stesse schede del web) più il widget. Alla prima apertura chiede l'indirizzo del
@@ -105,6 +110,8 @@ public class MainActivity extends Activity {
     /** Ponte JavaScript: la pagina consegna il gettone per il widget e può chiedere di aggiornarlo o di cambiare server. */
     private final class Bridge {
         @JavascriptInterface public void saveToken(String token) { Server.saveToken(MainActivity.this, token); MyBankWidget.refreshAll(MainActivity.this); }
+        /** La versione dell'app (e quindi del frontend che mostra), che la pagina scrive in alto. */
+        @JavascriptInterface public String version() { return Server.version(MainActivity.this); }
         @JavascriptInterface public void refreshWidget() { MyBankWidget.refreshAll(MainActivity.this); }
         @JavascriptInterface public void changeServer() {
             runOnUiThread(new Runnable() { @Override public void run() { Server.saveServer(MainActivity.this, ""); askServer(""); } });
@@ -126,7 +133,30 @@ public class MainActivity extends Activity {
         s.setAllowContentAccess(false);
         web.addJavascriptInterface(new Bridge(), "Native");
         web.setWebChromeClient(new WebChromeClient());
+        final Uri server = Uri.parse(base);
         web.setWebViewClient(new WebViewClient() {
+            /**
+             * Il frontend (pagina, script, stile, icona) è quello dell'APK: l'app mostra sempre l'ultima grafica, qualunque versione abbia il server.
+             * Le chiamate ai dati (/api/…) e tutto il resto vanno invece al server, che ha la logica. Solo per l'indirizzo del server scelto.
+             */
+            @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest req) {
+                try {
+                    Uri u = req.getUrl();
+                    if (!"GET".equals(req.getMethod()) || u.getHost() == null || !u.getHost().equals(server.getHost()) || u.getPort() != server.getPort()) return null;
+                    String path = u.getPath() == null || u.getPath().isEmpty() ? "/" : u.getPath();
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("Cache-Control", "no-store");
+                    if (path.equals("/local-config.json")) { // la modalità «frontend locale» del browser qui non serve
+                        return new WebResourceResponse("application/json", "utf-8", 404, "Not Found", headers, new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8)));
+                    }
+                    String file = path.equals("/") || path.equals("/index.html") ? "index.html" : path.equals("/app.js") ? "app.js" : path.equals("/style.css") ? "style.css" : path.equals("/icon.svg") ? "icon.svg" : null;
+                    if (file == null) return null;
+                    byte[] body = Server.readAll(getAssets().open("www/" + file));
+                    if (file.equals("index.html")) body = new String(body, StandardCharsets.UTF_8).replace("__V__", Server.version(MainActivity.this)).getBytes(StandardCharsets.UTF_8);
+                    String mime = file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/svg+xml";
+                    return new WebResourceResponse(mime, "utf-8", 200, "OK", headers, new ByteArrayInputStream(body));
+                } catch (Exception e) { return null; }
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
                 String scheme = req.getUrl().getScheme();
                 if ("http".equals(scheme) || "https".equals(scheme)) return false; // anche i siti delle banche si aprono qui
@@ -142,8 +172,20 @@ public class MainActivity extends Activity {
                 v.loadDataWithBaseURL(base + "/", html, "text/html", "utf-8", null);
             }
         });
-        Uri open = getIntent() != null ? getIntent().getData() : null;
-        web.loadUrl(open != null ? open.toString() : base + "/");
+        web.loadUrl(base + "/" + pageOf(getIntent()));
+    }
+
+    /** La pagina che il widget chiede di aprire (es. «movimenti:spesa»): diventa il frammento dell'indirizzo, che la pagina web sa leggere. */
+    private static String pageOf(Intent intent) {
+        String open = intent == null ? null : intent.getStringExtra("open");
+        return open == null || !open.matches("[a-z]+(:[a-z_]+)?") ? "" : "#" + open;
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String page = pageOf(intent);
+        if (web != null && !page.isEmpty()) web.loadUrl(Server.baseUrl(this) + "/" + page);
     }
 
     @Override protected void onResume() {
