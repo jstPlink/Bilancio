@@ -30,6 +30,8 @@ async function api(method, url, body) {
   const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   if (res.status === 401) throw new Unauthorized();
   const data = await res.json().catch(() => ({}));
+  // un 404 su /api/… vuol dire che il server è più vecchio dell'app e non ha ancora questa funzione
+  if (res.status === 404 && !data.error) throw new Error('Il server non ha ancora questa funzione: aggiornalo (docker compose pull && docker compose up -d).');
   if (!res.ok) throw new Error(data.error ?? `Errore ${res.status}`);
   return data;
 }
@@ -243,22 +245,22 @@ async function loadStats() {
   const d = await api('GET', `/api/stats?year=${year}&month=${month}`);
   $('#stYear').innerHTML = yearOptions(d.years, year);
   $('#stMonth').innerHTML = `<option value="0">Tutto l'anno</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
-  if (!d.count) {
-    $('#stCards').innerHTML = '';
-    $('#stTags').innerHTML = $('#stTop').innerHTML = '<p class="muted">Nessuna uscita nel periodo.</p>';
-  } else {
-    $('#stCards').innerHTML = `
-      <div class="card"><div class="k">Uscite</div><div class="v neg">${money(d.total)}</div></div>
-      <div class="card"><div class="k">Movimenti</div><div class="v">${d.count}</div></div>
-      <div class="card"><div class="k">Media</div><div class="v">${money(d.average)}</div></div>`;
-    const row = (label, share, amount, extra = '') => `<div class="srow"${extra}><div class="slabel">${label}</div><div class="sbar"><i style="width:${Math.max(share, 1)}%;background:var(--bar, var(--ink))"></i></div><div class="snum">${money(amount)}<small>${String(share).replace('.', ',')}%</small></div></div>`;
-    $('#stTags').innerHTML = d.byTag.map((e) => row(`<span class="pill" style="--c:var(--t-${e.tag})">${esc(e.label)}</span>`, e.share, e.total).replace('<div class="sbar">', `<div class="sbar" style="--bar:var(--t-${e.tag})">`)).join('');
-    $('#stTop').innerHTML = d.top.map((p) => row(esc(p.name), p.share, p.total).replace('<div class="slabel">', `<div class="slabel" title="${p.count} movimenti">`)).join('');
-  }
-  const max = Math.max(1, ...d.months.map((m) => m.total));
+  const none = '<p class="muted">Nessun movimento nel periodo.</p>';
+  $('#stCards').innerHTML = `
+    <div class="card"><div class="k">Entrate</div><div class="v pos">${money(d.income.total)}</div><div class="sub">${d.income.count} ${d.income.count === 1 ? 'movimento' : 'movimenti'}</div></div>
+    <div class="card"><div class="k">Uscite</div><div class="v neg">${money(d.total)}</div><div class="sub">${d.count} ${d.count === 1 ? 'movimento' : 'movimenti'}</div></div>
+    <div class="card"><div class="k">Bilancio</div><div class="v ${d.balance >= 0 ? 'pos' : 'neg'}">${money(d.balance)}</div><div class="sub">media uscita ${money(d.average)}</div></div>`;
+  const row = (label, share, amount, color = '') => `<div class="srow"><div class="slabel">${label}</div><div class="sbar"${color ? ` style="--bar:${color}"` : ''}><i style="width:${Math.max(share, 1)}%;background:var(--bar, var(--ink))"></i></div><div class="snum">${money(amount)}<small>${String(share).replace('.', ',')}%</small></div></div>`;
+  $('#stTags').innerHTML = d.count ? d.byTag.map((e) => row(`<span class="pill" style="--c:var(--t-${e.tag})">${esc(e.label)}</span>`, e.share, e.total, `var(--t-${e.tag})`)).join('') : none;
+  $('#stTop').innerHTML = d.count ? d.top.map((p) => row(`<span title="${p.count} movimenti">${esc(p.name)}</span>`, p.share, p.total)).join('') : none;
+  $('#stIncome').innerHTML = d.income.count ? d.income.top.map((p) => row(`<span title="${p.count} movimenti">${esc(p.name)}</span>`, p.share, p.total, 'var(--green)')).join('') : none;
+  const max = Math.max(1, ...d.months.map((m) => Math.max(m.total, m.entrate)));
   $('#stMonths').innerHTML = d.months.map((m) => {
     const segs = Object.entries(m.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i title="${esc(TAGS[k] ?? k)} ${money(v)}" style="width:${(v / max) * 100}%;background:var(--t-${k})"></i>`).join('');
-    return `<div class="mrow${m.month === month ? ' on' : ''}" data-month="${m.month}" title="Tocca per vedere solo questo mese"><div class="slabel">${MONTHS[m.month - 1].slice(0, 3)}</div><div class="sbar">${segs}</div><div class="snum">${m.total ? money(m.total) : '–'}</div></div>`;
+    const empty = !m.total && !m.entrate;
+    return `<div class="mrow${m.month === month ? ' on' : ''}" data-month="${m.month}" title="Tocca per vedere solo questo mese"><div class="slabel">${MONTHS[m.month - 1].slice(0, 3)}</div>
+      <div class="mbars"><div class="sbar ebar"><i style="width:${(m.entrate / max) * 100}%"></i></div><div class="sbar">${segs}</div></div>
+      <div class="snum">${empty ? '–' : `<span class="pos">+${money(m.entrate)}</span><span class="neg">−${money(m.total)}</span>`}</div></div>`;
   }).join('');
 }
 $('#stYear').addEventListener('change', (e) => { state.st.year = Number(e.target.value); loadStats().catch(fail); });

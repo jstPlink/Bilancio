@@ -72,16 +72,21 @@ public class MyBankWidget extends AppWidgetProvider {
 
     private static String perDay(double v) { return String.format(Locale.ITALY, "%.1f", v); }
 
-    /** «AGG.» e sotto «14:02» se è di oggi, «11 OTT» e sotto «14:02» altrimenti (su due righe: la cella è stretta). */
+    /** «aggiornamento» e sotto «22.45» se è di oggi, «11 ott 22.45» altrimenti (su due righe: la cella è stretta). */
     static String updated(String iso) {
-        if (iso == null || iso.isEmpty()) return "NESSUN\nAGG.";
+        if (iso == null || iso.isEmpty()) return "nessun\naggiornamento";
         try {
             ZonedDateTime t = ZonedDateTime.ofInstant(Instant.parse(iso), ZoneId.systemDefault());
             boolean today = t.toLocalDate().equals(LocalDate.now());
-            String when = today ? t.format(DateTimeFormatter.ofPattern("HH:mm")) : t.format(DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.ITALY)).replace(".", "");
-            int cut = when.lastIndexOf(' '); // «11 ott 14:02» → «11 ott» e sotto «14:02»
-            return (today ? "AGG.\n" + when : when.substring(0, cut) + "\n" + when.substring(cut + 1)).toUpperCase(Locale.ITALY);
-        } catch (Exception e) { return "NESSUN\nAGG."; }
+            String hour = t.format(DateTimeFormatter.ofPattern("HH.mm"));
+            return "aggiornamento\n" + (today ? hour : t.format(DateTimeFormatter.ofPattern("d MMM", Locale.ITALY)).replace(".", "") + " " + hour);
+        } catch (Exception e) { return "nessun\naggiornamento"; }
+    }
+
+    /** «19 giorni» e sotto «rimanenti»; «1 giorno» e «rimanente»; l'ultimo giorno del mese «ultimo» e «giorno». */
+    static String daysLeftText(int n) {
+        if (n <= 0) return "ultimo\ngiorno";
+        return n == 1 ? "1 giorno\nrimanente" : n + " giorni\nrimanenti";
     }
 
     // ------------------------------------------------------------------ barre
@@ -155,8 +160,8 @@ public class MyBankWidget extends AppWidgetProvider {
         Calendar now = Calendar.getInstance();
         int daysLeft = now.getActualMaximum(Calendar.DAY_OF_MONTH) - now.get(Calendar.DAY_OF_MONTH);
         v.setImageViewBitmap(R.id.widget_bar, monthBar());
-        v.setTextViewText(R.id.widget_days, daysLeft + " gg");
-        v.setTextViewText(R.id.widget_updated, d.needLogin ? "ACCEDI\nIN APP" : updated(d.lastSync));
+        v.setTextViewText(R.id.widget_days, daysLeftText(daysLeft));
+        v.setTextViewText(R.id.widget_updated, d.needLogin ? "accedi\nin app" : updated(d.lastSync));
 
         for (int i = 0; i < KEYS.length; i++) {
             int[] id = IDS[i];

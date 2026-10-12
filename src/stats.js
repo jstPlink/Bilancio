@@ -81,25 +81,39 @@ export function widgetData(db, now = new Date()) {
 }
 
 /**
- * Statistiche di spesa di un anno (e, se si sceglie, di un mese): quanto va in ogni categoria con la sua quota, mese per mese per categoria
- * (sempre tutto l'anno, per il grafico) e dove vanno i soldi (le controparti che pesano di più). Contano solo le uscite; giroconti e
- * entrate no.
+ * Statistiche di un anno (e, se si sceglie, di un mese): le uscite per categoria con la loro quota, le entrate e da chi arrivano, mese per
+ * mese entrate e uscite (sempre tutto l'anno, per il grafico), dove vanno i soldi e il bilancio. I giroconti non contano.
  */
 export function spendStats(db, { year, month = 0 } = {}) {
   const tags = classify(db);
-  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, total: 0, tags: {} }));
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, total: 0, entrate: 0, tags: {} }));
   const byTag = new Map();
   const parties = new Map();
+  const sources = new Map();
   let total = 0;
   let count = 0;
+  let income = 0;
+  let incomeCount = 0;
   const years = new Set();
   for (const t of Object.values(db.transactions)) {
     const tag = tags.get(t.id);
-    if (t.amount >= 0 || tag === 'giroconto' || tag === 'entrata') continue;
+    if (tag === 'giroconto') continue;
     const y = Number(t.date.slice(0, 4));
     years.add(y);
     if (year && y !== year) continue;
     const m = Number(t.date.slice(5, 7));
+    if (t.amount > 0) { // le entrate: da chi arrivano
+      months[m - 1].entrate += t.amount;
+      if (month && m !== month) continue;
+      income += t.amount;
+      incomeCount++;
+      const from = (t.party || t.description || 'Senza nome').trim();
+      const s = sources.get(from.toLowerCase()) ?? { name: from, total: 0, count: 0 };
+      s.total += t.amount; s.count++;
+      sources.set(from.toLowerCase(), s);
+      continue;
+    }
+    if (t.amount === 0) continue;
     const v = -t.amount;
     months[m - 1].total += v;
     months[m - 1].tags[tag] = (months[m - 1].tags[tag] ?? 0) + v;
@@ -119,8 +133,13 @@ export function spendStats(db, { year, month = 0 } = {}) {
   return {
     year, month,
     total: round(total), count, average: count ? round(total / count) : 0,
+    income: {
+      total: round(income), count: incomeCount,
+      top: [...sources.values()].sort(rank).slice(0, 8).map((p) => ({ ...p, total: round(p.total), share: income ? Math.round((p.total / income) * 1000) / 10 : 0 })),
+    },
+    balance: round(income - total),
     byTag: [...byTag.values()].sort(rank).map((e) => ({ ...e, total: round(e.total), share: total ? Math.round((e.total / total) * 1000) / 10 : 0 })),
-    months: months.map((m) => ({ month: m.month, total: round(m.total), tags: Object.fromEntries(Object.entries(m.tags).map(([k, v]) => [k, round(v)])) })),
+    months: months.map((m) => ({ month: m.month, total: round(m.total), entrate: round(m.entrate), tags: Object.fromEntries(Object.entries(m.tags).map(([k, v]) => [k, round(v)])) })),
     top: [...parties.values()].sort(rank).slice(0, 8).map((p) => ({ ...p, total: round(p.total), share: total ? Math.round((p.total / total) * 1000) / 10 : 0 })),
     years: [...years].sort((a, b) => b - a),
   };

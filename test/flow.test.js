@@ -305,3 +305,24 @@ test("movimenti di un solo conto o pocket (tocco su una riga di Banche)", async 
   assert.ok(only.transactions.length > 0 && only.transactions.every((x) => x.tag === "spesa" && x.account === "revolut-2"));
   assert.equal((await api("GET", "/api/transactions?account=non-esiste")).json.transactions.length, 0);
 });
+
+test("statistiche: anche le entrate, il bilancio e da chi arrivano", async (t) => {
+  const ctx = await setup(t);
+  const { api } = ctx;
+  await api("POST", "/api/login", { password: "segreta" });
+  await api("PUT", "/api/banks/app", { appId: "app-di-prova", privateKey });
+  await link(ctx, "unicredit");
+  await link(ctx, "revolut");
+  const year = new Date().getFullYear();
+  const st = (await api("GET", `/api/stats?year=${year}`)).json;
+  const sum = (await api("GET", `/api/summary?year=${year}`)).json;
+  assert.ok(st.income.total > 0 && st.income.count > 0);
+  assert.ok(Math.abs(st.income.total - sum.total.entrate) < 0.05); // come lo Storico
+  assert.ok(Math.abs(st.balance - sum.total.bilancio) < 0.05);
+  assert.ok(Math.abs(st.balance - (st.income.total - st.total)) < 0.02);
+  assert.ok(Math.abs(st.months.reduce((a, m) => a + m.entrate, 0) - st.income.total) < 0.05);
+  assert.ok(st.income.top.length > 0 && st.income.top.length <= 8);
+  assert.ok(st.income.top.every((p, i, all) => i === 0 || all[i - 1].total >= p.total));
+  assert.equal(st.income.top[0].name, "Azienda Esempio Srl"); // lo stipendio; i giri tra i miei conti non sono entrate
+  assert.ok(!st.income.top.some((p) => p.name === "Mario Rossi")); // i giri tra i miei conti (giroconti) non sono entrate
+});

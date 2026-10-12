@@ -19,13 +19,13 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="3dp">
+        android:paddingRight="2dp">
         <ImageView
             android:layout_width="14.06dp"
             android:layout_height="match_parent"
             android:layout_marginTop="7dp"
             android:layout_marginBottom="7dp"
-            android:layout_marginRight="6dp"
+            android:layout_marginRight="5dp"
             android:src="@drawable/preview_bar"
             android:scaleType="fitXY" />
         <LinearLayout
@@ -36,20 +36,20 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="19 gg"
+                android:text="19 giorni\nrimanenti"
                 android:textColor="#F3F0EA"
-                android:textSize="12sp"
+                android:textSize="9.5sp"
                 android:fontFamily="sans-serif"
                 android:textStyle="bold"
-                android:singleLine="true" />
+                android:maxLines="2" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="AGG.\n14:02"
+                android:text="aggiornamento\n22.45"
                 android:textColor="#A8A298"
-                android:textSize="9sp"
+                android:textSize="9.5sp"
                 android:fontFamily="sans-serif"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="5dp"
                 android:maxLines="2" />
         </LinearLayout>
     </LinearLayout>
@@ -67,13 +67,13 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="3dp">
+        android:paddingRight="2dp">
         <ImageView
             android:layout_width="14.06dp"
             android:layout_height="match_parent"
             android:layout_marginTop="7dp"
             android:layout_marginBottom="7dp"
-            android:layout_marginRight="6dp"
+            android:layout_marginRight="5dp"
             android:src="@drawable/preview_cell_a"
             android:scaleType="fitXY" />
         <LinearLayout
@@ -134,13 +134,13 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="3dp">
+        android:paddingRight="2dp">
         <ImageView
             android:layout_width="14.06dp"
             android:layout_height="match_parent"
             android:layout_marginTop="7dp"
             android:layout_marginBottom="7dp"
-            android:layout_marginRight="6dp"
+            android:layout_marginRight="5dp"
             android:src="@drawable/preview_cell_b"
             android:scaleType="fitXY" />
         <LinearLayout
@@ -201,13 +201,13 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingLeft="4dp"
-        android:paddingRight="3dp">
+        android:paddingRight="2dp">
         <ImageView
             android:layout_width="14.06dp"
             android:layout_height="match_parent"
             android:layout_marginTop="7dp"
             android:layout_marginBottom="7dp"
-            android:layout_marginRight="6dp"
+            android:layout_marginRight="5dp"
             android:src="@drawable/preview_cell_c"
             android:scaleType="fitXY" />
         <LinearLayout

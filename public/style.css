@@ -219,7 +219,7 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 }
 
 /* Storico: numeri grandi il 30% in più */
-#yearCards .v { font-size: calc(var(--fs-num) * 1.56); overflow-wrap: anywhere; line-height: 1.12; }
+#yearCards .v { font-size: calc(var(--fs-num) * 1.326); overflow-wrap: anywhere; line-height: 1.12; }
 #yearCards .k { font-size: calc(var(--fs-label) * 1.2); }
 @media (max-width: 720px) {
   #yearCards .v { font-size: 26px; }
@@ -262,3 +262,11 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 .acct[data-account] { cursor: pointer; }
 .acct[data-account]:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .catfilter { margin: 0 0 10px; font-size: var(--fs-sm); }
+
+/* Statistiche: entrate (barra verde sottile sopra le uscite, per mese) */
+.mbars { display: grid; gap: 3px; min-width: 0; }
+.ebar { height: 5px; }
+.ebar i { background: var(--green); }
+.mrow .snum { display: grid; gap: 2px; }
+.mrow .snum span { display: block; }
+#stIncome { border-top: 2px solid var(--ink); }

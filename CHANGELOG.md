@@ -2,6 +2,18 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.15.1
+- **Storico (web)**: i valori di entrate, uscite e bilancio sono più piccoli del 15%; sul telefono restano come prima.
+- **Documentazione**: README riscritto per intero (architettura server/frontend/app, schede, widget, API, avvio, rilascio) e `CLAUDE.md` aggiornato con le regole di lavoro.
+
+## 0.15.0
+- **Statistiche**: anche le **entrate**. In alto Entrate, Uscite e Bilancio (con il numero di movimenti); poi uscite per categoria, mese per mese (una barra verde sottile per le entrate sopra quella delle uscite, e a destra entrate e uscite del mese), dove vanno i soldi e, nuovo, **da dove arrivano le entrate** (le otto controparti che pesano di più). I giroconti non contano. Il totale coincide con lo Storico (test). Serve il server alla 0.15.0.
+- **Widget**: «19 giorni rimanenti» e «aggiornamento 22.45» hanno la stessa dimensione del titolo dei pocket delle celle accanto (9,5).
+
+## 0.14.1
+- **Widget**: nella prima cella il testo è in parole: «19 giorni rimanenti» e «aggiornamento 22.45» (con la data se non è di oggi), per occupare più spazio.
+- **Errore 404**: se il server è più vecchio dell'app e non ha una funzione (per esempio le Statistiche prima dell'aggiornamento a 0.13.0), compare «Il server non ha ancora questa funzione: aggiornalo» invece di «Errore 404».
+
 ## 0.14.0
 - **Banche → Movimenti**: un tocco su una riga di conto o pocket (anche di Revolut) apre la scheda Movimenti filtrata per quel conto o pocket; sopra l'elenco compare «Conto o pocket: …» con «Togli il filtro». Il filtro si somma agli altri (tag, mese, ricerca) e sparisce toccando la scheda Movimenti. API: `GET /api/transactions?account=<uid>` (serve il server alla 0.14.0).
 
