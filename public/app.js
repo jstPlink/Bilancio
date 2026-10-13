@@ -21,7 +21,7 @@ const ICON_PATHS = {
 };
 const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[k] ?? ICON_PATHS.altro}</svg>`;
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc' } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc', items: [], total: 0, shown: Infinity, base: '', paged: false } };
 
 // ------------------------------------------------------------------ rete
 
@@ -250,10 +250,13 @@ $('#yearTable').addEventListener('click', (e) => {
 
 // ------------------------------------------------------------------ movimenti
 
-async function loadMoves() {
+// Fino a 1000 movimenti si mostrano tutti; se sono di più si mostrano i primi 200 e in fondo c'è «Mostra altro» (altri 200 ogni volta).
+const MORE = 200;
+async function loadMoves(keep = false) {
   const { year, month, tag, q } = state.mv;
+  const base = `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&sort=${state.mv.sort}&dir=${state.mv.dir}`;
   const [d, sum] = await Promise.all([
-    api('GET', `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&sort=${state.mv.sort}&dir=${state.mv.dir}`),
+    api('GET', `${base}&limit=1000&offset=0`),
     api('GET', `/api/summary?year=${year}`),
   ]);
   TAGS = d.tags;
@@ -263,9 +266,9 @@ async function loadMoves() {
     for (const t of d.transactions) if (t.tag !== 'giroconto') { if (t.amount > 0) d.totals.entrate += t.amount; else d.totals.uscite -= t.amount; }
   }
   if (!d.sort) {
-    const key = { date: (t) => t.date, title: (t) => (t.remittance || t.description || '').toLowerCase(), amount: (t) => t.amount, tag: (t) => (TAGS[t.tag] ?? t.tag).toLowerCase() }[state.mv.sort];
+    const key = { date: (t) => t.date, amount: (t) => t.amount }[state.mv.sort];
     const mul = state.mv.dir === 'asc' ? 1 : -1;
-    d.transactions.sort((a, b) => (typeof key(a) === 'number' ? key(a) - key(b) : String(key(a)).localeCompare(String(key(b)), 'it', { numeric: true })) * mul || b.date.localeCompare(a.date));
+    d.transactions.sort((a, b) => (typeof key(a) === 'number' ? key(a) - key(b) : String(key(a)).localeCompare(String(key(b)))) * mul || b.date.localeCompare(a.date));
   }
   // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
   const bar = $('#mvAccount');
@@ -275,20 +278,43 @@ async function loadMoves() {
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
   $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(v)}</option>`).join('')}`;
   // la riga informativa: quanti movimenti e il totale; con il filtro «Entrata» le entrate, con gli altri filtri le uscite, senza filtro entrambe
-  const sums = tag === 'entrata' ? `entrate ${money(d.totals.entrate)}` : tag ? `uscite ${money(d.totals.uscite)}` : `entrate ${money(d.totals.entrate)} · uscite ${money(d.totals.uscite)}`;
-  $('#mvSummary').textContent = d.total
-    ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · ${sums} · i giroconti non contano.`
+  // le cifre (numero dei movimenti, entrate, uscite) in bianco, il resto del testo in grigio
+  const sums = tag === 'entrata' ? `entrate <b>${money(d.totals.entrate)}</b>` : tag ? `uscite <b>${money(d.totals.uscite)}</b>` : `entrate <b>${money(d.totals.entrate)}</b> · uscite <b>${money(d.totals.uscite)}</b>`;
+  $('#mvSummary').innerHTML = d.total
+    ? `<b>${d.total}</b> movimenti · ${sums} · i giroconti non contano.`
     : 'Nessun movimento. Collega una banca dalla scheda Banche.';
-  // sotto la riga: i nomi delle colonne, da toccare per ordinare (un secondo tocco inverte il verso)
-  const cols = [['date', 'Data'], ['title', 'Movimento'], ['amount', 'Importo'], ['tag', 'Categoria']];
-  $('#mvSort').innerHTML = cols.map(([k, label]) => {
+  // sotto la riga, ognuno sopra la sua colonna: «Data» e «Importo», da toccare per ordinare (un secondo tocco inverte il verso)
+  const head = (k, label, cls) => {
     const on = state.mv.sort === k;
     const arrow = on ? (state.mv.dir === 'asc' ? ' ▲' : ' ▼') : '';
-    return `<button class="sortbtn${on ? ' on' : ''}" data-sort="${k}" aria-pressed="${on}" title="Ordina per ${label.toLowerCase()}">${label}${arrow}</button>`;
-  }).join('');
+    return `<button class="sortbtn ${cls}${on ? ' on' : ''}" data-sort="${k}" aria-pressed="${on}" title="Ordina per ${label.toLowerCase()}">${label}${arrow}</button>`;
+  };
+  $('#mvSort').innerHTML = `${head('date', 'Data', 's-date')}${head('amount', 'Importo', 's-amt')}`;
+  state.mv.items = d.transactions;
+  state.mv.total = d.total;
+  state.mv.base = base;
+  state.mv.paged = 'offset' in d; // un server più vecchio non sa dare altre pagine
+  state.mv.shown = d.total <= 1000 ? Infinity : (keep && state.mv.shown !== Infinity ? Math.max(MORE, state.mv.shown) : MORE);
+  await ensureMoves();
+  renderMovesList();
+}
+
+/** Carica dal server altre pagine di movimenti se ne servono per mostrare quanti se ne chiedono. */
+async function ensureMoves() {
+  const m = state.mv;
+  const want = Math.min(m.shown, m.total);
+  while (m.paged && m.items.length < want) {
+    const more = await api('GET', `${m.base}&limit=1000&offset=${m.items.length}`);
+    if (!more.transactions.length) break;
+    m.items = m.items.concat(more.transactions);
+  }
+}
+
+function renderMovesList() {
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
-  $('#mvList').innerHTML = d.transactions.map((t) => {
+  const rows = state.mv.items.slice(0, state.mv.shown);
+  $('#mvList').innerHTML = rows.map((t) => {
     const bankName = { revolut: 'Revolut', unicredit: 'UniCredit', busta: 'Busta paga' }[t.bank] ?? t.bank;
     const where = `${bankName} · ${t.accountName}`;
     const title = t.remittance || t.description; // la causale se c'è, altrimenti il nome
@@ -300,9 +326,14 @@ async function loadMoves() {
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
       <div class="d-main"><div class="d-title">${esc(title)}${pill}</div><div class="d-sub">${esc([dest, where].filter(Boolean).join(' · '))}</div></div>
       <div class="d-amt">${amt}</div>
-      <div class="d-tag">${icon(t.tag)}${select}</div>
+      <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div></div>
     </div>`;
   }).join('');
+  // «Mostra altro» in fondo, solo se ci sono più di 1000 movimenti e non sono già tutti mostrati
+  const left = state.mv.total - rows.length;
+  const more = $('#mvMore');
+  more.hidden = !(state.mv.total > 1000 && left > 0);
+  more.innerHTML = more.hidden ? '' : '<button class="ghost" data-more="1">Mostra altro</button>';
 }
 $('#movimenti').addEventListener('change', async (e) => {
   const el = e.target;
@@ -310,7 +341,7 @@ $('#movimenti').addEventListener('change', async (e) => {
   else if (el.id === 'mvMonth') state.mv.month = Number(el.value);
   else if (el.id === 'mvTag') state.mv.tag = el.value;
   else if (el.dataset.tag) {
-    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(); return; } el.style.color = `var(--t-${el.value})`; el.previousElementSibling?.classList.contains('ticon') && (el.previousElementSibling.outerHTML = icon(el.value)); toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
+    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(true); return; } el.style.color = `var(--t-${el.value})`; if (el.parentElement?.classList.contains('tagbox')) { el.parentElement.style.color = `var(--t-${el.value})`; el.previousElementSibling.outerHTML = icon(el.value); } toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
     return;
   } else return;
   loadMoves().catch(fail);
@@ -318,10 +349,15 @@ $('#movimenti').addEventListener('change', async (e) => {
 let searchTimer;
 $('#movimenti').addEventListener('click', (e) => {
   if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); return; }
+  if (e.target.closest('[data-more]')) { // altri 200 movimenti
+    state.mv.shown = (state.mv.shown === Infinity ? 0 : state.mv.shown) + MORE;
+    ensureMoves().then(renderMovesList).catch(fail);
+    return;
+  }
   const s = e.target.closest('[data-sort]');
   if (!s) return;
   const k = s.dataset.sort;
-  const first = { date: 'desc', title: 'asc', amount: 'desc', tag: 'asc' }; // verso di partenza di ogni colonna
+  const first = { date: 'desc', amount: 'desc' }; // verso di partenza di ogni colonna
   state.mv.dir = state.mv.sort === k ? (state.mv.dir === 'asc' ? 'desc' : 'asc') : first[k];
   state.mv.sort = k;
   loadMoves().catch(fail);

@@ -624,7 +624,7 @@ test("buste paga: le nuove si leggono da sole (anche nelle sottocartelle) e dive
   assert.equal(Object.keys(made.db.transactions).length, 3);
 });
 
-test("movimenti: ordinati per data, titolo, importo o categoria (nei due versi) e con i totali di entrate e uscite", async (t) => {
+test("movimenti: ordinati per data o importo (nei due versi) e con i totali di entrate e uscite", async (t) => {
   const { api, db } = await setup(t);
   await api("POST", "/api/login", { password: "segreta" });
   const add = (id, date, amount, description, account = "x") => { db.transactions[id] = { id, bank: "revolut", account, date, amount, description, currency: "EUR" }; };
@@ -638,14 +638,25 @@ test("movimenti: ordinati per data, titolo, importo o categoria (nei due versi) 
   assert.equal(await order("?sort=date&dir=asc"), "acbd");
   assert.equal(await order("?sort=amount"), "bcad"); // importo: dal più alto (di base)
   assert.equal(await order("?sort=amount&dir=asc"), "dacb");
-  assert.equal(await order("?sort=title"), "dabc"); // titolo: Affitto, Bar, Stipendio, Zucchero
-  assert.equal(await order("?sort=title&dir=desc"), "cbad");
-  assert.equal(await order("?sort=tag"), "bcad"); // categoria: Entrata, Spesa, Svago, Utenze
-  assert.equal(await order("?sort=tag&dir=desc"), "dacb");
-  assert.equal(await order("?sort=boh&dir=su"), "bdca"); // valori sconosciuti: si torna all'ordine di base
+  assert.equal(await order("?sort=boh&dir=su"), "bdca"); // valori sconosciuti (anche titolo e categoria, non più ordinabili): si torna all'ordine di base
+  assert.equal(await order("?sort=tag"), "bdca");
   // totali di tutti i movimenti filtrati
   const all = (await api("GET", "/api/transactions")).json;
   assert.deepEqual(all.totals, { entrate: 1500, uscite: 235.5 });
   assert.deepEqual((await api("GET", "/api/transactions?tag=entrata")).json.totals, { entrate: 1500, uscite: 0 });
   assert.deepEqual((await api("GET", "/api/transactions?tag=svago")).json.totals, { entrate: 0, uscite: 30 });
+});
+
+test("movimenti: a pagine (limit e offset), per mostrarne 200 alla volta quando sono più di 1000", async (t) => {
+  const { api, db } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  for (let i = 1; i <= 7; i++) db.transactions[`t${i}`] = { id: `t${i}`, bank: "revolut", account: "x", date: `2026-05-${String(i).padStart(2, "0")}`, amount: -i, description: `Mov ${i}`, currency: "EUR" };
+  const ids = async (q) => { const r = (await api("GET", `/api/transactions${q}`)).json; return [r.transactions.map((x) => x.id).join(","), r.total, r.offset]; };
+  assert.deepEqual(await ids(""), ["t7,t6,t5,t4,t3,t2,t1", 7, 0]); // di base: tutti (fino a 1000)
+  assert.deepEqual(await ids("?limit=3"), ["t7,t6,t5", 7, 0]);
+  assert.deepEqual(await ids("?limit=3&offset=3"), ["t4,t3,t2", 7, 3]);
+  assert.deepEqual(await ids("?limit=3&offset=6"), ["t1", 7, 6]);
+  assert.deepEqual(await ids("?limit=3&offset=9"), ["", 7, 9]);
+  assert.deepEqual(await ids("?limit=5000&offset=-4"), ["t7,t6,t5,t4,t3,t2,t1", 7, 0]); // limiti sensati
+  assert.equal((await api("GET", "/api/transactions?limit=2&sort=amount&dir=asc")).json.transactions.map((x) => x.id).join(), "t7,t6"); // l'ordine vale anche a pagine
 });

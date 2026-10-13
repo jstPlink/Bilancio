@@ -312,8 +312,10 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 
 /* icone delle categorie (in un solo colore, quello del testo) */
 .ticon { display: inline-block; width: 18px; height: 18px; flex: none; vertical-align: -4px; }
-.d-tag { display: flex; align-items: center; gap: 8px; }
-.d-tag .ticon { color: var(--mute); }
+/* il menu della categoria: un solo blocco con l'icona dentro, dello stesso colore del testo */
+.tagbox { display: flex; align-items: center; gap: 2px; height: 32px; padding-left: 8px; border: 1px solid var(--ink); }
+.tagbox .ticon { width: 16px; height: 16px; color: inherit; }
+.tagbox select { flex: 1 1 auto; min-width: 0; height: 30px; border: 0; background: transparent; }
 .chip .cname { display: flex; align-items: center; gap: 8px; }
 .card .k .ticon { margin-right: 8px; vertical-align: -4px; }
 .chip .cbar i[style*="width:0%"] { min-width: 0; }
@@ -365,9 +367,15 @@ tbody tr.m.undef { background: color-mix(in srgb, var(--yellow) 26%, transparent
 tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, transparent); }
 .docgroup { margin: 16px 0 0; padding-bottom: 4px; border-bottom: 2px solid var(--ink); font: 700 var(--fs-sm) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }
 
-/* Movimenti: il testo informativo più staccato dalla riga; sotto la riga i nomi delle colonne, da toccare per ordinare */
+/* Movimenti: il testo informativo più staccato dalla riga; sotto la riga «Data» e «Importo», ognuno sopra la sua colonna, da toccare per ordinare */
 #mvSummary { margin-bottom: 18px; }
-.mvsort { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 10px 0 8px; border-bottom: 1px solid var(--hair); }
-.sortbtn { background: none; border: 0; padding: 4px 0; font: 500 var(--fs-label)/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.mvsort { display: grid; align-items: center; padding: 10px 0 8px 12px; border-left: 4px solid transparent; border-bottom: 1px solid var(--hair); grid-template-columns: 50px minmax(0, 1fr) 112px; column-gap: 10px; }
+.sortbtn { background: none; border: 0; padding: 4px 0; font: 500 var(--fs-label)/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); white-space: nowrap; width: fit-content; }
+.sortbtn.s-date { grid-column: 1; justify-self: start; }
+.sortbtn.s-amt { grid-column: 3; justify-self: end; }
 .sortbtn:hover { color: var(--ink); }
 .sortbtn.on { color: var(--ink); text-decoration: underline; text-decoration-color: var(--red); text-decoration-thickness: 2px; text-underline-offset: 5px; }
+@media (min-width: 721px) { .mvsort { grid-template-columns: 78px minmax(0, 1fr) 150px 190px; column-gap: 24px; } }
+#mvSummary b { color: var(--ink); font-weight: inherit; }
+.mvmore { margin: 22px 0 6px; text-align: center; }
+.mvmore button { min-width: 180px; }

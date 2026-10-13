@@ -30,7 +30,7 @@ export function yearSummary(db, year) {
 }
 
 /** I movimenti con il loro tag, dal più recente, con i filtri della scheda Movimenti. */
-export const SORTS = { date: 'desc', title: 'asc', amount: 'desc', tag: 'asc' }; // colonne per cui si può ordinare, con il verso di base
+export const SORTS = { date: 'desc', amount: 'desc' }; // colonne per cui si può ordinare, con il verso di base
 
 export function listTransactions(db, { year, month, tag, q, account, sort = 'date', dir } = {}) {
   const tags = classify(db);
@@ -46,11 +46,11 @@ export function listTransactions(db, { year, month, tag, q, account, sort = 'dat
     if (needle && !`${t.description} ${t.remittance ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;
     out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), accountName: names.get(t.account)?.name ?? t.accountLabel ?? '' });
   }
-  // ordine: per data (di base, dal più recente), titolo, importo o categoria; a parità, dal più recente
+  // ordine: per data (di base, dal più recente) o per importo; a parità, dal più recente
   const col = SORTS[sort] ? sort : 'date';
   const mul = (dir === 'asc' || dir === 'desc' ? dir : SORTS[col]) === 'asc' ? 1 : -1;
-  const key = { date: (t) => t.date, title: (t) => (t.remittance || t.description || '').toLowerCase(), amount: (t) => t.amount, tag: (t) => (TAGS[t.tag] ?? t.tag).toLowerCase() }[col];
-  const cmp = (x, y) => (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'it', { numeric: true }));
+  const key = { date: (t) => t.date, amount: (t) => t.amount }[col];
+  const cmp = (x, y) => (typeof x === 'number' ? x - y : String(x).localeCompare(String(y)));
   out.sort((a, b) => cmp(key(a), key(b)) * mul || b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   return out;
 }

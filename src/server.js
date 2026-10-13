@@ -99,7 +99,10 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     const totals = { entrate: 0, uscite: 0 };
     for (const t of list) if (t.tag !== 'giroconto') { if (t.amount > 0) totals.entrate += t.amount; else totals.uscite -= t.amount; }
     totals.entrate = Math.round(totals.entrate * 100) / 100; totals.uscite = Math.round(totals.uscite * 100) / 100;
-    res.json({ transactions: list.slice(0, 1000), total: list.length, totals, sort: String(req.query.sort ?? 'date'), tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
+    // a pagine: `limit` (al massimo 1000, di base 1000) e `offset`
+    const limit = Math.min(1000, Math.max(1, Math.floor(Number(req.query.limit)) || 1000));
+    const offset = Math.max(0, Math.floor(Number(req.query.offset)) || 0);
+    res.json({ transactions: list.slice(offset, offset + limit), total: list.length, offset, totals, sort: String(req.query.sort ?? 'date'), tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
   });
 
   // Tag scelto a mano per un movimento (`null` torna a quello automatico).

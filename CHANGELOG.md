@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.25.0
+- **Movimenti, ordinamento**: restano solo **Data** e **Importo** (tolti Movimento e Categoria), ognuno sopra la sua colonna sotto la riga informativa.
+- **Movimenti, riga informativa**: le cifre (numero dei movimenti, entrate, uscite) sono in bianco.
+- **Movimenti, categoria**: l'icona sta dentro il blocco del menu della categoria, dello stesso colore del testo.
+- **Movimenti, tanti risultati**: fino a 1000 movimenti si mostrano tutti; se sono di più si mostrano i primi 200, senza messaggi, e in fondo c'è **Mostra altro** (altri 200 ogni volta). `GET /api/transactions` accetta `limit` e `offset`. Con un server più vecchio si vedono al massimo i primi 1000. Serve il server alla 0.25.0.
+
 ## 0.24.0
 - **Movimenti**: il testo informativo è più staccato dalla riga. Nella riga ci sono anche le **entrate** (con il filtro «Entrata» solo quelle; senza filtro entrate e uscite; con gli altri filtri le uscite), calcolate dal server su tutti i movimenti filtrati e non solo sui primi 1000.
 - **Movimenti, ordinamento**: sotto la riga i nomi delle colonne **Data · Movimento · Importo · Categoria**; toccandone uno si ordina per quella colonna, un secondo tocco inverte il verso (freccia ▲/▼). `GET /api/transactions?sort=date|title|amount|tag&dir=asc|desc`. Con un server più vecchio la pagina ordina da sola i movimenti ricevuti e ne calcola i totali. Serve il server alla 0.24.0 per l'ordinamento su più di 1000 movimenti.
