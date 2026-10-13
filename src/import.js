@@ -4,11 +4,14 @@
 import crypto from 'node:crypto';
 import { BANKS, cutoffOf } from './banks.js';
 
-// I movimenti importati si leggono e si salvano tutti, ma per ora se ne MOSTRANO solo alcuni mesi (di base maggio e giugno 2026): gli altri restano
-// nascosti, in ogni schermata, finché non si decide di mostrarli (`settings.importedVisible`, elenco di mesi «AAAA-MM»).
-export const IMPORTED_VISIBLE = ['2026-05', '2026-06'];
+// Da dove vengono i movimenti importati: dalle banche (estratti conto) o dalle buste paga (il netto del mese, come entrata).
+export const SOURCES = [...Object.keys(BANKS), 'busta'];
+
+// I movimenti importati si leggono e si salvano tutti e di base si mostrano tutti. Se serve nasconderne alcuni mesi in ogni schermata, si imposta
+// `settings.importedVisible` (elenco dei mesi «AAAA-MM» da mostrare); senza, o `null`, si mostra tutto.
+export const IMPORTED_VISIBLE = null; // tutti i mesi
 export const importedVisible = (db) => (Array.isArray(db.settings?.importedVisible) ? db.settings.importedVisible : IMPORTED_VISIBLE);
-export const isVisible = (db, t) => !t.imported || importedVisible(db).includes(t.date.slice(0, 7));
+export const isVisible = (db, t) => { const v = importedVisible(db); return !t.imported || v === null || v.includes(t.date.slice(0, 7)); };
 /** I movimenti che si mostrano: quelli della banca e gli importati dei mesi scelti. */
 export const visibleTransactions = (db) => Object.values(db.transactions).filter((t) => isVisible(db, t));
 
@@ -23,7 +26,7 @@ export function importTransactions(db, items) {
   const ready = [];
   items.forEach((x, i) => {
     const where = `Movimento ${i + 1}`;
-    if (!BANKS[x?.bank]) throw new Error(`${where}: banca non prevista.`);
+    if (!SOURCES.includes(x?.bank)) throw new Error(`${where}: origine non prevista.`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(x.date ?? ''))) throw new Error(`${where}: data non valida.`);
     const amount = Math.round(Number(x.amount) * 100) / 100;
     if (!Number.isFinite(amount) || amount === 0) throw new Error(`${where}: importo non valido.`);

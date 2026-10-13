@@ -35,7 +35,7 @@ Node 24 + Express 5, dati in un file JSON (`data/mybank.json`), pagine web in HT
 
 ## Estetica (regole uniche, vedi README «Estetica»)
 
-Carta e inchiostro, un solo rosso vermiglio, angoli vivi, filetti da 1px (2px a inizio sezione), serif per numeri e titoli, monospazio maiuscolo per le etichette. Scala del testo 11/13/15/22/34. Pulsanti e campi alti `--h`. Il widget usa un solo carattere (sans-serif), fondo inchiostro e testo carta. Nuove schermate e il widget seguono le stesse regole: niente colori o forme nuove senza aggiornare queste righe e il README.
+Carta e inchiostro, un solo rosso vermiglio (più un giallo solo per i mesi dello Storico con movimenti «Non definito»), angoli vivi, filetti da 1px (2px a inizio sezione), serif per numeri e titoli, monospazio maiuscolo per le etichette. Scala del testo 11/13/15/22/34. Pulsanti e campi alti `--h`. Il widget usa un solo carattere (sans-serif), fondo inchiostro e testo carta. Nuove schermate e il widget seguono le stesse regole: niente colori o forme nuove senza aggiornare queste righe e il README.
 
 ## Prima di fare domande
 

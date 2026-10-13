@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.22.0
+- **Storico**: i mesi con movimenti «Non definito» hanno la riga **gialla** (nuovo colore, solo per questo).
+- **Tutti i mesi letti dagli estratti conto si mostrano** (prima solo alcuni); `settings.importedVisible` resta per nasconderne se serve.
+- **Buste paga tra i movimenti**: l'importazione accetta l'origine «busta» (il netto del mese come entrata, conto «Busta paga»); in Documenti → Buste paga c'è «Importa movimenti da file» per caricare il `.json`. Le buste paga sono scansioni: il server non le legge da solo.
+- Serve il server alla 0.22.0.
+
 ## 0.21.1
 - **Estratti conto**: il lettore capisce anche il testo di altre versioni di `pdftotext` (quella dell'immagine Docker scrive gli importi con «€», per esempio `10,00€ 24,46€`, e può mettere «ID transazione:» e simili sulla stessa riga): prima, sul server, tutti gli estratti davano «manca il saldo». Gli estratti rimasti in errore si rileggono da soli dopo l'aggiornamento (versione del lettore).
 

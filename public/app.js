@@ -226,7 +226,8 @@ async function loadYear() {
     const cats = Object.entries(m.uscite ? { utenze: 0, ...m.tags } : m.tags).sort((a, b) => b[1] - a[1]); // «Utenze» c'è sempre, anche a zero
     const tags = cats.length ? `<div class="legend">${cats.map(([k, v]) => `<button class="chip" data-see="${k}" data-see-month="${m.month}" title="Vedi i movimenti">
       <span class="cname">${icon(k)}${esc(TAGS[k] ?? k)}</span><span class="cbar"><i style="width:${(v / m.uscite) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`).join('')}</div>` : '';
-    return `<tr class="m" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
+    const undef = (m.tags.non_definito ?? 0) > 0 ? ' undef' : ''; // il mese ha movimenti «Non definito»: la riga si colora di giallo
+    return `<tr class="m${undef}" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
       + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessuna uscita.'}</td></tr>` : '');
   }).join('');
   $('#yearTable').innerHTML = `<thead><tr><th>Mese</th><th>Entrate</th><th>Uscite</th><th>Bilancio</th></tr></thead><tbody>${rows}</tbody>
@@ -270,7 +271,7 @@ async function loadMoves() {
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   $('#mvList').innerHTML = d.transactions.map((t) => {
-    const bankName = t.bank === 'revolut' ? 'Revolut' : 'UniCredit';
+    const bankName = { revolut: 'Revolut', unicredit: 'UniCredit', busta: 'Busta paga' }[t.bank] ?? t.bank;
     const where = `${bankName} · ${t.accountName}`;
     const title = t.remittance || t.description; // la causale se c'è, altrimenti il nome
     const dest = t.party && t.party !== title ? t.party : ''; // il destinatario (o chi paga)
@@ -446,6 +447,7 @@ async function loadDocuments() {
     <div class="docbody">
       <div class="doclist" data-list="${esc(l.key)}"><p class="muted">${l.url ? 'Leggo la cartella…' : 'Inserisci qui sotto il link della cartella per vedere i documenti.'}</p></div>
       ${l.url ? `<div class="docupload"><label class="ghost filebtn">Carica documenti<input type="file" multiple hidden data-pick="${esc(l.key)}"></label><div class="staged" data-staged="${esc(l.key)}"></div></div>` : ''}
+      ${l.key === 'payslips' ? `<div class="docimport"><p class="muted">Importa i movimenti delle buste paga (file .json con il netto di ogni mese).</p><label class="ghost filebtn">Importa movimenti da file<input type="file" accept=".json,application/json" hidden data-import></label></div>` : ''}
       <details class="docset" ${l.url ? '' : 'open'}><summary>LINK</summary>
         <form data-links="${esc(l.key)}">
           <label>LINK della cartella (Seafile)<input name="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.url)}"></label>
@@ -512,6 +514,15 @@ $('#docGroups').addEventListener('change', async (e) => {
   } else if (el.dataset.rename) {
     const [key, i] = el.dataset.rename.split(':');
     if (state.staged[key]?.[i]) state.staged[key][i].name = el.value;
+  } else if (el.dataset.import !== undefined) { // importa i movimenti da un file .json (buste paga)
+    const file = el.files[0];
+    el.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const r = await api('POST', '/api/import', { transactions: data.transactions ?? data });
+      toast(`Importati ${r.added} movimenti nuovi${r.updated ? `, ${r.updated} già presenti` : ''}${r.skipped ? `, ${r.skipped} saltati (da quella data li legge la banca)` : ''}.`);
+    } catch (err) { if (err instanceof SyntaxError) toast('Il file non è un JSON valido.'); else fail(err); }
   }
 });
 

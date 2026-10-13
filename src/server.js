@@ -193,7 +193,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
         const m = STATEMENT.exec(f.name);
         if (!m) continue;
         const r = rec[f.name];
-        f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };
+        f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible === null || visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };
       }
       folder.read = read.map((r) => ({ name: r.name, count: r.found ?? 0, error: r.error ?? '' }));
     }

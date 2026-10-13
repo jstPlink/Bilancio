@@ -4,7 +4,7 @@
    Regole: nessun angolo arrotondato, nessuna ombra; filetti da 1px (sottili) e da 2px (a inizio sezione); un solo colore d'azione. */
 :root {
   --paper: #f3f0ea; --ink: #131211; --mute: #6b665e; --hair: #d8d3c8;
-  --red: #e8431a; --green: #1d6b3c;
+  --red: #e8431a; --green: #1d6b3c; --yellow: #e0b000;
   --t-spesa: #1f4fd8; --t-svago: #c2188b; --t-carburante: #b8860b; --t-altro: #5b4b8a; --t-utenze: #0e7490; --t-non_definito: #131211; --t-entrata: #1d6b3c; --t-giroconto: #9a958b;
   --f-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --f-sans: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -15,7 +15,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #121211; --ink: #edeae3; --mute: #9a958b; --hair: #2e2c29; --red: #ff5a2e; --green: #5ccb8a;
+    --paper: #121211; --ink: #edeae3; --mute: #9a958b; --hair: #2e2c29; --red: #ff5a2e; --green: #5ccb8a; --yellow: #f0c419;
     --t-spesa: #7a9cff; --t-svago: #ff7ac8; --t-carburante: #e6b84a; --t-altro: #b3a3e6; --t-utenze: #5cc8dc; --t-non_definito: #edeae3; --t-entrata: #5ccb8a; --t-giroconto: #6d6a63;
     color-scheme: dark;
   }
@@ -359,3 +359,7 @@ details.group > summary h2.section { margin: 0; }
 .docnote { margin: 0 0 10px; font: 400 var(--fs-label) var(--f-sans); color: var(--mute); }
 .docnote.bad { color: var(--red); }
 .docnote .link { font-size: var(--fs-label); }
+
+/* Storico: i mesi con movimenti «Non definito» sono gialli */
+tbody tr.m.undef { background: color-mix(in srgb, var(--yellow) 26%, transparent); }
+tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, transparent); }

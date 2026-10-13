@@ -477,27 +477,30 @@ test("importazione da estratto conto: restano anche prima della data di inizio, 
   assert.equal((await fetch(`${base}/api/import`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status, 401);
 
   const item = (key, date, amount, extra = {}) => ({ bank: "revolut", account: "estratto:revolut:conto", accountLabel: "Conto (estratto)", key, date, amount, description: "Esselunga", ...extra });
-  const batch = { transactions: [item("a", "2026-06-10", -25.5), item("b", "2026-06-11", 100, { description: "Pagamento da Mario", party: "Mario" }), item("c", "2026-08-02", -9)] };
+  const busta = { bank: "busta", account: "busta:paga", accountLabel: "Busta paga", key: "2026-06", date: "2026-06-30", amount: 2577, description: "Stipendio giugno 2026" };
+  const batch = { transactions: [item("a", "2026-06-10", -25.5), item("b", "2026-06-11", 100, { description: "Pagamento da Mario", party: "Mario" }), item("c", "2026-08-02", -9), busta] };
   const first = await (await post(batch)).json();
-  assert.deepEqual(first, { added: 2, updated: 0, skipped: 1 }); // quello di agosto lo legge la banca
-  assert.deepEqual(await (await post(batch)).json(), { added: 0, updated: 2, skipped: 1 }); // di nuovo: nessun duplicato
+  assert.deepEqual(first, { added: 3, updated: 0, skipped: 1 }); // quello di agosto lo legge la banca
+  assert.deepEqual(await (await post(batch)).json(), { added: 0, updated: 3, skipped: 1 }); // di nuovo: nessun duplicato
 
   const june = (await (await fetch(`${base}/api/transactions?year=2026&month=6`, { headers: { Cookie: cookie } })).json()).transactions;
-  assert.equal(june.length, 2);
+  assert.equal(june.length, 3);
+  const pay = june.find((x) => x.bank === "busta"); // la busta paga è un'entrata con il netto del mese
+  assert.deepEqual([pay.amount, pay.tag, pay.accountName, pay.date], [2577, "entrata", "Busta paga", "2026-06-30"]);
   assert.equal(june.find((x) => x.amount === -25.5).accountName, "Conto (estratto)");
   assert.equal(june.find((x) => x.amount === 100).tag, "entrata");
   assert.equal((await (await fetch(`${base}/api/summary?year=2026`, { headers: { Cookie: cookie } })).json()).months[5].uscite, 25.5);
 
   // la data di inizio non li cancella, né all'avvio né dopo una lettura
   assert.equal(applyCutoff(made.db), 0);
-  assert.equal(Object.keys(made.db.transactions).length, 2);
+  assert.equal(Object.keys(made.db.transactions).length, 3);
   // dati non validi
   for (const bad of [{ transactions: [] }, { transactions: [item("x", "10/06/2026", 5)] }, { transactions: [item("x", "2026-06-10", 0)] }, { transactions: [{ ...item("x", "2026-06-10", 5), bank: "boh" }] }, { transactions: [item("", "2026-06-10", 5)] }]) {
     assert.equal((await post(bad)).status, 400, JSON.stringify(bad).slice(0, 60));
   }
 });
 
-test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; per ora si mostrano solo maggio e giugno", async (t) => {
+test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si possono mostrare solo alcuni mesi (qui solo giugno)", async (t) => {
   const sf = await fakeSeafile();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
   t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
@@ -506,7 +509,7 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; pe
   const pdfToText = async (buffer) => { reads++; return /2026\.05/.test(buffer.toString()) ? TEXT.replaceAll(" giu 2026", " mag 2026").replace(/giugno 2026/g, "maggio 2026").replaceAll("ID transazione: ", "ID transazione: maggio-") : TEXT; };
   const made = createApp({ dir, password: "", pdfToText }); // data di inizio di base: 1 agosto 2026
   made.db.settings.documents = { statements: { url: `${sf.base}/d/ABC123/` } };
-  assert.deepEqual(importedVisible(made.db), ["2026-05", "2026-06"]); // di base si mostrano maggio e giugno
+  assert.equal(importedVisible(made.db), null); // di base si mostrano tutti i mesi
   made.db.settings.importedVisible = ["2026-06"]; // qui si prova il nascondere: solo giugno
   const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
   t.after(() => server.close());
