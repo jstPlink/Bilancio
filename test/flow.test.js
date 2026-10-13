@@ -390,13 +390,18 @@ async function fakeSeafile() {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     const json = (o, status = 200) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+    if (url.pathname === "/api/v2.1/share-links/ABC123/dirents/" && url.searchParams.get("path") === "/2025/") {
+      return json({ dirent_list: [{ is_dir: false, file_name: "Estratto conto 2025.12.pdf", file_path: "/2025/Estratto conto 2025.12.pdf", size: 700, last_modified: "2026-01-02T10:00:00+00:00" }] });
+    }
+    if (url.pathname === "/api/v2.1/share-links/ABC123/dirents/" && url.searchParams.get("path") !== "/") return json({ dirent_list: [] });
     if (url.pathname === "/api/v2.1/share-links/ABC123/dirents/") {
       return json({ dirent_list: [
+        { is_dir: true, folder_name: "2025", folder_path: "/2025/", size: 0, last_modified: "2026-01-02T10:00:00+00:00" },
         { is_dir: false, file_name: "Estratto conto 2026.09.pdf", file_path: "/Estratto conto 2026.09.pdf", size: 3000, last_modified: "2026-09-30T18:49:03+00:00" },
         { is_dir: false, file_name: "Estratto Conto Carte Flexia 2026.06.pdf", file_path: "/Estratto Conto Carte Flexia 2026.06.pdf", size: 500, last_modified: "2026-09-30T18:49:03+00:00" },
         { is_dir: false, file_name: "Estratto conto 2026.05.pdf", file_path: "/Estratto conto 2026.05.pdf", size: 1000, last_modified: "2026-09-30T18:47:03+00:00" },
         { is_dir: false, file_name: "Estratto conto 2026.06.pdf", file_path: "/Estratto conto 2026.06.pdf", size: 2000, last_modified: "2026-09-30T18:48:03+00:00" },
-        { is_dir: true, file_name: "Vecchi", file_path: "/Vecchi" },
+        { is_dir: true, folder_name: "Vecchi", folder_path: "/Vecchi/", size: 0, last_modified: "2026-01-02T10:00:00+00:00" },
       ] });
     }
     if (url.pathname === "/api/v2.1/share-links/ABC123/upload/") return json({ upload_link: `http://${req.headers.host}/seafhttp/upload-api/xyz` });
@@ -436,9 +441,11 @@ test("documenti: tre cartelle online (elenco dei file, apertura su Seafile, cari
   // elenco: solo i file, i più recenti per nome in alto, ognuno con l'indirizzo per aprirlo su Seafile
   const list = await api("GET", "/api/documents/statements/files");
   assert.equal(list.status, 200);
-  assert.deepEqual(list.json.files.map((f) => f.name), ["Estratto Conto Carte Flexia 2026.06.pdf", "Estratto conto 2026.09.pdf", "Estratto conto 2026.06.pdf", "Estratto conto 2026.05.pdf"]);
+  assert.deepEqual(list.json.files.map((f) => f.name), ["Estratto Conto Carte Flexia 2026.06.pdf", "Estratto conto 2026.09.pdf", "Estratto conto 2026.06.pdf", "Estratto conto 2026.05.pdf", "Estratto conto 2025.12.pdf"]); // anche la sottocartella, dopo la radice
+  assert.deepEqual(list.json.files.map((f) => f.folder), ["", "", "", "", "2025"]);
+  assert.equal(list.json.files[4].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/2025/Estratto conto 2025.12.pdf")}`);
   assert.equal(list.json.files[2].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/Estratto conto 2026.06.pdf")}`);
-  assert.deepEqual(list.json.files.map((f) => f.statement?.state), [undefined, "banca", "banca", "banca"]); // qui la data di inizio è il 2000: tutti li legge la banca; l'estratto della carta non è mensile
+  assert.deepEqual(list.json.files.map((f) => f.statement?.state), [undefined, "banca", "banca", "banca", undefined]); // qui la data di inizio è il 2000: tutti li legge la banca; l'estratto della carta non è mensile
   assert.equal((await api("GET", "/api/documents/payslips/files")).status, 400); // la cartella non risponde
   assert.equal((await api("GET", "/api/documents/boh/files")).status, 400);
 
@@ -518,7 +525,7 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si
 
   const list = await get("/api/documents/statements/files");
   // giugno e maggio si leggono; settembre no (lo legge la banca) e non si scarica nemmeno; l'estratto della carta non è mensile
-  assert.deepEqual(list.files.map((f) => [f.name, f.statement?.state]), [["Estratto Conto Carte Flexia 2026.06.pdf", undefined], ["Estratto conto 2026.09.pdf", "banca"], ["Estratto conto 2026.06.pdf", "letto"], ["Estratto conto 2026.05.pdf", "letto"]]);
+  assert.deepEqual(list.files.map((f) => [f.name, f.statement?.state]), [["Estratto Conto Carte Flexia 2026.06.pdf", undefined], ["Estratto conto 2026.09.pdf", "banca"], ["Estratto conto 2026.06.pdf", "letto"], ["Estratto conto 2026.05.pdf", "letto"], ["Estratto conto 2025.12.pdf", undefined]]); // il file della sottocartella si mostra ma non si legge
   assert.deepEqual(sf.downloads.sort(), ["/Estratto conto 2026.05.pdf", "/Estratto conto 2026.06.pdf"]);
   assert.deepEqual(list.read.map((r) => r.name).sort(), ["Estratto conto 2026.05.pdf", "Estratto conto 2026.06.pdf"]);
   assert.equal(Object.keys(made.db.transactions).length, 10); // 5 di giugno + 5 di maggio, tutti salvati

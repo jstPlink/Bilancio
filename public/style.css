@@ -363,3 +363,4 @@ details.group > summary h2.section { margin: 0; }
 /* Storico: i mesi con movimenti «Non definito» sono gialli */
 tbody tr.m.undef { background: color-mix(in srgb, var(--yellow) 26%, transparent); }
 tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, transparent); }
+.docgroup { margin: 16px 0 0; padding-bottom: 4px; border-bottom: 2px solid var(--ink); font: 700 var(--fs-sm) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }

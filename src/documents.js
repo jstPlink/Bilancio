@@ -38,18 +38,37 @@ export function shareOf(url) {
 
 const FILE_LIMIT = 500;
 
-/** I file della cartella condivisa, dal più recente per nome; ognuno con l'indirizzo per aprirlo su Seafile. */
+/**
+ * I file della cartella condivisa e delle sue sottocartelle (fino a 3 livelli): ognuno col nome della sottocartella (`folder`, vuoto per la
+ * radice) e l'indirizzo per aprirlo su Seafile. Prima la radice, poi le sottocartelle dalla più recente per nome; in ognuna i file dal più recente.
+ */
 export async function listFolder(url, fetchImpl = fetch) {
   const share = shareOf(url);
   if (!share) throw new Error('L\'indirizzo non è un link di condivisione di Seafile (…/d/codice/).');
-  const res = await fetchImpl(`${share.origin}/api/v2.1/share-links/${share.token}/dirents/?path=/`, { headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error(`Seafile non risponde (${res.status}): controlla il link della cartella.`);
-  const data = await res.json();
-  const files = (data.dirent_list ?? []).filter((d) => !d.is_dir).map((d) => ({
-    name: d.file_name, size: d.size ?? 0, modified: d.last_modified ?? '',
-    url: `${share.origin}/d/${share.token}/files/?p=${encodeURIComponent(d.file_path)}`,
-  }));
-  files.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+  const groups = [];
+  let visited = 0;
+  async function walk(dir, depth) {
+    const res = await fetchImpl(`${share.origin}/api/v2.1/share-links/${share.token}/dirents/?path=${encodeURIComponent(dir)}`, { headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      if (depth === 0) throw new Error(`Seafile non risponde (${res.status}): controlla il link della cartella.`);
+      return; // una sottocartella che non si apre si salta
+    }
+    const list = (await res.json()).dirent_list ?? [];
+    const folder = dir === '/' ? '' : dir.replace(/^\/|\/$/g, '');
+    const files = list.filter((d) => !d.is_dir).map((d) => ({
+      name: d.file_name, size: d.size ?? 0, modified: d.last_modified ?? '', folder,
+      url: `${share.origin}/d/${share.token}/files/?p=${encodeURIComponent(d.file_path)}`,
+    }));
+    files.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
+    groups.push({ folder, files });
+    if (depth >= 2) return;
+    const dirs = list.filter((d) => d.is_dir && d.folder_path).sort((a, b) => String(b.folder_name).localeCompare(String(a.folder_name), undefined, { numeric: true }));
+    for (const d of dirs) { if (++visited > 30) return; await walk(d.folder_path, depth + 1); }
+  }
+  await walk('/', 0);
+  // la radice per prima; poi le sottocartelle in ordine decrescente (2025, 2024…)
+  groups.sort((a, b) => (a.folder === '' ? -1 : b.folder === '' ? 1 : b.folder.localeCompare(a.folder, undefined, { numeric: true })));
+  const files = groups.flatMap((g) => g.files);
   return { folderUrl: `${share.origin}/d/${share.token}/`, files: files.slice(0, FILE_LIMIT), total: files.length };
 }
 

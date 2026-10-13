@@ -477,7 +477,7 @@ async function loadFolder(key) {
     // gli estratti nuovi li ha appena letti il server: si dice quanti
     if (d.read?.length) toast(`Letti ${d.read.length} estratti conto nuovi${d.read.some((r) => r.error) ? ' (alcuni con errori)' : ''}.`);
     box.innerHTML = d.files.length
-      ? `${d.files.map((f, i) => `<div class="docitem"><button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>${statementNote(f, i)}</div>`).join('')}
+      ? `${d.files.map((f, i, all) => `${f.folder !== (all[i - 1]?.folder ?? '') && f.folder ? `<p class="docgroup">${esc(f.folder)}</p>` : ''}<div class="docitem"><button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>${statementNote(f, i)}</div>`).join('')}
         ${d.total > d.files.length ? `<p class="muted">Mostro i primi ${d.files.length} di ${d.total}.</p>` : ''}
         <p class="muted"><button class="link" data-folder="${esc(d.folderUrl)}">Apri la cartella su Seafile</button></p>`
       : '<p class="muted">La cartella è vuota.</p>';

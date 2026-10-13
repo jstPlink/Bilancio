@@ -157,7 +157,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       const firstMonth = cutoffOf(db).slice(0, 7);
       const read = [];
       for (const f of list) {
-        const m = STATEMENT.exec(f.name);
+        const m = f.folder ? null : STATEMENT.exec(f.name); // solo gli estratti della radice (le sottocartelle si mostrano soltanto)
         if (!m) continue;
         const sig = `${f.size}|${f.modified}`;
         const was = rec[f.name];
@@ -190,7 +190,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       const visible = importedVisible(db);
       const rec = db.settings.statementsRead ?? {};
       for (const f of folder.files) {
-        const m = STATEMENT.exec(f.name);
+        const m = f.folder ? null : STATEMENT.exec(f.name);
         if (!m) continue;
         const r = rec[f.name];
         f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible === null || visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };

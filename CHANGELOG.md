@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.22.1
+- **Documenti**: l'elenco dei documenti rilevati comprende anche le **sottocartelle** della cartella condivisa (fino a 3 livelli): prima la radice, poi le sottocartelle dalla più recente, ognuna con il suo titolo (per le buste paga: 2025, 2024, 2023, 2022). Prima si vedeva solo la radice. Gli estratti conto si leggono ancora solo dalla radice.
+
 ## 0.22.0
 - **Storico**: i mesi con movimenti «Non definito» hanno la riga **gialla** (nuovo colore, solo per questo).
 - **Tutti i mesi letti dagli estratti conto si mostrano** (prima solo alcuni); `settings.importedVisible` resta per nasconderne se serve.
