@@ -364,3 +364,10 @@ details.group > summary h2.section { margin: 0; }
 tbody tr.m.undef { background: color-mix(in srgb, var(--yellow) 26%, transparent); }
 tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, transparent); }
 .docgroup { margin: 16px 0 0; padding-bottom: 4px; border-bottom: 2px solid var(--ink); font: 700 var(--fs-sm) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; }
+
+/* Movimenti: il testo informativo più staccato dalla riga; sotto la riga i nomi delle colonne, da toccare per ordinare */
+#mvSummary { margin-bottom: 18px; }
+.mvsort { display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 10px 0 8px; border-bottom: 1px solid var(--hair); }
+.sortbtn { background: none; border: 0; padding: 4px 0; font: 500 var(--fs-label)/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
+.sortbtn:hover { color: var(--ink); }
+.sortbtn.on { color: var(--ink); text-decoration: underline; text-decoration-color: var(--red); text-decoration-thickness: 2px; text-underline-offset: 5px; }

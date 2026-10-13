@@ -623,3 +623,29 @@ test("buste paga: le nuove si leggono da sole (anche nelle sottocartelle) e dive
   assert.equal(reads, 3); // già lette: non si rileggono
   assert.equal(Object.keys(made.db.transactions).length, 3);
 });
+
+test("movimenti: ordinati per data, titolo, importo o categoria (nei due versi) e con i totali di entrate e uscite", async (t) => {
+  const { api, db } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  const add = (id, date, amount, description, account = "x") => { db.transactions[id] = { id, bank: "revolut", account, date, amount, description, currency: "EUR" }; };
+  add("a", "2026-05-10", -30, "Bar");
+  add("b", "2026-05-12", 1500, "Stipendio");
+  add("c", "2026-05-11", -5.5, "Zucchero");
+  add("d", "2026-05-12", -200, "Affitto");
+  db.overrides.a = "svago"; db.overrides.c = "spesa"; db.overrides.d = "utenze";
+  const order = async (q) => (await api("GET", `/api/transactions${q}`)).json.transactions.map((x) => x.id).join("");
+  assert.equal(await order(""), "bdca"); // di base: per data, dal più recente (a parità, per id)
+  assert.equal(await order("?sort=date&dir=asc"), "acbd");
+  assert.equal(await order("?sort=amount"), "bcad"); // importo: dal più alto (di base)
+  assert.equal(await order("?sort=amount&dir=asc"), "dacb");
+  assert.equal(await order("?sort=title"), "dabc"); // titolo: Affitto, Bar, Stipendio, Zucchero
+  assert.equal(await order("?sort=title&dir=desc"), "cbad");
+  assert.equal(await order("?sort=tag"), "bcad"); // categoria: Entrata, Spesa, Svago, Utenze
+  assert.equal(await order("?sort=tag&dir=desc"), "dacb");
+  assert.equal(await order("?sort=boh&dir=su"), "bdca"); // valori sconosciuti: si torna all'ordine di base
+  // totali di tutti i movimenti filtrati
+  const all = (await api("GET", "/api/transactions")).json;
+  assert.deepEqual(all.totals, { entrate: 1500, uscite: 235.5 });
+  assert.deepEqual((await api("GET", "/api/transactions?tag=entrata")).json.totals, { entrate: 1500, uscite: 0 });
+  assert.deepEqual((await api("GET", "/api/transactions?tag=svago")).json.totals, { entrate: 0, uscite: 30 });
+});

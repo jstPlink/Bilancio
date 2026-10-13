@@ -92,10 +92,14 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
 
   app.get('/api/transactions', (req, res) => {
     const account = String(req.query.account ?? '');
-    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q, account });
+    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q, account, sort: String(req.query.sort ?? 'date'), dir: String(req.query.dir ?? '') });
     // con un conto o pocket scelto (Banche → tocco su una riga) si dice anche come si chiama
     const name = account ? accountNames(db).get(account)?.name : '';
-    res.json({ transactions: list.slice(0, 1000), total: list.length, tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
+    // entrate e uscite dei movimenti filtrati (tutti, non solo i primi 1000); i giroconti non contano
+    const totals = { entrate: 0, uscite: 0 };
+    for (const t of list) if (t.tag !== 'giroconto') { if (t.amount > 0) totals.entrate += t.amount; else totals.uscite -= t.amount; }
+    totals.entrate = Math.round(totals.entrate * 100) / 100; totals.uscite = Math.round(totals.uscite * 100) / 100;
+    res.json({ transactions: list.slice(0, 1000), total: list.length, totals, sort: String(req.query.sort ?? 'date'), tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
   });
 
   // Tag scelto a mano per un movimento (`null` torna a quello automatico).

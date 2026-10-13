@@ -21,7 +21,7 @@ const ICON_PATHS = {
 };
 const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[k] ?? ICON_PATHS.altro}</svg>`;
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '' } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc' } };
 
 // ------------------------------------------------------------------ rete
 
@@ -253,10 +253,20 @@ $('#yearTable').addEventListener('click', (e) => {
 async function loadMoves() {
   const { year, month, tag, q } = state.mv;
   const [d, sum] = await Promise.all([
-    api('GET', `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}`),
+    api('GET', `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&sort=${state.mv.sort}&dir=${state.mv.dir}`),
     api('GET', `/api/summary?year=${year}`),
   ]);
   TAGS = d.tags;
+  // Con un server più vecchio (senza ordinamento e totali) la pagina si arrangia da sola sui movimenti che ha ricevuto.
+  if (!d.totals) {
+    d.totals = { entrate: 0, uscite: 0 };
+    for (const t of d.transactions) if (t.tag !== 'giroconto') { if (t.amount > 0) d.totals.entrate += t.amount; else d.totals.uscite -= t.amount; }
+  }
+  if (!d.sort) {
+    const key = { date: (t) => t.date, title: (t) => (t.remittance || t.description || '').toLowerCase(), amount: (t) => t.amount, tag: (t) => (TAGS[t.tag] ?? t.tag).toLowerCase() }[state.mv.sort];
+    const mul = state.mv.dir === 'asc' ? 1 : -1;
+    d.transactions.sort((a, b) => (typeof key(a) === 'number' ? key(a) - key(b) : String(key(a)).localeCompare(String(key(b)), 'it', { numeric: true })) * mul || b.date.localeCompare(a.date));
+  }
   // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
   const bar = $('#mvAccount');
   bar.hidden = !d.account;
@@ -264,10 +274,18 @@ async function loadMoves() {
   $('#mvYear').innerHTML = `<option value="0">Tutti</option>${yearOptions(sum.years, year)}`;
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
   $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(v)}</option>`).join('')}`;
-  const out = d.transactions.filter((t) => t.amount < 0 && t.tag !== 'giroconto').reduce((s, t) => s + -t.amount, 0);
+  // la riga informativa: quanti movimenti e il totale; con il filtro «Entrata» le entrate, con gli altri filtri le uscite, senza filtro entrambe
+  const sums = tag === 'entrata' ? `entrate ${money(d.totals.entrate)}` : tag ? `uscite ${money(d.totals.uscite)}` : `entrate ${money(d.totals.entrate)} · uscite ${money(d.totals.uscite)}`;
   $('#mvSummary').textContent = d.total
-    ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · uscite ${money(out)} · i giroconti non contano.`
+    ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · ${sums} · i giroconti non contano.`
     : 'Nessun movimento. Collega una banca dalla scheda Banche.';
+  // sotto la riga: i nomi delle colonne, da toccare per ordinare (un secondo tocco inverte il verso)
+  const cols = [['date', 'Data'], ['title', 'Movimento'], ['amount', 'Importo'], ['tag', 'Categoria']];
+  $('#mvSort').innerHTML = cols.map(([k, label]) => {
+    const on = state.mv.sort === k;
+    const arrow = on ? (state.mv.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<button class="sortbtn${on ? ' on' : ''}" data-sort="${k}" aria-pressed="${on}" title="Ordina per ${label.toLowerCase()}">${label}${arrow}</button>`;
+  }).join('');
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   $('#mvList').innerHTML = d.transactions.map((t) => {
@@ -298,7 +316,16 @@ $('#movimenti').addEventListener('change', async (e) => {
   loadMoves().catch(fail);
 });
 let searchTimer;
-$('#movimenti').addEventListener('click', (e) => { if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); } });
+$('#movimenti').addEventListener('click', (e) => {
+  if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); return; }
+  const s = e.target.closest('[data-sort]');
+  if (!s) return;
+  const k = s.dataset.sort;
+  const first = { date: 'desc', title: 'asc', amount: 'desc', tag: 'asc' }; // verso di partenza di ogni colonna
+  state.mv.dir = state.mv.sort === k ? (state.mv.dir === 'asc' ? 'desc' : 'asc') : first[k];
+  state.mv.sort = k;
+  loadMoves().catch(fail);
+});
 $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.mv.q = e.target.value; loadMoves().catch(fail); }, 250); });
 
 // ------------------------------------------------------------------ budget

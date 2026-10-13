@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.24.0
+- **Movimenti**: il testo informativo è più staccato dalla riga. Nella riga ci sono anche le **entrate** (con il filtro «Entrata» solo quelle; senza filtro entrate e uscite; con gli altri filtri le uscite), calcolate dal server su tutti i movimenti filtrati e non solo sui primi 1000.
+- **Movimenti, ordinamento**: sotto la riga i nomi delle colonne **Data · Movimento · Importo · Categoria**; toccandone uno si ordina per quella colonna, un secondo tocco inverte il verso (freccia ▲/▼). `GET /api/transactions?sort=date|title|amount|tag&dir=asc|desc`. Con un server più vecchio la pagina ordina da sola i movimenti ricevuti e ne calcola i totali. Serve il server alla 0.24.0 per l'ordinamento su più di 1000 movimenti.
+
 ## 0.23.0
 - **Buste paga lette in automatico**: ogni busta paga nuova o cambiata nella cartella (e nelle sue sottocartelle) si scarica e se ne legge il «netto a pagare» con il riconoscimento dei caratteri (`tesseract.js`, nel server; le pagine con `pdftoppm`). Diventa un'entrata («Stipendio Giugno 2026», conto «Busta paga»; quattordicesima e tredicesima comprese). La lettura va in sottofondo: l'elenco dei documenti dice «In lettura…» e poi il netto; si riprova da sola dopo un errore se il lettore migliora. Provata su 59 buste 2022–2026: importi tutti uguali a quelli letti a occhio. Da agosto 2026 non si legge nulla (il conto lo legge la banca).
 - Tolto il pulsante «Importa movimenti da file» dalle buste paga (resta `POST /api/import`).
