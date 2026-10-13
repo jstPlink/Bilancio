@@ -224,7 +224,7 @@ test("la password può avere 5 caratteri", async (t) => {
   assert.equal((await api("POST", "/api/login", { password: "abcde" })).status, 200);
 });
 
-test("si memorizzano solo i movimenti dal 1 ottobre 2026: quelli di prima non si leggono e non si mostrano", async (t) => {
+test("si memorizzano solo i movimenti dal 1 settembre 2026: quelli di prima non si leggono e non si mostrano", async (t) => {
   const bank = createFakeBank();
   process.env.ENABLE_BANKING_API = `http://127.0.0.1:${await bank.listen(0)}`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
@@ -238,16 +238,16 @@ test("si memorizzano solo i movimenti dal 1 ottobre 2026: quelli di prima non si
   await fetch((await fetch(url, { redirect: "manual" })).headers.get("location"), { redirect: "manual" });
   const all = (await (await fetch(`${base}/api/transactions`)).json()).transactions;
   assert.ok(all.length > 0);
-  assert.ok(all.every((x) => x.date >= "2026-10-01"));
-  assert.equal((await (await fetch(`${base}/api/banks`)).json()).since, "2026-10-01");
+  assert.ok(all.every((x) => x.date >= "2026-09-01"));
+  assert.equal((await (await fetch(`${base}/api/banks`)).json()).since, "2026-09-01");
   const sum = await (await fetch(`${base}/api/summary?year=2026`)).json();
-  assert.ok(sum.months.slice(0, 9).every((m) => m.entrate === 0 && m.uscite === 0)); // gennaio-settembre vuoti
+  assert.ok(sum.months.slice(0, 8).every((m) => m.entrate === 0 && m.uscite === 0)); // gennaio-agosto vuoti
 });
 
 test("all'avvio i movimenti precedenti alla data di inizio si tolgono dai dati", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
   fs.writeFileSync(path.join(dir, "mybank.json"), JSON.stringify({
-    transactions: { a: { id: "a", date: "2026-09-30", amount: -5, account: "x", bank: "revolut", description: "Prima" }, b: { id: "b", date: "2026-10-01", amount: -7, account: "x", bank: "revolut", description: "Dopo" } },
+    transactions: { a: { id: "a", date: "2026-08-31", amount: -5, account: "x", bank: "revolut", description: "Prima" }, b: { id: "b", date: "2026-09-01", amount: -7, account: "x", bank: "revolut", description: "Dopo" } },
     overrides: { a: "svago", b: "spesa" },
   }));
   const { db } = createApp({ dir, password: "" });
@@ -325,4 +325,49 @@ test("statistiche: anche le entrate, il bilancio e da chi arrivano", async (t) =
   assert.ok(st.income.top.every((p, i, all) => i === 0 || all[i - 1].total >= p.total));
   assert.equal(st.income.top[0].name, "Azienda Esempio Srl"); // lo stipendio; i giri tra i miei conti non sono entrate
   assert.ok(!st.income.top.some((p) => p.name === "Mario Rossi")); // i giri tra i miei conti (giroconti) non sono entrate
+});
+
+test("anticipando la data di inizio, la prima lettura successiva rilegge tutto dalla nuova data", async (t) => {
+  const ctx = await setup(t);
+  const { api, db } = ctx;
+  await api("POST", "/api/login", { password: "segreta" });
+  await api("PUT", "/api/banks/app", { appId: "app-di-prova", privateKey });
+  await link(ctx, "unicredit");
+  const conn = db.banking.connections[0];
+  assert.equal(conn.from, "2000-01-01"); // la lettura ricorda da quando ha letto
+  // un collegamento letto prima dell'anticipo (senza «from») o con una data di inizio più tarda
+  const before = Object.keys(db.transactions).length;
+  for (const [id, x] of Object.entries(db.transactions)) if (x.date < "2026-01-01") delete db.transactions[id];
+  const trimmed = Object.keys(db.transactions).length;
+  assert.ok(trimmed < before);
+  conn.from = "2026-10-01";
+  assert.ok((await api("POST", "/api/banks/sync", {})).json.added > 0); // i movimenti tolti si rileggono (anche se lastSync è recente)
+  assert.equal(conn.from, "2000-01-01");
+  assert.equal(Object.keys(db.transactions).length, before);
+});
+
+test("notifiche: testo, giorno del mese e orario si salvano nel server", async (t) => {
+  const { api, db } = await setup(t);
+  assert.equal((await api("GET", "/api/notifications")).status, 401);
+  await api("POST", "/api/login", { password: "segreta" });
+  assert.deepEqual((await api("GET", "/api/notifications")).json.notifications, []);
+
+  const made = await api("POST", "/api/notifications", { text: "  Paga   l'affitto ", day: 5, time: "9:30" });
+  assert.equal(made.status, 200);
+  const [n] = made.json.notifications;
+  assert.deepEqual({ text: n.text, day: n.day, time: n.time }, { text: "Paga l'affitto", day: 5, time: "09:30" });
+  assert.ok(n.id);
+  assert.equal(db.notifications.length, 1); // sta nei dati del server
+
+  for (const bad of [{ text: "", day: 5, time: "09:00" }, { text: "x", day: 0, time: "09:00" }, { text: "x", day: 32, time: "09:00" }, { text: "x", day: 1.5, time: "09:00" }, { text: "x", day: 5, time: "24:00" }, { text: "x", day: 5, time: "9" }, { text: "x".repeat(201), day: 5, time: "09:00" }]) {
+    assert.equal((await api("POST", "/api/notifications", bad)).status, 400, JSON.stringify(bad));
+  }
+  assert.equal((await api("GET", "/api/notifications")).json.notifications.length, 1);
+
+  const edited = await api("PUT", `/api/notifications/${n.id}`, { text: "Bolletta", day: 31, time: "18:05" });
+  assert.deepEqual(edited.json.notifications.map((x) => [x.id, x.text, x.day, x.time]), [[n.id, "Bolletta", 31, "18:05"]]);
+  assert.equal((await api("PUT", "/api/notifications/zzz", { text: "x", day: 1, time: "10:00" })).status, 404);
+
+  assert.equal((await api("DELETE", `/api/notifications/${n.id}`)).json.notifications.length, 0);
+  assert.equal((await api("DELETE", `/api/notifications/${n.id}`)).status, 404);
 });

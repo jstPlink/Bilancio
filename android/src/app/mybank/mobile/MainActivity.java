@@ -66,20 +66,33 @@ public class MainActivity extends Activity {
         box.addView(title);
 
         TextView hint = new TextView(this);
-        hint.setText("Indirizzo del tuo server MyBank (es. mybank.miodominio.it, oppure 192.168.1.20:4870 in casa).");
+        hint.setText("Indirizzo del tuo server MyBank: scegli http o https col pulsante e scrivi il resto (es. mybank.miodominio.it, oppure 192.168.1.20:4870 in casa con http).");
         hint.setTextColor(ink);
         hint.setTextSize(14);
         hint.setPadding(0, dp(8), 0, dp(20));
         box.addView(hint);
 
+        // il pulsante sceglie http o https: nel campo basta scrivere l'indirizzo (mybank.miodominio.it)
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        final Button scheme = new Button(this);
+        scheme.setText("https://");
+        scheme.setAllCaps(false);
+        scheme.setTextColor(ink);
+        scheme.setBackgroundColor(Color.TRANSPARENT);
+        scheme.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { Button b = (Button) v; b.setText("https://".contentEquals(b.getText()) ? "http://" : "https://"); }
+        });
+        row.addView(scheme, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         final EditText input = new EditText(this);
-        input.setHint("indirizzo del server");
+        input.setHint("mybank.miodominio.it");
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         input.setImeOptions(EditorInfo.IME_ACTION_DONE);
         input.setTextColor(ink);
         input.setHintTextColor(Color.GRAY);
-        box.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(input, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         final TextView err = new TextView(this);
         err.setText(error);
@@ -95,7 +108,9 @@ public class MainActivity extends Activity {
         go.setBackgroundColor(ink);
         go.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                String address = Server.cleanAddress(input.getText().toString());
+                String typed = input.getText().toString().trim();
+                // un indirizzo scritto con http:// o https:// vale com'è; altrimenti si usa quello del pulsante
+                String address = Server.cleanAddress(typed.matches("(?i)^https?://.*") ? typed : scheme.getText().toString() + typed);
                 if (address == null) { err.setText("Indirizzo non valido: serve https, oppure un indirizzo di casa (192.168…, 10…, .local)."); return; }
                 Server.saveServer(MainActivity.this, address);
                 openWeb();
@@ -113,6 +128,11 @@ public class MainActivity extends Activity {
         /** La versione dell'app (e quindi del frontend che mostra), che la pagina scrive in alto. */
         @JavascriptInterface public String version() { return Server.version(MainActivity.this); }
         @JavascriptInterface public void refreshWidget() { MyBankWidget.refreshAll(MainActivity.this); }
+        /** Rilegge le notifiche dal server e le riprogramma; la prima volta chiede il permesso di mostrarle (Android 13 e successivi). */
+        @JavascriptInterface public void syncNotifications() {
+            runOnUiThread(new Runnable() { @Override public void run() { askNotificationPermission(); } });
+            Notifier.syncAsync(MainActivity.this);
+        }
         @JavascriptInterface public void changeServer() {
             runOnUiThread(new Runnable() { @Override public void run() { Server.saveServer(MainActivity.this, ""); askServer(""); } });
         }
@@ -188,9 +208,15 @@ public class MainActivity extends Activity {
         if (web != null && !page.isEmpty()) web.loadUrl(Server.baseUrl(this) + "/" + page);
     }
 
+    private void askNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 1);
+        }
+    }
+
     @Override protected void onResume() {
         super.onResume();
-        if (web != null) MyBankWidget.refreshAll(this);
+        if (web != null) { MyBankWidget.refreshAll(this); Notifier.syncAsync(this); }
     }
 
     @Override public void onBackPressed() {

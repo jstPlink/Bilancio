@@ -47,7 +47,7 @@ public class MyBankWidget extends AppWidgetProvider {
         final PendingResult pending = goAsync();
         new Thread(new Runnable() {
             @Override public void run() {
-                try { paint(c, m, ids, WidgetData.fetch(c)); } finally { pending.finish(); }
+                try { paint(c, m, ids, WidgetData.fetch(c)); Notifier.sync(c); } finally { pending.finish(); } // l'aggiornamento periodico rilegge anche le notifiche
             }
         }).start();
     }
@@ -72,15 +72,15 @@ public class MyBankWidget extends AppWidgetProvider {
 
     private static String perDay(double v) { return String.format(Locale.ITALY, "%.1f", v); }
 
-    /** «aggiornamento» e sotto «22.45» se è di oggi, «11 ott 22.45» altrimenti (su due righe: la cella è stretta). */
+    /** «aggiornato» e sotto «22.45» se è di oggi, «11 ott 22.45» altrimenti (su due righe: la cella è stretta). */
     static String updated(String iso) {
-        if (iso == null || iso.isEmpty()) return "nessun\naggiornamento";
+        if (iso == null || iso.isEmpty()) return "mai\naggiornato";
         try {
             ZonedDateTime t = ZonedDateTime.ofInstant(Instant.parse(iso), ZoneId.systemDefault());
             boolean today = t.toLocalDate().equals(LocalDate.now());
             String hour = t.format(DateTimeFormatter.ofPattern("HH.mm"));
-            return "aggiornamento\n" + (today ? hour : t.format(DateTimeFormatter.ofPattern("d MMM", Locale.ITALY)).replace(".", "") + " " + hour);
-        } catch (Exception e) { return "nessun\naggiornamento"; }
+            return "aggiornato\n" + (today ? hour : t.format(DateTimeFormatter.ofPattern("d MMM", Locale.ITALY)).replace(".", "") + " " + hour);
+        } catch (Exception e) { return "mai\naggiornato"; }
     }
 
     /** «19 giorni» e sotto «rimanenti»; «1 giorno» e «rimanente»; l'ultimo giorno del mese «ultimo» e «giorno». */
@@ -90,6 +90,20 @@ public class MyBankWidget extends AppWidgetProvider {
     }
 
     // ------------------------------------------------------------------ barre
+
+    // Le barre sono bitmap di circa 3 px per dp (34 dp di larghezza, ~57 dp di altezza): il raggio dei bordi è di 3 dp circa.
+    private static final int BAR_W = 102, BAR_H = 170, BAR_RADIUS = 9;
+
+    /** Arrotonda di poco gli angoli della barra (maschera con bordo sfumato). */
+    private static Bitmap rounded(Bitmap src) {
+        Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas g = new Canvas(out);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        g.drawRoundRect(0, 0, src.getWidth(), src.getHeight(), BAR_RADIUS, BAR_RADIUS, p);
+        p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        g.drawBitmap(src, 0, 0, p);
+        return out;
+    }
 
     private static Paint clearPaint() {
         Paint p = new Paint();
@@ -102,7 +116,7 @@ public class MyBankWidget extends AppWidgetProvider {
      * avanza; quelli che restano sono in alto, scuri. A fine di ogni domenica un vuoto, senza righe colorate.
      */
     static Bitmap monthBar() {
-        final int w = 16, h = 360;
+        final int w = BAR_W, h = BAR_H;
         Calendar now = Calendar.getInstance();
         int day = now.get(Calendar.DAY_OF_MONTH);
         int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
@@ -120,10 +134,10 @@ public class MyBankWidget extends AppWidgetProvider {
             d.set(Calendar.DAY_OF_MONTH, i);
             if (d.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
                 float y = (float) (h * (1 - (double) i / days)); // il primo giorno del mese è in basso
-                g.drawRect(0, y - 3, w, y + 3, gap); // un vuoto: si vede lo sfondo del widget
+                g.drawRect(0, y - 1.5f, w, y + 1.5f, gap); // sottile come le tacche delle categorie // un vuoto: si vede lo sfondo del widget
             }
         }
-        return b;
+        return rounded(b);
     }
 
     /**
@@ -131,7 +145,7 @@ public class MyBankWidget extends AppWidgetProvider {
      * resta il 20% o meno. Tre tacche (vuoti sottili) al 25%, 50% e 75% dell'altezza per leggere meglio lo stato.
      */
     static Bitmap leftBar(double ratio, boolean low) {
-        final int w = 16, h = 240;
+        final int w = BAR_W, h = BAR_H;
         Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(b);
         Paint p = new Paint();
@@ -145,7 +159,7 @@ public class MyBankWidget extends AppWidgetProvider {
             float y = h * quarter / 4f;
             g.drawRect(0, y - 1.5f, w, y + 1.5f, tick);
         }
-        return b;
+        return rounded(b);
     }
 
     // ------------------------------------------------------------------ disegno

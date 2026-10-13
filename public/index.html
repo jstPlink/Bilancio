@@ -13,7 +13,8 @@
     <form id="loginForm" class="panel login">
       <h1>MyBank</h1>
       <p class="muted">Inserisci la password per entrare.</p>
-      <label id="serverRow" hidden>Server <input id="serverUrl" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="mybank.miodominio.it"></label>
+      <label id="serverRow" hidden>Server
+        <span class="serverfield"><button type="button" class="ghost" id="schemeBtn" title="Tocca per scegliere http o https">https://</button><input id="serverUrl" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="mybank.miodominio.it"></span></label>
       <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
       <p id="loginError" class="error" role="alert"></p>
       <button class="primary" type="submit">Entra</button>
@@ -33,7 +34,7 @@
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
       <button role="tab" data-tab="statistiche" aria-selected="false">Statistiche</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
-      <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
+      <button role="tab" data-tab="documenti" aria-selected="false" class="apart">Documenti</button>
     </nav>
 
     <main>
@@ -67,10 +68,6 @@
         <div id="stTags"></div>
         <h2 class="section">Mese per mese</h2>
         <div id="stMonths"></div>
-        <h2 class="section">Dove vanno i soldi</h2>
-        <div id="stTop"></div>
-        <h2 class="section">Da dove arrivano le entrate</h2>
-        <div id="stIncome"></div>
       </section>
 
       <section id="budget" hidden>
@@ -84,33 +81,55 @@
         <div class="cards" id="budgetCards"></div>
       </section>
 
-      <section id="banche" hidden>
-        <div class="panel" id="syncPanel"></div>
-        <div id="bankList"></div>
-        <details class="panel" id="ebPanel">
-          <summary>Enable Banking <span class="muted" id="ebStatus"></span></summary>
-          <form id="ebForm">
-            <p class="muted">Crea l'applicazione su <a href="https://enablebanking.com" target="_blank" rel="noopener noreferrer">enablebanking.com</a> (gratis per uso personale), registra come indirizzo di ritorno quello qui sotto e incolla l'ID e la chiave privata. Restano solo sul server.</p>
-            <label>Indirizzo di ritorno <input id="ebRedirect" readonly></label>
-            <label>ID dell'applicazione <input id="ebAppId" autocomplete="off" required></label>
-            <label>Chiave privata (file .pem) <textarea id="ebKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
-            <p class="error" id="ebError" role="alert"></p>
-            <div class="foot"><button class="primary" type="submit">Salva</button></div>
-          </form>
-        </details>
+      <section id="documenti" hidden>
+        <div class="panel">
+          <h2>Documenti</h2>
+          <p class="muted">Nessun documento, per ora.</p>
+        </div>
       </section>
 
       <section id="opzioni" hidden>
+        <details id="banche" class="group" open>
+          <summary><h2 class="section">Banche</h2></summary>
+          <div class="panel" id="syncPanel"></div>
+          <div id="bankList"></div>
+          <details class="panel" id="ebPanel">
+            <summary><h2>Enable Banking</h2> <span class="muted" id="ebStatus"></span></summary>
+            <form id="ebForm">
+              <p class="muted">Crea l'applicazione su <a href="https://enablebanking.com" target="_blank" rel="noopener noreferrer">enablebanking.com</a> (gratis per uso personale), registra come indirizzo di ritorno quello qui sotto e incolla l'ID e la chiave privata. Restano solo sul server.</p>
+              <label>Indirizzo di ritorno <input id="ebRedirect" readonly></label>
+              <label>ID dell'applicazione <input id="ebAppId" autocomplete="off" required></label>
+              <label>Chiave privata (file .pem) <textarea id="ebKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+              <p class="error" id="ebError" role="alert"></p>
+              <div class="foot"><button class="primary" type="submit">Salva</button></div>
+            </form>
+          </details>
+        </details>
+        <details id="notifiche" class="group" open>
+          <summary><h2 class="section">Notifiche</h2></summary>
+        <div class="panel" id="notifyPanel">
+          <p class="muted" id="notifyHint">Promemoria sul telefono: scegli il testo, il giorno del mese e l'orario. Arrivano dall'app Android; nei mesi più corti il giorno 29, 30 o 31 vale l'ultimo giorno del mese.</p>
+          <div id="notifyList"></div>
+          <form id="notifyForm">
+            <label>Testo <input id="nfText" maxlength="200" autocomplete="off" required placeholder="Per esempio: paga l'affitto"></label>
+            <div class="fields two">
+              <label>Giorno del mese <input id="nfDay" type="number" inputmode="numeric" min="1" max="31" step="1" required placeholder="1-31"></label>
+              <label>Orario <input id="nfTime" type="time" required value="09:00"></label>
+            </div>
+            <div class="foot"><button class="primary" type="submit" id="nfSave">Aggiungi notifica</button><button class="ghost" type="button" id="nfCancel" hidden>Annulla modifica</button></div>
+          </form>
+        </div>
+        </details>
+        <h2 class="section">Account</h2>
         <div class="panel">
-          <h2>Account</h2>
           <div class="foot"><button class="primary" id="pwOpen">Cambia password</button></div>
         </div>
-        <div class="panel" id="serverPanel" hidden>
-          <h2>Server</h2>
-          <div class="foot"><button class="ghost" id="changeServerBtn">Cambia server</button></div>
+        <div id="serverPanel" hidden>
+          <h2 class="section">Server</h2>
+          <div class="panel"><div class="foot"><button class="ghost" id="changeServerBtn">Cambia server</button></div></div>
         </div>
+        <h2 class="section">Sessione</h2>
         <div class="panel">
-          <h2>Sessione</h2>
           <div class="foot"><button class="ghost" id="logoutBtn">Esci</button></div>
         </div>
       </section>

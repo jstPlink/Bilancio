@@ -9,9 +9,9 @@ export const BANKS = {
 
 const DAY = 86400000;
 
-// Si memorizzano solo i movimenti dal 1 ottobre 2026 (per ora): quelli prima non si leggono, non si salvano e non si mostrano.
+// Si memorizzano solo i movimenti dal 1 settembre 2026 (per ora): quelli prima non si leggono, non si salvano e non si mostrano.
 // La data si può cambiare con `settings.cutoff` (AAAA-MM-GG).
-export const MOVEMENTS_FROM = '2026-10-01';
+export const MOVEMENTS_FROM = '2026-09-01';
 export const cutoffOf = (db) => (/^\d{4}-\d{2}-\d{2}$/.test(db.settings?.cutoff ?? '') ? db.settings.cutoff : MOVEMENTS_FROM);
 
 /** Toglie dai dati i movimenti precedenti alla data di inizio (e le scelte a mano che li riguardavano). Restituisce quanti ne ha tolti. */
@@ -64,7 +64,7 @@ export async function startLink({ client, db, bank, redirectUrl, now = Date.now(
 /** Al ritorno dalla banca: il codice si scambia con la sessione e si salvano i conti collegati. */
 export async function finishLink({ client, db, code, state, now = Date.now() }) {
   const pending = db.banking.pending[state];
-  if (!pending || now - pending.createdAt > PENDING_MS) throw new Error('Richiesta di collegamento scaduta o sconosciuta: riparti dalla scheda Banche.');
+  if (!pending || now - pending.createdAt > PENDING_MS) throw new Error('Richiesta di collegamento scaduta o sconosciuta: riparti da Opzioni → Banche.');
   const session = await client.createSession(code);
   delete db.banking.pending[state];
   const conn = {
@@ -142,22 +142,24 @@ export function quota(conn, now = Date.now()) {
  */
 export async function syncConnection({ client, db, conn, auto = false, now = Date.now() }) {
   const label = BANKS[conn.bank]?.label ?? conn.bank;
-  if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca dalla scheda Banche.`);
+  if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca da Opzioni → Banche.`);
   const left = quota(conn, now);
   if (auto ? left.auto <= 0 : left.manual <= 0) throw new Error(`${label}: raggiunto il limite di ${auto ? AUTO_PER_DAY : MANUAL_PER_DAY} letture al giorno. Riprova più tardi.`);
   conn.calls.push({ t: now, auto });
 
   const from = cutoffOf(db);
   const fromMs = Date.parse(`${from}T00:00:00Z`);
-  // si parte dalla data di inizio (o da qualche giorno prima dell'ultima lettura)
-  const since = conn.lastSync ? Math.max(fromMs, Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY) : fromMs;
+  // si parte dalla data di inizio (o da qualche giorno prima dell'ultima lettura); se la data di inizio è stata anticipata dopo l'ultima
+  // lettura completa (conn.from), si rilegge tutto dalla nuova data
+  const backfill = !conn.from || conn.from > from;
+  const since = conn.lastSync && !backfill ? Math.max(fromMs, Date.parse(conn.lastSync) - OVERLAP_DAYS * DAY) : fromMs;
   const report = { found: 0, added: 0, pending: 0 };
   const seen = new Map();
   for (const account of conn.accounts) {
     let booked;
     try { booked = await fetchAccount(client, account.uid, isoDay(since)); }
     catch (e) {
-      if (conn.lastSync) throw e;
+      if (conn.lastSync && !backfill) throw e;
       booked = await fetchAccount(client, account.uid, isoDay(Math.max(fromMs, now - FALLBACK_SYNC_DAYS * DAY))); // la banca non concede uno storico così lungo
     }
     let pendingList = null;
@@ -183,6 +185,7 @@ export async function syncConnection({ client, db, conn, auto = false, now = Dat
   }
   applyCutoff(db);
   conn.lastSync = new Date(now).toISOString();
+  conn.from = from;
   return report;
 }
 

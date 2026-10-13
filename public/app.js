@@ -16,6 +16,16 @@ const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, 
 // Sul server vero (e nell'app Android) questa modalità è spenta e le chiamate vanno allo stesso indirizzo della pagina.
 const local = { on: false, server: '' };
 const SERVER_KEY = 'mybank.server';
+// Il pulsante davanti al campo del server sceglie http o https; nel campo si scrive solo l'indirizzo (mybank.miodominio.it).
+let scheme = 'https';
+const setScheme = (v) => { scheme = v === 'http' ? 'http' : 'https'; $('#schemeBtn').textContent = `${scheme}://`; };
+$('#schemeBtn').addEventListener('click', () => setScheme(scheme === 'https' ? 'http' : 'https'));
+// Se nel campo si incolla un indirizzo con http:// o https://, il pulsante si adegua e il prefisso si toglie dal campo.
+const splitServer = (raw) => {
+  const m = /^(https?):\/\/(.*)$/i.exec(String(raw ?? '').trim());
+  if (m) setScheme(m[1].toLowerCase());
+  return m ? m[2] : String(raw ?? '').trim();
+};
 const normServer = (raw) => {
   const s = String(raw ?? '').trim().replace(/\/+$/, '');
   if (!s) return '';
@@ -52,7 +62,7 @@ function showLogin() {
   $('#app').hidden = true;
   $('#login').hidden = false;
   $('#serverRow').hidden = !local.on;
-  if (local.on) $('#serverUrl').value = local.server;
+  if (local.on) $('#serverUrl').value = splitServer(local.server);
   (local.on && !local.server ? $('#serverUrl') : $('#password')).focus();
 }
 
@@ -72,6 +82,7 @@ async function enter(session) {
     toast(kind === 'ok' ? rest.join(':') : `Collegamento non riuscito: ${rest.join(':')}`);
     history.replaceState(null, '', location.pathname + location.hash);
   }
+  try { window.Native?.syncNotifications?.(); } catch { /* fuori dall'app non ci sono notifiche */ }
   applyHash();
 }
 
@@ -80,7 +91,9 @@ $('#loginForm').addEventListener('submit', async (e) => {
   $('#loginError').textContent = '';
   try {
     if (local.on) {
-      local.server = normServer($('#serverUrl').value);
+      const host = splitServer($('#serverUrl').value);
+      $('#serverUrl').value = host;
+      local.server = host ? `${scheme}://${host.replace(/\/+$/, '')}` : '';
       if (!local.server) { $('#loginError').textContent = 'Scrivi l\'indirizzo del server.'; return; }
     }
     const r = await api('POST', '/api/login', { password: $('#password').value });
@@ -94,6 +107,8 @@ $('#logoutBtn').addEventListener('click', async () => { await api('POST', '/api/
 // ------------------------------------------------------------------ opzioni
 
 async function loadOptions() {
+  loadBanks().catch(fail);
+  loadNotifications().catch(fail);
   const s = await api('GET', '/api/session');
   $('#logoutBtn').hidden = Boolean(s.open);
   $('#pwCurrent').required = !s.open; // con l'accesso libero non c'è una password attuale
@@ -124,7 +139,8 @@ $('#pwForm').addEventListener('submit', async (e) => {
 
 // ------------------------------------------------------------------ schede
 
-const TABS = ['storico', 'movimenti', 'statistiche', 'budget', 'banche', 'opzioni'];
+const TABS = ['storico', 'movimenti', 'statistiche', 'budget', 'documenti', 'opzioni'];
+const SWIPE_TABS = ['storico', 'movimenti', 'statistiche', 'budget']; // le schede tra cui si scorre col dito (Documenti e Opzioni stanno a parte)
 // Indirizzi come «#movimenti:spesa» (li usa il widget): la scheda, e per i Movimenti il tag da filtrare, sul mese in corso.
 function applyHash() {
   const [tab, arg] = (location.hash || '#storico').slice(1).split(':');
@@ -137,16 +153,41 @@ function applyHash() {
 }
 
 function show(tab) {
+  if (tab === 'banche') tab = 'opzioni'; // la scheda Banche ora sta nelle Opzioni
   if (!TABS.includes(tab)) tab = 'storico';
   state.tab = tab;
   history.replaceState(null, '', `#${tab}`);
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
-  ({ storico: loadYear, movimenti: loadMoves, statistiche: loadStats, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, statistiche: loadStats, budget: loadBudget, documenti: async () => {}, opzioni: loadOptions })[tab]().catch(fail);
 }
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') state.mv.account = ''; show(b.dataset.tab); });
 $('#optionsBtn').addEventListener('click', () => show('opzioni'));
+
+// Sul telefono si scorre da una scheda all'altra con un colpo di dito orizzontale (non parte da campi, tabelle larghe o finestre aperte).
+(() => {
+  let start = null;
+  const main = document.querySelector('main');
+  main.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    start = e.touches.length === 1 && !e.target.closest('input, select, textarea, .tablewrap, dialog') ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+  }, { passive: true });
+  main.addEventListener('touchend', (e) => {
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x, dy = t.clientY - start.y, quick = Date.now() - start.at < 700;
+    start = null;
+    const i = SWIPE_TABS.indexOf(state.tab);
+    if (i < 0 || !quick || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)]; // verso sinistra = scheda seguente
+    if (!next) return;
+    if (next === 'movimenti') state.mv.account = '';
+    show(next);
+    window.scrollTo(0, 0);
+  }, { passive: true });
+  main.addEventListener('touchcancel', () => { start = null; }, { passive: true });
+})();
 window.addEventListener('hashchange', () => { if (!$('#app').hidden) applyHash(); });
 
 const yearOptions = (years, current) => {
@@ -162,9 +203,9 @@ async function loadYear() {
   const t = d.total;
   const tone = (n) => (n >= 0 ? 'pos' : 'neg');
   $('#yearCards').innerHTML = `
-    <div class="card"><div class="k">Entrate ${d.year}</div><div class="v pos">${money(t.entrate)}</div></div>
-    <div class="card"><div class="k">Uscite ${d.year}</div><div class="v neg">${money(t.uscite)}</div></div>
-    <div class="card"><div class="k">Bilancio ${d.year}</div><div class="v ${tone(t.bilancio)}">${money(t.bilancio)}</div></div>`;
+    <div class="card"><div class="k">Entrate</div><div class="v pos">${money(t.entrate)}</div></div>
+    <div class="card"><div class="k">Uscite</div><div class="v neg">${money(t.uscite)}</div></div>
+    <div class="card"><div class="k">Bilancio</div><div class="v ${tone(t.bilancio)}">${money(t.bilancio)}</div></div>`;
   const cell = (n, cls = '') => `<td class="num ${n ? cls : 'zero'}">${n ? money(n) : '–'}</td>`;
   const rows = d.months.map((m) => {
     const open = state.open.has(m.month);
@@ -194,7 +235,7 @@ async function loadMoves() {
     api('GET', `/api/summary?year=${year}`),
   ]);
   TAGS = d.tags;
-  // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
+  // filtro per conto o pocket (si arriva da Opzioni → Banche): si vede e si toglie con un tocco
   const bar = $('#mvAccount');
   bar.hidden = !d.account;
   if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
@@ -204,7 +245,7 @@ async function loadMoves() {
   const out = d.transactions.filter((t) => t.amount < 0 && t.tag !== 'giroconto').reduce((s, t) => s + -t.amount, 0);
   $('#mvSummary').textContent = d.total
     ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · uscite ${money(out)} · i giroconti non contano.`
-    : 'Nessun movimento. Collega una banca dalla scheda Banche.';
+    : 'Nessun movimento. Collega una banca da Opzioni → Banche.';
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   $('#mvList').innerHTML = d.transactions.map((t) => {
@@ -252,8 +293,6 @@ async function loadStats() {
     <div class="card"><div class="k">Bilancio</div><div class="v ${d.balance >= 0 ? 'pos' : 'neg'}">${money(d.balance)}</div><div class="sub">media uscita ${money(d.average)}</div></div>`;
   const row = (label, share, amount, color = '') => `<div class="srow"><div class="slabel">${label}</div><div class="sbar"${color ? ` style="--bar:${color}"` : ''}><i style="width:${Math.max(share, 1)}%;background:var(--bar, var(--ink))"></i></div><div class="snum">${money(amount)}<small>${String(share).replace('.', ',')}%</small></div></div>`;
   $('#stTags').innerHTML = d.count ? d.byTag.map((e) => row(`<span class="pill" style="--c:var(--t-${e.tag})">${esc(e.label)}</span>`, e.share, e.total, `var(--t-${e.tag})`)).join('') : none;
-  $('#stTop').innerHTML = d.count ? d.top.map((p) => row(`<span title="${p.count} movimenti">${esc(p.name)}</span>`, p.share, p.total)).join('') : none;
-  $('#stIncome').innerHTML = d.income.count ? d.income.top.map((p) => row(`<span title="${p.count} movimenti">${esc(p.name)}</span>`, p.share, p.total, 'var(--green)')).join('') : none;
   const max = Math.max(1, ...d.months.map((m) => Math.max(m.total, m.entrate)));
   $('#stMonths').innerHTML = d.months.map((m) => {
     const segs = Object.entries(m.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i title="${esc(TAGS[k] ?? k)} ${money(v)}" style="width:${(v / max) * 100}%;background:var(--t-${k})"></i>`).join('');
@@ -315,9 +354,15 @@ async function loadBanks() {
     ? `<div class="hour add"><select id="hourAdd" aria-label="Aggiungi un orario">${options(all.filter((x) => !hrs.includes(x)), -1)}</select><button class="ghost" id="hourAddBtn">Aggiungi</button></div>`
     : '';
   const autoErrors = d.lastAuto?.errors?.length ? `<p class="error">Ultimo aggiornamento automatico (${fmtDateTime(d.lastAuto.at)}): ${esc(d.lastAuto.errors.join(' · '))}</p>` : '';
+  // richieste fatte alle banche nelle ultime 24 ore (le banche ne concedono 4 automatiche e 10 a mano al giorno) e quante ne restano
+  const reqs = d.connections.length ? `<div class="reqs">${d.connections.map((c) => {
+    const ua = c.limits.auto - c.left.auto, um = c.limits.manual - c.left.manual;
+    return `<p><b>${esc(c.label)}</b> · richieste nelle ultime 24 ore: <b>${ua + um}</b> · automatiche <b>${ua}/${c.limits.auto}</b> (restano ${c.left.auto}) · a mano <b>${um}/${c.limits.manual}</b> (restano ${c.left.manual})</p>`;
+  }).join('')}</div>` : '';
   $('#syncPanel').innerHTML = `
     <h2>Aggiornamento</h2>
-    <p>Ultimo aggiornamento dalle banche: <b>${fmtDateTime(d.lastSync)}</b></p>
+    <p><span class="dim">Ultimo aggiornamento</span> <b>${fmtDateTime(d.lastSync)}</b></p>
+    ${reqs}
     <div class="hours">${rows}${adder}</div>
     ${autoErrors}
     <div class="foot"><button class="primary" id="syncBtn" ${d.connections.length ? '' : 'disabled'}><span class="spin" hidden></span><span>Aggiorna ora</span></button></div>`;
@@ -397,6 +442,57 @@ $('#ebForm').addEventListener('submit', async (e) => {
     toast('Enable Banking salvato.');
     await loadBanks();
   } catch (err) { if (err instanceof Unauthorized) return fail(err); $('#ebError').textContent = err.message; }
+});
+
+// ------------------------------------------------------------------ notifiche (Opzioni)
+
+const notify = { edit: '' };
+const resetNotifyForm = () => {
+  notify.edit = '';
+  $('#notifyForm').reset();
+  $('#nfSave').textContent = 'Aggiungi notifica';
+  $('#nfCancel').hidden = true;
+};
+async function loadNotifications() {
+  const d = await api('GET', '/api/notifications');
+  $('#notifyList').innerHTML = d.notifications.length
+    ? d.notifications.map((n) => `<div class="acct"><div class="n">${esc(n.text)}<div class="s">Il ${n.day} di ogni mese · ${esc(n.time)}</div></div>
+        <button class="link" data-nf-edit="${esc(n.id)}">Modifica</button><button class="link danger" data-nf-del="${esc(n.id)}">Elimina</button></div>`).join('')
+    : '<p class="muted">Nessuna notifica impostata.</p>';
+  notify.list = d.notifications;
+  $('#notifyHint').hidden = false;
+  try { window.Native?.syncNotifications?.(); } catch { /* fuori dall'app non ci sono notifiche */ }
+}
+$('#notifyForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = { text: $('#nfText').value, day: Number($('#nfDay').value), time: $('#nfTime').value };
+  try {
+    await (notify.edit ? api('PUT', `/api/notifications/${encodeURIComponent(notify.edit)}`, body) : api('POST', '/api/notifications', body));
+    toast(notify.edit ? 'Notifica salvata.' : 'Notifica aggiunta.');
+    resetNotifyForm();
+    await loadNotifications();
+  } catch (err) { fail(err); }
+});
+$('#nfCancel').addEventListener('click', resetNotifyForm);
+$('#notifyList').addEventListener('click', async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  try {
+    if (b.dataset.nfDel) {
+      if (!confirm('Eliminare la notifica?')) return;
+      await api('DELETE', `/api/notifications/${encodeURIComponent(b.dataset.nfDel)}`);
+      if (notify.edit === b.dataset.nfDel) resetNotifyForm();
+      await loadNotifications();
+    } else if (b.dataset.nfEdit) {
+      const n = (notify.list ?? []).find((x) => x.id === b.dataset.nfEdit);
+      if (!n) return;
+      notify.edit = n.id;
+      $('#nfText').value = n.text; $('#nfDay').value = n.day; $('#nfTime').value = n.time;
+      $('#nfSave').textContent = 'Salva modifiche';
+      $('#nfCancel').hidden = false;
+      $('#nfText').focus();
+    }
+  } catch (err) { fail(err); }
 });
 
 // ------------------------------------------------------------------ avvio

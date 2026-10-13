@@ -2,6 +2,44 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.16.7
+- **Accesso**: davanti al campo del server c'è un pulsante che sceglie **http** o **https** (si autocompila `://`): basta scrivere `mybank.miodominio.it`. Vale per il localhost e per la schermata dell'app; un indirizzo incollato con `http://` o `https://` vale com'è.
+- **Widget**: le righe dei giorni del mese (vuoti a fine domenica) sono sottili come le tacche delle categorie.
+- **Opzioni**: la distanza tra titolo e riga è uguale in tutte le categorie; Banche e Notifiche sono più staccate dalle altre sezioni.
+
+## 0.16.6
+- **Widget**: gli angoli delle barre sono leggermente arrotondati (circa 3 dp).
+
+## 0.16.5
+- **Widget**: barre larghe altri 20% (34,27 dp); nella prima cella «aggiornamento» diventa «aggiornato» (e «nessun aggiornamento» «mai aggiornato»).
+- **Opzioni**: la stessa distanza (34 px) tra tutte le sezioni.
+
+## 0.16.4
+- **Widget**: barre larghe altri 25% (28,56 dp).
+
+## 0.16.3
+- **Opzioni**: stile uniforme. Ogni categoria (Banche, Notifiche, Account, Server, Sessione) è un titolo con la riga sotto, come «Account»; in Banche e Notifiche, e in UniCredit, Revolut ed Enable Banking, la riga resta visibile anche quando la sezione è chiusa.
+- **Banche**: «Ultimo aggiornamento» (senza «delle banche») in grigio, così risalta l'orario.
+- **Statistiche**: tolte «Dove vanno i soldi» e «Da dove arrivano le entrate» (il server continua a calcolarle: nessuna modifica all'API).
+
+## 0.16.2
+- **Opzioni → Notifiche**: anche questa sezione si chiude e si apre toccando il titolo.
+
+## 0.16.1
+- **Opzioni → Banche**: l'intera sezione si chiude e si apre toccando il titolo.
+- **Aggiornamento**: per ogni banca si vedono le **richieste fatte nelle ultime 24 ore** (automatiche su 4, a mano su 10) e quante ne restano.
+- **Widget**: barre larghe altri 25% (22,85 dp); i nomi delle categorie scendono a 7,5 sp.
+- **Versione dell'app**: testo più piccolo del 25%.
+
+## 0.16.0
+- **Movimenti da settembre**: i movimenti si leggono e si mostrano dal **1 settembre 2026** (prima dal 1 ottobre). I collegamenti già esistenti rileggono tutto dalla nuova data alla prossima lettura (ricordano da quando hanno letto: `from`), quindi settembre arriva da solo con il primo «Aggiorna ora» o automatico dopo l'aggiornamento del server.
+- **Schede**: titoli più grandi (18 px sul web, 14 sul telefono). **Banche** non è più una scheda: sta in cima alle **Opzioni**. Nuova scheda **Documenti**, per ora vuota e separata dalle altre.
+- **Scorrimento col dito** (telefono): un colpo orizzontale passa tra Storico, Movimenti, Statistiche e Budget.
+- **Notifiche** (Opzioni): testo, giorno del mese e orario; salvate nel server, programmate dall'app Android sul telefono (anche dopo il riavvio). API `/api/notifications` (serve il server alla 0.16.0). Nuovi permessi dell'app: notifiche, sveglie precise, avvio del telefono.
+- **Widget**: barre più larghe del 30% (18,28 dp); i nomi Spesa, Svago e Carburante scendono a 8,5 sp.
+- **Intestazione sul telefono**: nome dell'app, versione e pulsante Opzioni sono allineati al centro.
+- **Storico**: i titoli sono «Entrate», «Uscite», «Bilancio» senza l'anno (c'è il selettore).
+
 ## 0.15.1
 - **Storico (web)**: i valori di entrate, uscite e bilancio sono più piccoli del 15%; sul telefono restano come prima.
 - **Documentazione**: README riscritto per intero (architettura server/frontend/app, schede, widget, API, avvio, rilascio) e `CLAUDE.md` aggiornato con le regole di lavoro.

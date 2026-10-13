@@ -8,6 +8,7 @@ import { AUTO_PER_DAY, BANKS, applyCutoff, startLink, finishLink, syncConnection
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
+import { normalizeNotification } from './notifications.js';
 import { openStore } from './store.js';
 import { accountNames, BUDGET_TAGS, TAGS } from './tags.js';
 
@@ -18,7 +19,7 @@ export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'
 export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '' } = {}) {
   const store = openStore(dir);
   const { db } = store;
-  if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 ottobre 2026 (vedi banks.js)
+  if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 settembre 2026 (vedi banks.js)
   if (applyCutoff(db)) store.save(); // quelli di prima si tolgono dai dati
   const auth = createAuth({ dir, password });
   const app = express();
@@ -29,7 +30,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   const wrap = (fn) => async (req, res) => { try { await fn(req, res); } catch (e) { bad(res, e.message); } };
   const bankApp = () => {
     const a = db.banking.app;
-    if (!a?.appId || !a?.privateKey) throw new Error('Prima inserisci ID e chiave di Enable Banking (scheda Banche → Enable Banking).');
+    if (!a?.appId || !a?.privateKey) throw new Error('Prima inserisci ID e chiave di Enable Banking (Opzioni → Banche → Enable Banking).');
     return a;
   };
   const baseUrl = (req) => (publicUrl || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
@@ -44,9 +45,9 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     res.json({ ok: true, open: auth.open, token: auth.refresh(), version: VERSION, demo: Boolean(process.env.MYBANK_DEMO) });
   });
 
-  // Ritorno dalla banca dopo l'autorizzazione: si conclude il collegamento e si torna alla scheda Banche (non serve il login: vale lo «state»).
+  // Ritorno dalla banca dopo l'autorizzazione: si conclude il collegamento e si torna alle Opzioni (non serve il login: vale lo «state»).
   app.get('/api/banks/callback', async (req, res) => {
-    const back = (msg) => res.redirect(`/?banca=${encodeURIComponent(msg)}#banche`);
+    const back = (msg) => res.redirect(`/?banca=${encodeURIComponent(msg)}#opzioni`);
     try {
       if (req.query.error) throw new Error(`La banca ha risposto: ${req.query.error_description ?? req.query.error}`);
       const client = createClient(bankApp(), fetchImpl);
@@ -106,6 +107,31 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   }));
 
   app.get('/api/widget', (req, res) => res.json(widgetData(db)));
+
+  // ---------------------------------------------------------------- notifiche
+  // Promemoria con testo, giorno del mese e orario: li salva il server, l'app Android li legge e li programma sul telefono.
+  const listNotifications = () => ({ notifications: db.notifications });
+  app.get('/api/notifications', (req, res) => res.json(listNotifications()));
+  app.post('/api/notifications', wrap(async (req, res) => {
+    if (db.notifications.length >= 50) return bad(res, 'Troppe notifiche: toglierne qualcuna.');
+    db.notifications.push(normalizeNotification(req.body));
+    await store.save();
+    res.json(listNotifications());
+  }));
+  app.put('/api/notifications/:id', wrap(async (req, res) => {
+    const i = db.notifications.findIndex((n) => n.id === req.params.id);
+    if (i < 0) return bad(res, 'Notifica sconosciuta.', 404);
+    db.notifications[i] = normalizeNotification(req.body, req.params.id);
+    await store.save();
+    res.json(listNotifications());
+  }));
+  app.delete('/api/notifications/:id', wrap(async (req, res) => {
+    const i = db.notifications.findIndex((n) => n.id === req.params.id);
+    if (i < 0) return bad(res, 'Notifica sconosciuta.', 404);
+    db.notifications.splice(i, 1);
+    await store.save();
+    res.json(listNotifications());
+  }));
 
   // ---------------------------------------------------------------- banche
   // Orari dell'aggiornamento automatico: quelli scelti dall'utente (Banche → Aggiornamento) oppure quelli di base.

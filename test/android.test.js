@@ -60,3 +60,30 @@ test("l'APK contiene il frontend e la webview lo serve al posto di quello del se
   assert.match(activity, /shouldInterceptRequest/);
   for (const f of ['index.html', 'app.js', 'style.css', 'icon.svg']) assert.ok(fs.existsSync(`public/${f}`), f);
 });
+
+test('notifiche: permessi, ricevitore nel manifest, icona e ponte per la pagina', () => {
+  const manifest = fs.readFileSync('android/AndroidManifest.xml', 'utf8');
+  for (const perm of ['POST_NOTIFICATIONS', 'RECEIVE_BOOT_COMPLETED', 'USE_EXACT_ALARM']) assert.match(manifest, new RegExp(`android.permission.${perm}`));
+  assert.match(manifest, /android:name="\.NotifyReceiver"/);
+  for (const f of ['Notifier', 'NotifyReceiver']) assert.ok(fs.existsSync(`android/src/app/mybank/mobile/${f}.java`), f);
+  assert.ok(fs.existsSync('android/res/drawable/ic_notify.xml'));
+  assert.match(fs.readFileSync('android/src/app/mybank/mobile/MainActivity.java', 'utf8'), /void syncNotifications\(\)/);
+  assert.match(fs.readFileSync('public/app.js', 'utf8'), /Native\?\.syncNotifications/);
+  assert.match(fs.readFileSync('android/src/app/mybank/mobile/Notifier.java', 'utf8'), /\/api\/notifications/);
+});
+
+test('widget: le barre sono larghe 34,27 dp (il 20% in più di 28,56) in tutte e quattro le celle', () => {
+  for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml']) {
+    const widths = [...fs.readFileSync(file, 'utf8').matchAll(/android:layout_width="([\d.]+)dp"/g)].map((m) => m[1]).filter((w) => w !== '1');
+    assert.equal(widths.filter((w) => w === '34.27').length, 4, file);
+    assert.equal(widths.includes('28.56'), false, file);
+  }
+});
+
+test("login: un pulsante sceglie http o https e nel campo basta l'indirizzo (app e localhost)", () => {
+  const activity = fs.readFileSync('android/src/app/mybank/mobile/MainActivity.java', 'utf8');
+  assert.match(activity, /"https:\/\/"/);
+  assert.match(activity, /"http:\/\/"/);
+  assert.match(fs.readFileSync('public/index.html', 'utf8'), /id="schemeBtn"/);
+  assert.match(fs.readFileSync('public/app.js', 'utf8'), /setScheme/);
+});
