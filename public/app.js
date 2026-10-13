@@ -447,7 +447,6 @@ async function loadDocuments() {
     <div class="docbody">
       <div class="doclist" data-list="${esc(l.key)}"><p class="muted">${l.url ? 'Leggo la cartella…' : 'Inserisci qui sotto il link della cartella per vedere i documenti.'}</p></div>
       ${l.url ? `<div class="docupload"><label class="ghost filebtn">Carica documenti<input type="file" multiple hidden data-pick="${esc(l.key)}"></label><div class="staged" data-staged="${esc(l.key)}"></div></div>` : ''}
-      ${l.key === 'payslips' ? `<div class="docimport"><p class="muted">Importa i movimenti delle buste paga (file .json con il netto di ogni mese).</p><label class="ghost filebtn">Importa movimenti da file<input type="file" accept=".json,application/json" hidden data-import></label></div>` : ''}
       <details class="docset" ${l.url ? '' : 'open'}><summary>LINK</summary>
         <form data-links="${esc(l.key)}">
           <label>LINK della cartella (Seafile)<input name="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.url)}"></label>
@@ -468,16 +467,29 @@ function statementNote(f, i) {
   return '<p class="docnote">In attesa di lettura…</p>';
 }
 
+/** Sotto una busta paga: com'è andata la lettura automatica del netto. */
+function payslipNote(f) {
+  const s = f.payslip;
+  if (!s) return '';
+  if (s.state === 'errore') return `<p class="docnote bad">Non letta: ${esc(s.error)}</p>`;
+  if (s.state === 'banca') return '<p class="docnote">Da agosto lo stipendio lo legge la banca: nessuna lettura.</p>';
+  if (s.state === 'letto') return `<p class="docnote">Netto ${money(s.amount)} · aggiunto ai movimenti</p>`;
+  return '<p class="docnote">In lettura…</p>';
+}
+
 async function loadFolder(key) {
   const box = document.querySelector(`[data-list="${key}"]`);
   if (!box || !state.docs?.[key]?.url) return;
   try {
     const d = await api('GET', `/api/documents/${key}/files`);
     state.docFiles = { ...(state.docFiles ?? {}), [key]: d };
+    // il server sta leggendo le buste paga in sottofondo: si ricarica l'elenco finché ha finito (si ferma se si cambia scheda o si chiude la categoria)
+    clearTimeout(state.docTimer);
+    if (d.busy && state.tab === 'documenti' && state.docOpen[key]) state.docTimer = setTimeout(() => loadFolder(key).catch(() => {}), 6000);
     // gli estratti nuovi li ha appena letti il server: si dice quanti
     if (d.read?.length) toast(`Letti ${d.read.length} estratti conto nuovi${d.read.some((r) => r.error) ? ' (alcuni con errori)' : ''}.`);
     box.innerHTML = d.files.length
-      ? `${d.files.map((f, i, all) => `${f.folder !== (all[i - 1]?.folder ?? '') && f.folder ? `<p class="docgroup">${esc(f.folder)}</p>` : ''}<div class="docitem"><button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>${statementNote(f, i)}</div>`).join('')}
+      ? `${d.files.map((f, i, all) => `${f.folder !== (all[i - 1]?.folder ?? '') && f.folder ? `<p class="docgroup">${esc(f.folder)}</p>` : ''}<div class="docitem"><button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>${statementNote(f, i)}${payslipNote(f)}</div>`).join('')}
         ${d.total > d.files.length ? `<p class="muted">Mostro i primi ${d.files.length} di ${d.total}.</p>` : ''}
         <p class="muted"><button class="link" data-folder="${esc(d.folderUrl)}">Apri la cartella su Seafile</button></p>`
       : '<p class="muted">La cartella è vuota.</p>';
@@ -514,15 +526,6 @@ $('#docGroups').addEventListener('change', async (e) => {
   } else if (el.dataset.rename) {
     const [key, i] = el.dataset.rename.split(':');
     if (state.staged[key]?.[i]) state.staged[key][i].name = el.value;
-  } else if (el.dataset.import !== undefined) { // importa i movimenti da un file .json (buste paga)
-    const file = el.files[0];
-    el.value = '';
-    if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      const r = await api('POST', '/api/import', { transactions: data.transactions ?? data });
-      toast(`Importati ${r.added} movimenti nuovi${r.updated ? `, ${r.updated} già presenti` : ''}${r.skipped ? `, ${r.skipped} saltati (da quella data li legge la banca)` : ''}.`);
-    } catch (err) { if (err instanceof SyntaxError) toast('Il file non è un JSON valido.'); else fail(err); }
   }
 });
 

@@ -56,7 +56,7 @@ export async function listFolder(url, fetchImpl = fetch) {
     const list = (await res.json()).dirent_list ?? [];
     const folder = dir === '/' ? '' : dir.replace(/^\/|\/$/g, '');
     const files = list.filter((d) => !d.is_dir).map((d) => ({
-      name: d.file_name, size: d.size ?? 0, modified: d.last_modified ?? '', folder,
+      name: d.file_name, size: d.size ?? 0, modified: d.last_modified ?? '', folder, path: folder ? `${folder}/${d.file_name}` : d.file_name,
       url: `${share.origin}/d/${share.token}/files/?p=${encodeURIComponent(d.file_path)}`,
     }));
     files.sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }));
@@ -103,7 +103,7 @@ export async function uploadFile(url, name, buffer, fetchImpl = fetch) {
   return true;
 }
 
-/** Scarica un file della cartella (per leggerlo sul server). */
+/** Scarica un file della cartella (per leggerlo sul server); `name` è il nome, con davanti la sottocartella se c'è («2025/Busta….pdf»). */
 export async function downloadFile(url, name, fetchImpl = fetch) {
   const share = shareOf(url);
   if (!share) throw new Error('Il link non è un link di Seafile (…/d/codice/).');

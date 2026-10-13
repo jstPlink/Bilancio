@@ -390,6 +390,17 @@ async function fakeSeafile() {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     const json = (o, status = 200) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+    if (url.pathname === "/api/v2.1/share-links/PAY1/dirents/") {
+      const at = "2026-09-30T10:00:00+00:00";
+      if (url.searchParams.get("path") === "/2025/") return json({ dirent_list: [{ is_dir: false, file_name: "Busta Paga IGF 2025.12.pdf", file_path: "/2025/Busta Paga IGF 2025.12.pdf", size: 900, last_modified: at }, { is_dir: false, file_name: "Tredic.ma IGF 2025.pdf", file_path: "/2025/Tredic.ma IGF 2025.pdf", size: 800, last_modified: at }] });
+      return json({ dirent_list: [
+        { is_dir: true, folder_name: "2025", folder_path: "/2025/", size: 0, last_modified: at },
+        { is_dir: false, file_name: "Busta Paga IGF 2026.06.pdf", file_path: "/Busta Paga IGF 2026.06.pdf", size: 1000, last_modified: at },
+        { is_dir: false, file_name: "Busta Paga IGF 2026.09.pdf", file_path: "/Busta Paga IGF 2026.09.pdf", size: 1000, last_modified: at },
+        { is_dir: false, file_name: "Note.txt", file_path: "/Note.txt", size: 10, last_modified: at },
+      ] });
+    }
+    if (url.pathname === "/d/PAY1/files/" && url.searchParams.get("dl") === "1") { downloads.push(url.searchParams.get("p")); res.writeHead(200, { "Content-Type": "application/pdf" }); return res.end(Buffer.from(`NETTO=${url.searchParams.get("p").includes("Tredic") ? 1116 : url.searchParams.get("p").includes("2025") ? 2899 : 2577}`)); }
     if (url.pathname === "/api/v2.1/share-links/ABC123/dirents/" && url.searchParams.get("path") === "/2025/") {
       return json({ dirent_list: [{ is_dir: false, file_name: "Estratto conto 2025.12.pdf", file_path: "/2025/Estratto conto 2025.12.pdf", size: 700, last_modified: "2026-01-02T10:00:00+00:00" }] });
     }
@@ -576,4 +587,39 @@ test("estratti conto: se un estratto non si legge, l'errore resta registrato e n
   for (const r of Object.values(made.db.settings.statementsRead)) if (r.error) r.parser = 0;
   await fetch(`${base}/api/documents/statements/files`);
   assert.equal(reads, 4);
+});
+
+test("buste paga: le nuove si leggono da sole (anche nelle sottocartelle) e diventano entrate; da agosto no", async (t) => {
+  const sf = await fakeSeafile();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  let reads = 0;
+  const payslipNet = async (buffer) => { reads++; return Number(/NETTO=(\d+)/.exec(buffer.toString())[1]); }; // al posto dell'OCR
+  const made = createApp({ dir, password: "", payslipNet });
+  made.db.settings.documents = { payslips: { url: `${sf.base}/d/PAY1/` } };
+  const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const get = async (p) => (await fetch(`${base}${p}`)).json();
+
+  const first = await get("/api/documents/payslips/files"); // risponde subito; la lettura va in sottofondo
+  assert.deepEqual(first.files.map((f) => [f.folder, f.name]), [["", "Note.txt"], ["", "Busta Paga IGF 2026.09.pdf"], ["", "Busta Paga IGF 2026.06.pdf"], ["2025", "Tredic.ma IGF 2025.pdf"], ["2025", "Busta Paga IGF 2025.12.pdf"]]);
+  for (let i = 0; i < 100 && (await get("/api/documents/payslips/files")).busy; i++) await new Promise((r) => setTimeout(r, 20));
+  const list = await get("/api/documents/payslips/files");
+  assert.equal(list.busy, false);
+  assert.deepEqual(list.files.map((f) => f.payslip?.state), [undefined, "banca", "letto", "letto", "letto"]);
+  assert.deepEqual(list.files.filter((f) => f.payslip?.state === "letto").map((f) => f.payslip.amount), [2577, 1116, 2899]);
+  assert.equal(reads, 3); // la busta di settembre non si scarica nemmeno
+  assert.ok(!sf.downloads.some((p) => p.includes("2026.09")));
+
+  // sono entrate nei movimenti: conto «Busta paga», data nel mese, senza duplicati
+  const all = await get("/api/transactions");
+  assert.equal(all.total, 3);
+  const june = all.transactions.find((x) => x.description === "Stipendio Giugno 2026");
+  assert.deepEqual([june.amount, june.date, june.tag, june.accountName, june.bank], [2577, "2026-06-30", "entrata", "Busta paga", "busta"]);
+  assert.deepEqual(all.transactions.map((x) => x.description).sort(), ["Stipendio Dicembre 2025", "Stipendio Giugno 2026", "Tredicesima 2025"]);
+  assert.deepEqual((await get("/api/summary?year=2025")).years, [2026, 2025]); // l'anno 2025 compare nello Storico
+  await get("/api/documents/payslips/files");
+  assert.equal(reads, 3); // già lette: non si rileggono
+  assert.equal(Object.keys(made.db.transactions).length, 3);
 });

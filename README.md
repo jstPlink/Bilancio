@@ -68,9 +68,15 @@ La banca rende disponibili solo gli ultimi mesi: per quelli più vecchi MyBank l
 
 Da riga di comando (con `pdftotext` nel PATH): `node scripts/estratto-revolut.mjs "Estratto conto 2026.06.pdf" giugno.json` scrive il JSON dei movimenti (`POST /api/import`).
 
-### Buste paga tra i movimenti
+### Buste paga tra i movimenti (lettura automatica)
 
-Le buste paga della cartella «Buste paga» sono **scansioni** (immagini, senza testo): il server non le legge da solo. Il **netto a pagare** di ogni mese entra come **entrata** («Stipendio Giugno 2026», conto «Busta paga», data di emissione della busta) con un file `.json` preparato a parte, che si carica da **Documenti → Buste paga → Importa movimenti da file** (stesso `POST /api/import`; origine `busta`, senza duplicati se si carica due volte). Attenzione ai doppi conteggi: lo stipendio compare anche nei movimenti del conto su cui viene accreditato, quando quel conto è caricato.
+Le buste paga della cartella «Buste paga» (e delle sue sottocartelle) sono **scansioni**: il server ne legge il **netto a pagare** con il riconoscimento dei caratteri (OCR, `tesseract.js` dentro il server, senza installare altro; le pagine si ricavano con `pdftoppm`, del pacchetto `poppler-utils` dell'immagine Docker). Ogni busta **nuova o cambiata** viene letta da sola, **in sottofondo**, quando si apre l'elenco dei documenti e a ogni aggiornamento automatico delle banche, e diventa un movimento di **entrata** («Stipendio Giugno 2026», conto «Busta paga»). Sotto ogni busta l'app dice com'è andata («Netto 2.577,00 € · aggiunto ai movimenti», «In lettura…» o l'errore). Regole:
+- il **mese e l'anno** si ricavano dal nome del file («Busta Paga … AAAA.MM.pdf»; «Quatt.ma» e «Tredic.ma» per quattordicesima e tredicesima); la **data** del movimento è l'ultimo giorno del mese (30 giugno e 20 dicembre per quattordicesima e tredicesima);
+- il riquadro del netto si sposta un po' da una scansione all'altra: lo script legge una riga di cifre in tante finestre sovrapposte e vale l'importo letto da almeno 3 finestre. Provato sulle 59 buste 2022–2026: tutti gli importi coincidono con quelli letti a occhio. Se una busta non si legge, l'errore resta sotto il file e non si ritenta finché il file non cambia o il lettore non migliora;
+- come per gli estratti conto, dalla data di inizio (agosto 2026) in poi **non si legge nulla**: lo stipendio arriva su un conto che legge la banca e si conterebbe due volte;
+- importare di nuovo non duplica nulla. Attenzione ai doppi conteggi con il conto su cui lo stipendio viene accreditato, quando quel conto è caricato.
+
+Resta `POST /api/import` per importare a mano un file di movimenti già letti (origine `busta`, `revolut` o `unicredit`), ma non serve più per le buste paga.
 
 ### Widget Android 5×1
 

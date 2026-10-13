@@ -12,6 +12,7 @@ import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
 import { DOCUMENTS, cleanFileName, downloadFile, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
 import { PARSER_VERSION, parseStatement } from './estratto.js';
+import { PAYSLIP_PARSER, payslipInfo, readPayslipNet } from './busta.js';
 import { importTransactions, importedVisible } from './import.js';
 import { normalizeNotification } from './notifications.js';
 import { openStore } from './store.js';
@@ -32,7 +33,7 @@ async function pdfText(buffer) {
 export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
 /** Crea l'app: `dir` è la cartella dei dati, `password` la password di accesso (vuota = accesso libero, solo in locale). */
-export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '', pdfToText = pdfText } = {}) {
+export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '', pdfToText = pdfText, payslipNet = readPayslipNet } = {}) {
   const store = openStore(dir);
   const { db } = store;
   if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 agosto 2026 (vedi banks.js)
@@ -171,6 +172,46 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     return statementsBusy;
   }
 
+  // ---------------------------------------------------------------- buste paga: lettura automatica
+  // Ogni busta paga nuova nella cartella (e nelle sue sottocartelle) si scarica e se ne legge il «netto a pagare» (sono scansioni: OCR, vedi
+  // busta.js); diventa un movimento di entrata. Come per gli estratti, i mesi da agosto 2026 in poi non si leggono (il conto è letto dalla banca).
+  // La lettura va in sottofondo: l'elenco dei file risponde subito e dice quali buste sono ancora in attesa. L'esito sta in settings.payslipsRead.
+  const payslipUrl = () => db.settings.documents?.payslips?.url ?? '';
+  let payslipsBusy = null;
+  /** Una busta paga da leggere: nuova, cambiata o fallita con un lettore più vecchio. */
+  const payslipTodo = (f) => {
+    const was = db.settings.payslipsRead?.[f.path];
+    return !(was?.sig === `${f.size}|${f.modified}` && !(was.error && was.parser !== PAYSLIP_PARSER));
+  };
+  function syncPayslips(files) {
+    if (!payslipUrl()) return Promise.resolve([]);
+    if (payslipsBusy) return payslipsBusy;
+    payslipsBusy = (async () => {
+      const list = files ?? (await listFolder(payslipUrl(), fetchImpl)).files;
+      const rec = (db.settings.payslipsRead ??= {});
+      const from = cutoffOf(db);
+      const read = [];
+      let sinceSave = 0;
+      for (const f of list) {
+        const info = payslipInfo(f.name);
+        if (!info || !payslipTodo(f)) continue;
+        const sig = `${f.size}|${f.modified}`;
+        const at = new Date().toISOString();
+        if (info.date >= from) { rec[f.path] = { sig, at, skipped: true }; continue; }
+        try {
+          const amount = await payslipNet(await downloadFile(payslipUrl(), f.path, fetchImpl));
+          importTransactions(db, [{ bank: 'busta', account: 'busta:paga', accountLabel: 'Busta paga', key: info.key, date: info.date, amount, description: info.description }]);
+          rec[f.path] = { sig, at, amount, parser: PAYSLIP_PARSER };
+          read.push({ path: f.path, amount });
+        } catch (e) { rec[f.path] = { sig, at, error: e.message, parser: PAYSLIP_PARSER }; read.push({ path: f.path, error: e.message }); }
+        if (++sinceSave >= 5) { sinceSave = 0; await store.save(); }
+      }
+      await store.save();
+      return read;
+    })().finally(() => { payslipsBusy = null; });
+    return payslipsBusy;
+  }
+
   // ---------------------------------------------------------------- documenti (tre cartelle online)
   const docKey = (req) => { if (!DOCUMENTS[req.params.key]) throw new Error('Categoria di documenti sconosciuta.'); return req.params.key; };
   app.get('/api/documents', (req, res) => res.json({ links: listDocuments(db) }));
@@ -196,6 +237,16 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
         f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible === null || visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };
       }
       folder.read = read.map((r) => ({ name: r.name, count: r.found ?? 0, error: r.error ?? '' }));
+    }
+    if (req.params.key === 'payslips') {
+      if (folder.files.some((f) => payslipInfo(f.name) && payslipTodo(f))) syncPayslips(folder.files).catch((e) => console.error('Lettura delle buste paga non riuscita:', e.message)); // in sottofondo
+      const rec = db.settings.payslipsRead ?? {};
+      for (const f of folder.files) {
+        if (!payslipInfo(f.name)) continue;
+        const r = rec[f.path];
+        f.payslip = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', amount: r.amount } : { state: 'attesa' };
+      }
+      folder.busy = Boolean(payslipsBusy);
     }
     res.json(folder);
   }));
@@ -317,6 +368,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   // ---------------------------------------------------------------- aggiornamento automatico
   async function autoRead() {
     await syncStatements().catch((e) => console.error('Lettura degli estratti conto non riuscita:', e.message));
+    await syncPayslips().catch((e) => console.error('Lettura delle buste paga non riuscita:', e.message));
     const b = db.banking;
     if (!b.app?.appId || !b.app?.privateKey || !b.connections.length) return null;
     const client = createClient(b.app, fetchImpl);

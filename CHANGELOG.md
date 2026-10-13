@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.23.0
+- **Buste paga lette in automatico**: ogni busta paga nuova o cambiata nella cartella (e nelle sue sottocartelle) si scarica e se ne legge il «netto a pagare» con il riconoscimento dei caratteri (`tesseract.js`, nel server; le pagine con `pdftoppm`). Diventa un'entrata («Stipendio Giugno 2026», conto «Busta paga»; quattordicesima e tredicesima comprese). La lettura va in sottofondo: l'elenco dei documenti dice «In lettura…» e poi il netto; si riprova da sola dopo un errore se il lettore migliora. Provata su 59 buste 2022–2026: importi tutti uguali a quelli letti a occhio. Da agosto 2026 non si legge nulla (il conto lo legge la banca).
+- Tolto il pulsante «Importa movimenti da file» dalle buste paga (resta `POST /api/import`).
+- Nuove dipendenze: `tesseract.js` e `@tesseract.js-data/eng`. Serve il server alla 0.23.0.
+
 ## 0.22.1
 - **Documenti**: l'elenco dei documenti rilevati comprende anche le **sottocartelle** della cartella condivisa (fino a 3 livelli): prima la radice, poi le sottocartelle dalla più recente, ognuna con il suo titolo (per le buste paga: 2025, 2024, 2023, 2022). Prima si vedeva solo la radice. Gli estratti conto si leggono ancora solo dalla radice.
 
