@@ -1,24 +1,38 @@
 // Server di MyBank: API, pagine web e aggiornamento automatico delle banche.
 import express from 'express';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuth } from './auth.js';
-import { AUTO_PER_DAY, BANKS, applyCutoff, startLink, finishLink, syncConnection, publicState } from './banks.js';
+import { AUTO_PER_DAY, BANKS, applyCutoff, cutoffOf, startLink, finishLink, syncConnection, publicState } from './banks.js';
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
-import { DOCUMENTS, cleanFileName, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
-import { importTransactions } from './import.js';
+import { DOCUMENTS, cleanFileName, downloadFile, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
+import { parseStatement } from './estratto.js';
+import { importTransactions, importedVisible } from './import.js';
 import { normalizeNotification } from './notifications.js';
 import { openStore } from './store.js';
 import { accountNames, BUDGET_TAGS, TAGS } from './tags.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** Il testo di un PDF (`pdftotext -raw`, del pacchetto poppler: c'è nell'immagine Docker). */
+async function pdfText(buffer) {
+  const tmp = path.join(os.tmpdir(), `mybank-${process.pid}-${Date.now()}.pdf`);
+  fs.writeFileSync(tmp, buffer);
+  try {
+    return await new Promise((resolve, reject) => {
+      execFile('pdftotext', ['-raw', tmp, '-'], { maxBuffer: 64 * 1024 * 1024 }, (err, out) => (err ? reject(new Error(err.code === 'ENOENT' ? 'Sul server manca pdftotext (poppler-utils): aggiorna l\'immagine Docker.' : 'Non riesco a leggere il PDF.')) : resolve(out)));
+    });
+  } finally { fs.rmSync(tmp, { force: true }); }
+}
 export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
 /** Crea l'app: `dir` è la cartella dei dati, `password` la password di accesso (vuota = accesso libero, solo in locale). */
-export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '' } = {}) {
+export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '', pdfToText = pdfText } = {}) {
   const store = openStore(dir);
   const { db } = store;
   if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 agosto 2026 (vedi banks.js)
@@ -117,6 +131,45 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     res.json(result);
   }));
 
+  // ---------------------------------------------------------------- estratti conto: lettura automatica
+  // Ogni estratto mensile («Estratto conto AAAA.MM.pdf») nuovo o cambiato, dei mesi PRIMA della data di inizio, si scarica, si legge e i suoi
+  // movimenti si salvano. Quelli da quella data in poi non si leggono: li legge la banca. L'esito di ogni file sta in settings.statementsRead.
+  const STATEMENT = /^Estratto conto (\d{4})\.(\d{2})\.pdf$/i;
+  const statementUrl = () => db.settings.documents?.statements?.url ?? '';
+  async function readStatement(name, sig) {
+    const rec = (db.settings.statementsRead ??= {});
+    const at = new Date().toISOString();
+    try {
+      const { transactions } = parseStatement(await pdfToText(await downloadFile(statementUrl(), name, fetchImpl)));
+      const r = importTransactions(db, transactions);
+      rec[name] = { sig, at, found: transactions.length, added: r.added, updated: r.updated };
+    } catch (e) { rec[name] = { sig, at, error: e.message }; }
+    return rec[name];
+  }
+  let statementsBusy = null;
+  /** Legge gli estratti nuovi della cartella. Restituisce l'elenco di quelli letti adesso. */
+  function syncStatements(files) {
+    if (!statementUrl()) return Promise.resolve([]);
+    if (statementsBusy) return statementsBusy;
+    statementsBusy = (async () => {
+      const list = files ?? (await listFolder(statementUrl(), fetchImpl)).files;
+      const rec = (db.settings.statementsRead ??= {});
+      const firstMonth = cutoffOf(db).slice(0, 7);
+      const read = [];
+      for (const f of list) {
+        const m = STATEMENT.exec(f.name);
+        if (!m) continue;
+        const sig = `${f.size}|${f.modified}`;
+        if (rec[f.name]?.sig === sig) continue; // già letto (o già fallito): si riprova solo se il file cambia
+        if (`${m[1]}-${m[2]}` >= firstMonth) { rec[f.name] = { sig, skipped: true }; continue; } // da qui in poi i movimenti li legge la banca
+        read.push({ name: f.name, ...(await readStatement(f.name, sig)) });
+      }
+      if (read.length || list.some((f) => rec[f.name]?.skipped)) await store.save();
+      return read;
+    })().finally(() => { statementsBusy = null; });
+    return statementsBusy;
+  }
+
   // ---------------------------------------------------------------- documenti (tre cartelle online)
   const docKey = (req) => { if (!DOCUMENTS[req.params.key]) throw new Error('Categoria di documenti sconosciuta.'); return req.params.key; };
   app.get('/api/documents', (req, res) => res.json({ links: listDocuments(db) }));
@@ -129,15 +182,39 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   app.get('/api/documents/:key/files', wrap(async (req, res) => {
     const url = db.settings.documents?.[docKey(req)]?.url;
     if (!url) return bad(res, 'Prima inserisci il link della cartella.');
-    res.json(await listFolder(url, fetchImpl));
+    const folder = await listFolder(url, fetchImpl);
+    if (req.params.key === 'statements') {
+      // gli estratti nuovi si leggono qui (e a ogni aggiornamento automatico); di ogni estratto mensile si dice com'è andata
+      const read = await syncStatements(folder.files).catch(() => []);
+      const visible = importedVisible(db);
+      const rec = db.settings.statementsRead ?? {};
+      for (const f of folder.files) {
+        const m = STATEMENT.exec(f.name);
+        if (!m) continue;
+        const r = rec[f.name];
+        f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };
+      }
+      folder.read = read.map((r) => ({ name: r.name, count: r.found ?? 0, error: r.error ?? '' }));
+    }
+    res.json(folder);
   }));
   // Carica un file (il corpo della richiesta è il file) nella cartella, con il nome scelto dall'utente.
   app.post('/api/documents/:key/files', express.raw({ type: () => true, limit: '40mb' }), wrap(async (req, res) => {
-    const upload = db.settings.documents?.[docKey(req)]?.upload;
-    if (!upload) return bad(res, 'Prima inserisci il link di caricamento della cartella.');
+    const url = db.settings.documents?.[docKey(req)]?.url;
+    if (!url) return bad(res, 'Prima inserisci il link della cartella.');
     if (!Buffer.isBuffer(req.body) || !req.body.length) return bad(res, 'Il file è vuoto.');
-    await uploadFile(upload, cleanFileName(req.query.name), req.body, fetchImpl);
+    await uploadFile(url, cleanFileName(req.query.name), req.body, fetchImpl);
     res.json({ ok: true });
+  }));
+  // Rilegge a mano un estratto conto (per riprovare dopo un errore).
+  app.post('/api/documents/statements/import', wrap(async (req, res) => {
+    if (!statementUrl()) return bad(res, 'Prima inserisci il link della cartella degli estratti conto.');
+    const name = cleanFileName(req.query.name);
+    if (!STATEMENT.test(name)) return bad(res, 'Si leggono solo gli estratti conto mensili «Estratto conto AAAA.MM.pdf».');
+    const r = await readStatement(name, db.settings.statementsRead?.[name]?.sig ?? '');
+    await store.save();
+    if (r.error) return bad(res, r.error);
+    res.json({ name, found: r.found, added: r.added, updated: r.updated });
   }));
 
   // ---------------------------------------------------------------- notifiche
@@ -238,6 +315,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
 
   // ---------------------------------------------------------------- aggiornamento automatico
   async function autoRead() {
+    await syncStatements().catch((e) => console.error('Lettura degli estratti conto non riuscita:', e.message));
     const b = db.banking;
     if (!b.app?.appId || !b.app?.privateKey || !b.connections.length) return null;
     const client = createClient(b.app, fetchImpl);

@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.21.0
+- **Estratti conto letti in automatico**: ogni «Estratto conto AAAA.MM.pdf» nuovo o cambiato nella cartella dei documenti, dei mesi prima di agosto 2026, si legge da solo (aprendo l'elenco e a ogni aggiornamento automatico delle banche): il server lo scarica da Seafile, lo legge con `pdftotext` e controlla che i conti tornino con il riepilogo. Da agosto in poi non si scarica né si legge nulla (li legge la banca). L'esito di ogni file si vede sotto il nome (movimenti letti, errore con «Riprova»).
+- **Per ora si mostrano solo maggio e giugno 2026**: i movimenti letti si salvano tutti, ma gli altri mesi restano nascosti in ogni schermata (`settings.importedVisible`).
+- **Un solo LINK per cartella** (niente più link di caricamento separato): il caricamento usa lo stesso link se Seafile lo permette, altrimenti l'app lo dice.
+- Il lettore dell'estratto passa in `src/estratto.js`; l'immagine Docker include `poppler-utils`. Serve il server alla 0.21.0.
+
 ## 0.20.0
 - **Documenti**: tre categorie che si chiudono e si aprono (Buste paga, Estratti conto, Bollette), ognuna legata a una cartella Seafile (link di consultazione e, facoltativo, di caricamento, salvati nel server). Si vedono i **documenti rilevati** nella cartella e un tocco li apre su Seafile; si possono **caricare documenti** nella stessa cartella cambiando il nome prima dell'invio. API `GET/PUT /api/documents`, `GET/POST /api/documents/:key/files`.
 - **Importazione da estratto conto** (Documenti → Estratti conto → Importa movimenti da file): nuovo script `scripts/estratto-revolut.mjs` che legge il PDF mensile di Revolut (conto, pocket, deposito), ricava il segno dal saldo e si ferma se i conti non tornano con il riepilogo; `POST /api/import` salva i movimenti anche prima della data di inizio, senza duplicati e senza mai toccare i mesi letti dalla banca. «Prelievo da Pocket» è riconosciuto come giroconto.

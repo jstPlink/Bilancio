@@ -1,11 +1,8 @@
-// Documenti: tre categorie (buste paga, estratti conto, bollette), ognuna con una cartella online (Seafile) condivisa con un link di consultazione
-// e, se si vuole caricare da qui, un link di caricamento. Gli indirizzi li sceglie l'utente dalla scheda Documenti e stanno nel server (mai nel
+// Documenti: tre categorie (buste paga, estratti conto, bollette), ognuna con una cartella online (Seafile) condivisa con un LINK. Gli indirizzi li sceglie l'utente dalla scheda Documenti e stanno nel server (mai nel
 // codice o nella documentazione). Il server legge l'elenco dei file dalla cartella e carica i nuovi file con le API pubbliche dei link di Seafile.
 export const DOCUMENTS = { payslips: 'Buste paga', statements: 'Estratti conto', bills: 'Bollette' };
 
 const clean = (v) => String(v ?? '').trim();
-const empty = () => ({ url: '', upload: '' });
-
 /** Un indirizzo scritto dall'utente → indirizzo http/https completo (senza schema: https). Vuoto = ''. Lancia un errore in italiano. */
 function normalizeUrl(raw, label) {
   const s = clean(raw);
@@ -17,22 +14,18 @@ function normalizeUrl(raw, label) {
   return url.href;
 }
 
-/** Controlla e normalizza gli indirizzi: `input` è { chiave: { url, upload } }; le chiavi o i campi non inviati restano come sono. */
+/** Controlla e normalizza i link: `input` è { chiave: { url } } (o direttamente l'indirizzo); le chiavi non inviate restano come sono. */
 export function normalizeDocuments(input, current = {}) {
   const out = {};
   for (const [k, label] of Object.entries(DOCUMENTS)) {
-    const now = typeof current[k] === 'string' ? { ...empty(), url: current[k] } : { ...empty(), ...(current[k] ?? {}) };
-    const given = input?.[k];
-    if (given && typeof given === 'object') {
-      if (given.url !== undefined) now.url = normalizeUrl(given.url, label);
-      if (given.upload !== undefined) now.upload = normalizeUrl(given.upload, `${label} (caricamento)`);
-    }
-    out[k] = now;
+    const now = typeof current[k] === 'string' ? current[k] : (current[k]?.url ?? '');
+    const given = typeof input?.[k] === 'string' ? input[k] : input?.[k]?.url;
+    out[k] = { url: given === undefined ? now : normalizeUrl(given, label) };
   }
   return out;
 }
 
-export const listDocuments = (db) => Object.entries(DOCUMENTS).map(([key, label]) => ({ key, label, url: db.settings.documents?.[key]?.url ?? '', upload: db.settings.documents?.[key]?.upload ?? '' }));
+export const listDocuments = (db) => Object.entries(DOCUMENTS).map(([key, label]) => ({ key, label, url: db.settings.documents?.[key]?.url ?? '' }));
 
 /** Da un link di Seafile («https://sito/d/<codice>/» o «https://sito/u/d/<codice>/») all'origine e al codice; null se non lo è. */
 export function shareOf(url) {
@@ -69,18 +62,33 @@ export function cleanFileName(raw) {
   return name;
 }
 
-/** Carica un file nella cartella con il link di caricamento di Seafile. */
-export async function uploadFile(uploadUrl, name, buffer, fetchImpl = fetch) {
-  const share = shareOf(uploadUrl);
-  if (!share) throw new Error('Il link di caricamento non è valido (…/u/d/codice/).');
-  const first = await fetchImpl(`${share.origin}/api/v2.1/upload-links/${share.token}/upload/`, { headers: { Accept: 'application/json' } });
-  if (!first.ok) throw new Error(`Seafile non accetta il caricamento (${first.status}): controlla il link di caricamento.`);
+/**
+ * Carica un file nella cartella con lo stesso link. Seafile lo permette se il link di condivisione ha il permesso di caricamento (…/d/codice/);
+ * un link di caricamento (…/u/d/codice/) funziona anch'esso.
+ */
+export async function uploadFile(url, name, buffer, fetchImpl = fetch) {
+  const share = shareOf(url);
+  if (!share) throw new Error('Il link non è un link di Seafile (…/d/codice/).');
+  const isUploadLink = /\/u\/d\//.test(new URL(url).pathname);
+  const api = isUploadLink ? `${share.origin}/api/v2.1/upload-links/${share.token}/upload/` : `${share.origin}/api/v2.1/share-links/${share.token}/upload/?path=/`;
+  const first = await fetchImpl(api, { headers: { Accept: 'application/json' } });
+  if (first.status === 403 || first.status === 404) throw new Error('Questo link non permette di caricare file: in Seafile abilita il caricamento sul link di condivisione, oppure usa un link di caricamento.');
+  if (!first.ok) throw new Error(`Seafile non accetta il caricamento (${first.status}).`);
   const link = (await first.json()).upload_link;
   if (!link) throw new Error('Seafile non ha dato un indirizzo di caricamento.');
   const form = new FormData();
   form.append('parent_dir', '/');
   form.append('file', new Blob([buffer]), name);
-  const res = await fetchImpl(`${link}?ret-json=1`, { method: 'POST', body: form });
+  const res = await fetchImpl(`${link}${link.includes('?') ? '&' : '?'}ret-json=1`, { method: 'POST', body: form });
   if (!res.ok) throw new Error(`Caricamento non riuscito (${res.status}).`);
   return true;
+}
+
+/** Scarica un file della cartella (per leggerlo sul server). */
+export async function downloadFile(url, name, fetchImpl = fetch) {
+  const share = shareOf(url);
+  if (!share) throw new Error('Il link non è un link di Seafile (…/d/codice/).');
+  const res = await fetchImpl(`${share.origin}/d/${share.token}/files/?p=${encodeURIComponent(`/${name}`)}&dl=1`);
+  if (!res.ok) throw new Error(`Non riesco a scaricare «${name}» da Seafile (${res.status}).`);
+  return Buffer.from(await res.arrayBuffer());
 }

@@ -445,18 +445,25 @@ async function loadDocuments() {
     <summary><h2 class="section">${esc(l.label)}</h2></summary>
     <div class="docbody">
       <div class="doclist" data-list="${esc(l.key)}"><p class="muted">${l.url ? 'Leggo la cartella…' : 'Inserisci qui sotto il link della cartella per vedere i documenti.'}</p></div>
-      ${l.upload ? `<div class="docupload"><label class="ghost filebtn">Carica documenti<input type="file" multiple hidden data-pick="${esc(l.key)}"></label><div class="staged" data-staged="${esc(l.key)}"></div></div>` : ''}
-      ${l.key === 'statements' ? `<div class="docimport"><p class="muted">Importa i movimenti letti da un estratto conto (file .json preparato dallo script <code>scripts/estratto-revolut.mjs</code>).</p>
-        <label class="ghost filebtn">Importa movimenti da file<input type="file" accept=".json,application/json" hidden data-import></label></div>` : ''}
-      <details class="docset"><summary>Link della cartella</summary>
+      ${l.url ? `<div class="docupload"><label class="ghost filebtn">Carica documenti<input type="file" multiple hidden data-pick="${esc(l.key)}"></label><div class="staged" data-staged="${esc(l.key)}"></div></div>` : ''}
+      <details class="docset" ${l.url ? '' : 'open'}><summary>LINK</summary>
         <form data-links="${esc(l.key)}">
-          <label>Link di consultazione (…/d/codice/)<input name="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.url)}"></label>
-          <label>Link di caricamento (…/u/d/codice/), facoltativo<input name="upload" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.upload)}"></label>
-          <div class="foot"><button class="primary" type="submit">Salva link</button></div>
+          <label>LINK della cartella (Seafile)<input name="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.url)}"></label>
+          <div class="foot"><button class="primary" type="submit">Salva LINK</button></div>
         </form>
       </details>
     </div></details>`).join('');
   for (const l of d.links) { renderStaged(l.key); if (state.docOpen[l.key]) loadFolder(l.key).catch(() => {}); }
+}
+
+/** Sotto un estratto mensile: com'è andata la lettura automatica dei suoi movimenti. */
+function statementNote(f, i) {
+  const s = f.statement;
+  if (!s) return '';
+  if (s.state === 'errore') return `<p class="docnote bad">Non letto: ${esc(s.error)} <button class="link" data-retry="${i}">Riprova</button></p>`;
+  if (s.state === 'banca') return '<p class="docnote">Da agosto i movimenti li legge la banca: nessuna lettura.</p>';
+  if (s.state === 'letto') return `<p class="docnote">${s.count} movimenti letti${s.visible ? '' : ' · per ora non mostrati'}</p>`;
+  return '<p class="docnote">In attesa di lettura…</p>';
 }
 
 async function loadFolder(key) {
@@ -465,8 +472,10 @@ async function loadFolder(key) {
   try {
     const d = await api('GET', `/api/documents/${key}/files`);
     state.docFiles = { ...(state.docFiles ?? {}), [key]: d };
+    // gli estratti nuovi li ha appena letti il server: si dice quanti
+    if (d.read?.length) toast(`Letti ${d.read.length} estratti conto nuovi${d.read.some((r) => r.error) ? ' (alcuni con errori)' : ''}.`);
     box.innerHTML = d.files.length
-      ? `${d.files.map((f, i) => `<button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>`).join('')}
+      ? `${d.files.map((f, i) => `<div class="docitem"><button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>${statementNote(f, i)}</div>`).join('')}
         ${d.total > d.files.length ? `<p class="muted">Mostro i primi ${d.files.length} di ${d.total}.</p>` : ''}
         <p class="muted"><button class="link" data-folder="${esc(d.folderUrl)}">Apri la cartella su Seafile</button></p>`
       : '<p class="muted">La cartella è vuota.</p>';
@@ -503,15 +512,6 @@ $('#docGroups').addEventListener('change', async (e) => {
   } else if (el.dataset.rename) {
     const [key, i] = el.dataset.rename.split(':');
     if (state.staged[key]?.[i]) state.staged[key][i].name = el.value;
-  } else if (el.dataset.import !== undefined) {
-    const file = el.files[0];
-    el.value = '';
-    if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      const r = await api('POST', '/api/import', { transactions: data.transactions ?? data });
-      toast(`Importati ${r.added} movimenti nuovi${r.updated ? `, ${r.updated} già presenti` : ''}${r.skipped ? `, ${r.skipped} saltati (da quella data li legge la banca)` : ''}.`);
-    } catch (err) { if (err instanceof SyntaxError) toast('Il file non è un JSON valido.'); else fail(err); }
   }
 });
 
@@ -530,6 +530,14 @@ $('#docGroups').addEventListener('click', async (e) => {
       const [key, i] = b.dataset.file.split(':');
       const f = state.docFiles?.[key]?.files?.[Number(i)];
       if (f) openExternal(f.url);
+    } else if (b.dataset.retry !== undefined) { // rilegge a mano un estratto che non si era letto
+      const f = state.docFiles?.statements?.files?.[Number(b.dataset.retry)];
+      if (!f) return;
+      b.disabled = true;
+      try {
+        const r = await api('POST', `/api/documents/statements/import?name=${encodeURIComponent(f.name)}`);
+        toast(`${f.name}: ${r.found} movimenti letti.`);
+      } finally { await loadFolder('statements'); }
     } else if (b.dataset.folder) openExternal(b.dataset.folder);
     else if (b.dataset.unstage) {
       const [key, i] = b.dataset.unstage.split(':');
@@ -568,8 +576,8 @@ $('#docGroups').addEventListener('submit', async (e) => {
   const key = form.dataset.links;
   const fd = Object.fromEntries(new FormData(form).entries());
   try {
-    await api('PUT', '/api/documents', { [key]: { url: fd.url, upload: fd.upload } });
-    toast('Link salvati.');
+    await api('PUT', '/api/documents', { [key]: { url: fd.url } });
+    toast('LINK salvato.');
     state.docOpen[key] = true;
     await loadDocuments();
   } catch (err) { fail(err); }

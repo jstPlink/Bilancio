@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { createApp } from '../src/server.js';
 import { applyCutoff } from '../src/banks.js';
+import { TEXT } from './fixture-estratto.js';
+import { importedVisible } from '../src/import.js';
 import { createFakeBank } from '../scripts/banca-finta.mjs';
 
 const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
@@ -384,17 +386,22 @@ test("notifiche: testo, giorno del mese e orario si salvano nel server", async (
 async function fakeSeafile() {
   const http = await import("node:http");
   const uploads = [];
+  const downloads = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     const json = (o, status = 200) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
     if (url.pathname === "/api/v2.1/share-links/ABC123/dirents/") {
       return json({ dirent_list: [
+        { is_dir: false, file_name: "Estratto conto 2026.09.pdf", file_path: "/Estratto conto 2026.09.pdf", size: 3000, last_modified: "2026-09-30T18:49:03+00:00" },
+        { is_dir: false, file_name: "Estratto Conto Carte Flexia 2026.06.pdf", file_path: "/Estratto Conto Carte Flexia 2026.06.pdf", size: 500, last_modified: "2026-09-30T18:49:03+00:00" },
         { is_dir: false, file_name: "Estratto conto 2026.05.pdf", file_path: "/Estratto conto 2026.05.pdf", size: 1000, last_modified: "2026-09-30T18:47:03+00:00" },
         { is_dir: false, file_name: "Estratto conto 2026.06.pdf", file_path: "/Estratto conto 2026.06.pdf", size: 2000, last_modified: "2026-09-30T18:48:03+00:00" },
         { is_dir: true, file_name: "Vecchi", file_path: "/Vecchi" },
       ] });
     }
-    if (url.pathname === "/api/v2.1/upload-links/UP456/upload/") return json({ upload_link: `http://${req.headers.host}/seafhttp/upload-api/xyz` });
+    if (url.pathname === "/api/v2.1/share-links/ABC123/upload/") return json({ upload_link: `http://${req.headers.host}/seafhttp/upload-api/xyz` });
+    if (url.pathname === "/api/v2.1/share-links/NOUP/upload/") return json({ error_msg: "Permission denied." }, 403);
+    if (url.pathname === "/d/ABC123/files/" && url.searchParams.get("dl") === "1") { downloads.push(url.searchParams.get("p")); res.writeHead(200, { "Content-Type": "application/pdf" }); return res.end(Buffer.from("%PDF-finto " + url.searchParams.get("p"))); }
     if (url.pathname === "/seafhttp/upload-api/xyz" && req.method === "POST") {
       const chunks = [];
       req.on("data", (c) => chunks.push(c));
@@ -404,7 +411,7 @@ async function fakeSeafile() {
     json({ error: "no" }, 404);
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  return { base: `http://127.0.0.1:${server.address().port}`, uploads, close: () => new Promise((r) => server.close(r)) };
+  return { base: `http://127.0.0.1:${server.address().port}`, uploads, downloads, close: () => new Promise((r) => server.close(r)) };
 }
 
 test("documenti: tre cartelle online (elenco dei file, apertura su Seafile, caricamento con il nome scelto)", async (t) => {
@@ -414,24 +421,25 @@ test("documenti: tre cartelle online (elenco dei file, apertura su Seafile, cari
   assert.equal((await api("GET", "/api/documents")).status, 401);
   const token = (await api("POST", "/api/login", { password: "segreta" })).json.token;
   const first = (await api("GET", "/api/documents")).json.links;
-  assert.deepEqual(first.map((l) => [l.key, l.label, l.url, l.upload]), [["payslips", "Buste paga", "", ""], ["statements", "Estratti conto", "", ""], ["bills", "Bollette", "", ""]]);
+  assert.deepEqual(first.map((l) => [l.key, l.label, l.url]), [["payslips", "Buste paga", ""], ["statements", "Estratti conto", ""], ["bills", "Bollette", ""]]);
 
-  const saved = await api("PUT", "/api/documents", { statements: { url: `${sf.base}/d/ABC123/`, upload: `${sf.base}/u/d/UP456/` }, payslips: { url: " esempio.test/d/PAY1/ " } });
+  const saved = await api("PUT", "/api/documents", { statements: { url: `${sf.base}/d/ABC123/` }, payslips: " esempio.test/d/PAY1/ ", bills: { url: `${sf.base}/d/NOUP/` } });
   assert.equal(saved.status, 200);
-  assert.deepEqual(saved.json.links.map((l) => l.url), ["https://esempio.test/d/PAY1/", `${sf.base}/d/ABC123/`, ""]); // senza schema si aggiunge https
-  assert.equal(db.settings.documents.statements.upload, `${sf.base}/u/d/UP456/`); // sta nei dati del server
+  assert.deepEqual(saved.json.links.map((l) => l.url), ["https://esempio.test/d/PAY1/", `${sf.base}/d/ABC123/`, `${sf.base}/d/NOUP/`]); // senza schema si aggiunge https
+  assert.equal(db.settings.documents.statements.url, `${sf.base}/d/ABC123/`); // sta nei dati del server
   assert.equal((await api("PUT", "/api/documents", { bills: { url: "javascript:alert(1)" } })).status, 400);
   assert.equal((await api("PUT", "/api/documents", { bills: { url: "ftp://esempio.test/x" } })).status, 400);
   // un campo non inviato resta com'è; uno vuoto si cancella
   assert.equal((await api("PUT", "/api/documents", { payslips: { url: "" } })).json.links[0].url, "");
-  assert.equal((await api("GET", "/api/documents")).json.links[1].upload, `${sf.base}/u/d/UP456/`);
+  assert.deepEqual(Object.keys((await api("GET", "/api/documents")).json.links[1]), ["key", "label", "url"]); // un solo LINK per categoria
 
   // elenco: solo i file, i più recenti per nome in alto, ognuno con l'indirizzo per aprirlo su Seafile
   const list = await api("GET", "/api/documents/statements/files");
   assert.equal(list.status, 200);
-  assert.deepEqual(list.json.files.map((f) => f.name), ["Estratto conto 2026.06.pdf", "Estratto conto 2026.05.pdf"]);
-  assert.equal(list.json.files[0].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/Estratto conto 2026.06.pdf")}`);
-  assert.equal((await api("GET", "/api/documents/bills/files")).status, 400); // nessun link
+  assert.deepEqual(list.json.files.map((f) => f.name), ["Estratto Conto Carte Flexia 2026.06.pdf", "Estratto conto 2026.09.pdf", "Estratto conto 2026.06.pdf", "Estratto conto 2026.05.pdf"]);
+  assert.equal(list.json.files[2].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/Estratto conto 2026.06.pdf")}`);
+  assert.deepEqual(list.json.files.map((f) => f.statement?.state), [undefined, "banca", "banca", "banca"]); // qui la data di inizio è il 2000: tutti li legge la banca; l'estratto della carta non è mensile
+  assert.equal((await api("GET", "/api/documents/payslips/files")).status, 400); // la cartella non risponde
   assert.equal((await api("GET", "/api/documents/boh/files")).status, 400);
 
   // caricamento con un nome scelto dall'utente (il corpo è il file)
@@ -445,7 +453,11 @@ test("documenti: tre cartelle online (elenco dei file, apertura su Seafile, cari
   assert.equal((await up("../fuori.pdf", Buffer.from("x"))).status, 400); // niente cartelle nel nome
   assert.equal((await up("   ", Buffer.from("x"))).status, 400);
   assert.equal((await up("a.pdf", Buffer.alloc(0))).status, 400);
-  assert.equal((await up("a.pdf", Buffer.from("x"), "bills")).status, 400); // nessun link di caricamento
+  const denied = await up("a.pdf", Buffer.from("x"), "bills"); // il link non ha il permesso di caricamento
+  assert.equal(denied.status, 400);
+  assert.match((await denied.json()).error, /non permette di caricare/);
+  await api("PUT", "/api/documents", { bills: { url: "" } });
+  assert.equal((await up("a.pdf", Buffer.from("x"), "bills")).status, 400); // nessun link
   assert.equal(sf.uploads.length, 1);
 });
 
@@ -483,4 +495,71 @@ test("importazione da estratto conto: restano anche prima della data di inizio, 
   for (const bad of [{ transactions: [] }, { transactions: [item("x", "10/06/2026", 5)] }, { transactions: [item("x", "2026-06-10", 0)] }, { transactions: [{ ...item("x", "2026-06-10", 5), bank: "boh" }] }, { transactions: [item("", "2026-06-10", 5)] }]) {
     assert.equal((await post(bad)).status, 400, JSON.stringify(bad).slice(0, 60));
   }
+});
+
+test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; per ora si mostrano solo maggio e giugno", async (t) => {
+  const sf = await fakeSeafile();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  let reads = 0;
+  // il testo di ogni estratto: lo stesso fatto in giugno per il file di giugno e spostato a maggio per quello di maggio
+  const pdfToText = async (buffer) => { reads++; return /2026\.05/.test(buffer.toString()) ? TEXT.replaceAll(" giu 2026", " mag 2026").replace(/giugno 2026/g, "maggio 2026").replaceAll("ID transazione: ", "ID transazione: maggio-") : TEXT; };
+  const made = createApp({ dir, password: "", pdfToText }); // data di inizio di base: 1 agosto 2026
+  made.db.settings.documents = { statements: { url: `${sf.base}/d/ABC123/` } };
+  assert.deepEqual(importedVisible(made.db), ["2026-05", "2026-06"]); // di base si mostrano maggio e giugno
+  made.db.settings.importedVisible = ["2026-06"]; // qui si prova il nascondere: solo giugno
+  const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const get = async (p) => (await fetch(`${base}${p}`)).json();
+
+  const list = await get("/api/documents/statements/files");
+  // giugno e maggio si leggono; settembre no (lo legge la banca) e non si scarica nemmeno; l'estratto della carta non è mensile
+  assert.deepEqual(list.files.map((f) => [f.name, f.statement?.state]), [["Estratto Conto Carte Flexia 2026.06.pdf", undefined], ["Estratto conto 2026.09.pdf", "banca"], ["Estratto conto 2026.06.pdf", "letto"], ["Estratto conto 2026.05.pdf", "letto"]]);
+  assert.deepEqual(sf.downloads.sort(), ["/Estratto conto 2026.05.pdf", "/Estratto conto 2026.06.pdf"]);
+  assert.deepEqual(list.read.map((r) => r.name).sort(), ["Estratto conto 2026.05.pdf", "Estratto conto 2026.06.pdf"]);
+  assert.equal(Object.keys(made.db.transactions).length, 10); // 5 di giugno + 5 di maggio, tutti salvati
+  assert.equal(list.files[2].statement.visible, true); // giugno si mostra
+  assert.equal(list.files[3].statement.visible, false); // maggio è letto ma nascosto per ora
+
+  // un'altra apertura dell'elenco non rilegge nulla
+  const again = await get("/api/documents/statements/files");
+  assert.equal(again.read.length, 0);
+  assert.equal(reads, 2);
+
+  // si mostrano solo i movimenti di giugno, in ogni schermata
+  const all = await get("/api/transactions");
+  assert.equal(all.total, 5);
+  assert.ok(all.transactions.every((x) => x.date.startsWith("2026-06")));
+  const sum = await get("/api/summary?year=2026");
+  assert.equal(sum.months[4].entrate + sum.months[4].uscite, 0); // maggio vuoto
+  assert.ok(sum.months[5].uscite > 0); // giugno pieno
+  assert.equal((await get("/api/transactions?year=2026&month=5")).total, 0);
+
+  // quando si deciderà di mostrare maggio, ci sono già tutti i suoi movimenti
+  made.db.settings.importedVisible = ["2026-05", "2026-06"];
+  assert.equal((await get("/api/transactions")).total, 10);
+
+  // lettura a mano per riprovare
+  const retry = await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Estratto conto 2026.06.pdf")}`, { method: "POST" });
+  assert.equal(retry.status, 200);
+  assert.equal((await retry.json()).updated, 5);
+  assert.equal((await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Estratto Conto Carte Flexia 2026.06.pdf")}`, { method: "POST" })).status, 400);
+});
+
+test("estratti conto: se un estratto non si legge, l'errore resta registrato e non si riprova finché il file non cambia", async (t) => {
+  const sf = await fakeSeafile();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  let reads = 0;
+  const made = createApp({ dir, password: "", pdfToText: async () => { reads++; throw new Error("PDF illeggibile"); } });
+  made.db.settings.documents = { statements: { url: `${sf.base}/d/ABC123/` } };
+  const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const first = await (await fetch(`${base}/api/documents/statements/files`)).json();
+  assert.deepEqual(first.files[2].statement, { state: "errore", error: "PDF illeggibile" });
+  await fetch(`${base}/api/documents/statements/files`);
+  assert.equal(reads, 2); // giugno e maggio una volta sola
+  assert.equal(Object.keys(made.db.transactions).length, 0);
 });

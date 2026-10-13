@@ -4,6 +4,14 @@
 import crypto from 'node:crypto';
 import { BANKS, cutoffOf } from './banks.js';
 
+// I movimenti importati si leggono e si salvano tutti, ma per ora se ne MOSTRANO solo alcuni mesi (di base maggio e giugno 2026): gli altri restano
+// nascosti, in ogni schermata, finché non si decide di mostrarli (`settings.importedVisible`, elenco di mesi «AAAA-MM»).
+export const IMPORTED_VISIBLE = ['2026-05', '2026-06'];
+export const importedVisible = (db) => (Array.isArray(db.settings?.importedVisible) ? db.settings.importedVisible : IMPORTED_VISIBLE);
+export const isVisible = (db, t) => !t.imported || importedVisible(db).includes(t.date.slice(0, 7));
+/** I movimenti che si mostrano: quelli della banca e gli importati dei mesi scelti. */
+export const visibleTransactions = (db) => Object.values(db.transactions).filter((t) => isVisible(db, t));
+
 const text = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /** Porta i movimenti nei dati; restituisce { added, updated, skipped }. Lancia un errore in italiano se qualcosa non va. */

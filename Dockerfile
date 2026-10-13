@@ -3,6 +3,8 @@ LABEL org.opencontainers.image.source="https://github.com/jstPlink/MyBank" \
       org.opencontainers.image.description="MyBank: i movimenti di UniCredit e Revolut, il budget e il widget" \
       org.opencontainers.image.licenses="UNLICENSED"
 WORKDIR /app
+# poppler-utils: pdftotext, per leggere gli estratti conto in PDF
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY src ./src

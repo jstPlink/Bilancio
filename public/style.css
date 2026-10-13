@@ -352,3 +352,10 @@ details.group > summary h2.section { margin: 0; }
 .docset > summary { cursor: pointer; font: 600 var(--fs-sm) var(--f-sans); color: var(--mute); }
 .docset form { display: grid; gap: 12px; margin-top: 10px; }
 .docimport code { font: 12px var(--f-mono); }
+.docitem { border-bottom: 1px solid var(--hair); }
+.docitem .docfile { border-bottom: 0; padding-bottom: 4px; }
+.docitem .link { display: block; margin: 0 0 10px; font-size: var(--fs-sm); }
+.docitem:hover { border-bottom-color: var(--red); }
+.docnote { margin: 0 0 10px; font: 400 var(--fs-label) var(--f-sans); color: var(--mute); }
+.docnote.bad { color: var(--red); }
+.docnote .link { font-size: var(--fs-label); }

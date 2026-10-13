@@ -1,6 +1,7 @@
 // Cifre dell'app: storico dell'anno (entrate, uscite, bilancio per mese), budget del mese e dati del widget.
 import { accountNames, classify, BUDGET_TAGS, TAGS } from './tags.js';
 import { cutoffOf } from './banks.js';
+import { visibleTransactions } from './import.js';
 import { localParts } from './schedule.js';
 
 const round = (n) => Math.round(n * 100) / 100;
@@ -9,7 +10,7 @@ const round = (n) => Math.round(n * 100) / 100;
 export function yearSummary(db, year) {
   const tags = classify(db);
   const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, entrate: 0, uscite: 0, bilancio: 0, tags: {} }));
-  for (const t of Object.values(db.transactions)) {
+  for (const t of visibleTransactions(db)) {
     if (Number(t.date.slice(0, 4)) !== year) continue;
     const tag = tags.get(t.id);
     if (tag === 'giroconto') continue;
@@ -24,7 +25,7 @@ export function yearSummary(db, year) {
     total.entrate += m.entrate; total.uscite += m.uscite;
   }
   total.entrate = round(total.entrate); total.uscite = round(total.uscite); total.bilancio = round(total.entrate - total.uscite);
-  const years = [...new Set(Object.values(db.transactions).map((t) => Number(t.date.slice(0, 4))))].sort((a, b) => b - a);
+  const years = [...new Set(visibleTransactions(db).map((t) => Number(t.date.slice(0, 4))))].sort((a, b) => b - a);
   return { year, months, total, years };
 }
 
@@ -34,7 +35,7 @@ export function listTransactions(db, { year, month, tag, q, account } = {}) {
   const needle = String(q ?? '').trim().toLowerCase();
   const names = accountNames(db);
   const out = [];
-  for (const t of Object.values(db.transactions)) {
+  for (const t of visibleTransactions(db)) {
     if (year && Number(t.date.slice(0, 4)) !== year) continue;
     if (month && Number(t.date.slice(5, 7)) !== month) continue;
     if (account && t.account !== account) continue;
@@ -57,7 +58,7 @@ export function monthBudget(db, now = new Date()) {
   const tags = classify(db);
   const prefix = p.iso.slice(0, 7);
   const spent = Object.fromEntries(BUDGET_TAGS.map((k) => [k, 0]));
-  for (const t of Object.values(db.transactions)) {
+  for (const t of visibleTransactions(db)) {
     if (t.amount >= 0 || !t.date.startsWith(prefix)) continue;
     const tag = tags.get(t.id);
     if (tag in spent) spent[tag] += -t.amount;
@@ -66,7 +67,7 @@ export function monthBudget(db, now = new Date()) {
   const first = cutoffOf(db).slice(0, 7);
   const past = [1, 2, 3].map((i) => { const d = new Date(Date.UTC(p.year, p.month - 1 - i, 1)); return d.toISOString().slice(0, 7); }).filter((m) => m >= first);
   const pastSpent = Object.fromEntries(BUDGET_TAGS.map((k) => [k, 0]));
-  for (const t of Object.values(db.transactions)) {
+  for (const t of visibleTransactions(db)) {
     if (t.amount >= 0 || !past.includes(t.date.slice(0, 7))) continue;
     const tag = tags.get(t.id);
     if (tag in pastSpent) pastSpent[tag] += -t.amount;
@@ -107,7 +108,7 @@ export function spendStats(db, { year, month = 0 } = {}) {
   let income = 0;
   let incomeCount = 0;
   const years = new Set();
-  for (const t of Object.values(db.transactions)) {
+  for (const t of visibleTransactions(db)) {
     const tag = tags.get(t.id);
     if (tag === 'giroconto') continue;
     const y = Number(t.date.slice(0, 4));
