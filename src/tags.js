@@ -1,12 +1,12 @@
 // I tag dei movimenti. Li decide il pocket Revolut da cui parte il pagamento:
 //   01 Spesa → Spesa · 02 Svago → Svago · 03 Carburante → Carburante · 04 Altro → Altro
 // Tutto il resto (altri pocket, conto principale, UniCredit) è «Non definito», da smistare a mano. Le entrate sono «Entrata»; i giri di
-// denaro tra i propri conti e pocket sono «Giroconto» e non contano in nessun totale. «Utenze» non è mai automatica: si sceglie a mano.
+// denaro tra i propri conti e pocket sono «Non contabile» (chiave interna `giroconto`, rimasta com'era nei dati) e non contano in nessun totale. «Utenze» non è mai automatica: si sceglie a mano.
 // Una scelta a mano vince sempre.
 
 export const TAGS = {
   spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze',
-  non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto',
+  non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile',
 };
 export const BUDGET_TAGS = ['spesa', 'svago', 'carburante']; // le tre categorie con un budget
 
@@ -76,7 +76,7 @@ export function accountNames(db) {
 
 /**
  * Il tag di tutti i movimenti: Map id → tag.
- * Giroconto se: il testo è un giro tra pocket; l'IBAN della controparte è un mio conto; oppure lo stesso importo esce da un conto ed entra
+ * Non contabile (giroconto) se: il testo è un giro tra pocket; l'IBAN della controparte è un mio conto; oppure lo stesso importo esce da un conto ed entra
  * in un altro della stessa banca entro un giorno. Poi: entrata, tag del pocket di provenienza o «Non definito».
  */
 export function classify(db) {

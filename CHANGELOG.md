@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.27.0
+- **Il tag «Giroconto» si chiama «Non contabile»** (movimenti che non contano in nessun totale: giri tra i tuoi conti, addebito della carta di credito già dettagliato). La chiave interna resta `giroconto`: i dati e le scelte già salvate non cambiano. Il nome si vede anche con un server non ancora aggiornato (la pagina lo impone da sola). Icona e colore sono quelli di prima.
+- **Movimenti**: tolta la frase «i giroconti non contano» dalla riga informativa.
+
 ## 0.26.0
 - **Estratti conto in tutte le sottocartelle**: gli estratti si leggono anche dalle sottocartelle della cartella condivisa (prima solo dalla radice: per questo molti non risultavano letti).
 - **Conto corrente UniCredit** (estratti trimestrali «Estratto conto AAAA.MM - AAAA.MM.pdf»): nuovo lettore che usa le coordinate delle parole (`pdftotext -bbox`): la colonna dice se un importo è uscita o entrata. Si ferma se uscite, entrate o saldo finale non tornano con il riepilogo del PDF. Provato su 13 estratti dal 2021 al 2026 (tutti con i totali esatti).

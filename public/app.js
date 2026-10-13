@@ -6,7 +6,7 @@ const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'L
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
 const THIS_YEAR = new Date().getFullYear();
-let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
+let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
 
 // Un'icona per categoria (tratto sottile, nel colore del testo).
 const ICON_PATHS = {
@@ -20,6 +20,9 @@ const ICON_PATHS = {
   giroconto: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
 };
 const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[k] ?? ICON_PATHS.altro}</svg>`;
+
+// I nomi dei tag arrivano dal server; questo nome si impone anche qui, così si vede subito anche con un server non ancora aggiornato.
+const withNames = (tags) => ({ ...tags, giroconto: 'Non contabile' });
 
 const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc', items: [], total: 0, shown: Infinity, base: '', paged: false } };
 
@@ -259,7 +262,7 @@ async function loadMoves(keep = false) {
     api('GET', `${base}&limit=1000&offset=0`),
     api('GET', `/api/summary?year=${year}`),
   ]);
-  TAGS = d.tags;
+  TAGS = withNames(d.tags);
   // Con un server più vecchio (senza ordinamento e totali) la pagina si arrangia da sola sui movimenti che ha ricevuto.
   if (!d.totals) {
     d.totals = { entrate: 0, uscite: 0 };
@@ -281,7 +284,7 @@ async function loadMoves(keep = false) {
   // le cifre (numero dei movimenti, entrate, uscite) in bianco, il resto del testo in grigio
   const sums = tag === 'entrata' ? `entrate <b>${money(d.totals.entrate)}</b>` : tag ? `uscite <b>${money(d.totals.uscite)}</b>` : `entrate <b>${money(d.totals.entrate)}</b> · uscite <b>${money(d.totals.uscite)}</b>`;
   $('#mvSummary').innerHTML = d.total
-    ? `<b>${d.total}</b> movimenti · ${sums} · i giroconti non contano.`
+    ? `<b>${d.total}</b> movimenti · ${sums}`
     : 'Nessun movimento. Collega una banca dalla scheda Banche.';
   // sotto la riga, ognuno sopra la sua colonna: «Data» e «Importo», da toccare per ordinare (un secondo tocco inverte il verso)
   const head = (k, label, cls) => {
@@ -389,7 +392,7 @@ $('#budgetForm').addEventListener('submit', async (e) => {
 
 async function loadBanks() {
   const d = await api('GET', '/api/banks');
-  TAGS = d.tags ?? TAGS;
+  TAGS = withNames(d.tags ?? TAGS);
   const auto = d.lastAuto;
   const hrs = d.auto.hours;
   const pad = (h) => `${String(h).padStart(2, '0')}:00`;

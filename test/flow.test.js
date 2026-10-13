@@ -701,3 +701,16 @@ test("estratti UniCredit (conto trimestrale e carta Flexia) nelle sottocartelle:
   await get("/api/documents/statements/files");
   assert.equal(Object.keys(made.db.transactions).length, 4);
 });
+
+test("il tag dei giri tra i propri conti si chiama «Non contabile» (la chiave interna resta «giroconto»)", async (t) => {
+  const { api, db } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  const tags = (await api("GET", "/api/transactions")).json.tags;
+  assert.equal(tags.giroconto, "Non contabile");
+  assert.ok(!Object.values(tags).includes("Giroconto"));
+  db.transactions.x = { id: "x", bank: "revolut", account: "a", date: "2026-05-01", amount: -9, description: "Prova", currency: "EUR" };
+  assert.equal((await api("PUT", "/api/transactions/x/tag", { tag: "giroconto" })).status, 200); // le scelte già salvate e l'API continuano a funzionare
+  const row = (await api("GET", "/api/transactions")).json.transactions[0];
+  assert.deepEqual([row.tag, row.manual], ["giroconto", true]);
+  assert.deepEqual((await api("GET", "/api/transactions")).json.totals, { entrate: 0, uscite: 0 }); // non conta nei totali
+});
