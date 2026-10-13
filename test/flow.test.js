@@ -105,6 +105,13 @@ test('collegamento di UniCredit e Revolut, tag dei pocket, storico, budget e wid
   assert.equal((await api('PUT', `/api/transactions/${nd.id}/tag`, { tag: 'svago' })).status, 200);
   assert.equal((await api('GET', '/api/transactions')).json.transactions.find((x) => x.id === nd.id).tag, 'svago');
   assert.equal((await api('PUT', `/api/transactions/${nd.id}/tag`, { tag: 'inesistente' })).status, 400);
+  // «Utenze»: nessun movimento ci finisce da solo, ma si può scegliere a mano; non ha un budget
+  const moves = (await api('GET', '/api/transactions')).json;
+  assert.equal(moves.tags.utenze, 'Utenze');
+  assert.ok(!moves.transactions.some((x) => x.tag === 'utenze'));
+  assert.equal((await api('PUT', `/api/transactions/${nd.id}/tag`, { tag: 'utenze' })).status, 200);
+  assert.equal((await api('GET', `/api/transactions?tag=utenze`)).json.transactions.length, 1);
+  assert.ok(!('utenze' in (await api('GET', '/api/budgets')).json.month.cats));
   await api('PUT', `/api/transactions/${nd.id}/tag`, { tag: null });
   assert.equal((await api('GET', '/api/transactions')).json.transactions.find((x) => x.id === nd.id).tag, 'non_definito');
 

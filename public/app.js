@@ -6,7 +6,20 @@ const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'L
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
 const THIS_YEAR = new Date().getFullYear();
-let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
+let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
+
+// Un'icona per categoria (tratto sottile, nel colore del testo).
+const ICON_PATHS = {
+  spesa: '<path d="M3 4h2.5l2 11h10.5l2-8H6.3"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+  svago: '<path d="M12 3l2.8 5.9 6.2.8-4.6 4.3 1.2 6.3L12 17.3 6.4 20.3l1.2-6.3L3 9.7l6.2-.8z"/>',
+  carburante: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5"/>',
+  altro: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+  utenze: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/>',
+  non_definito: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/>',
+  entrata: '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',
+  giroconto: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
+};
+const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[k] ?? ICON_PATHS.altro}</svg>`;
 
 const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '' } };
 
@@ -210,9 +223,9 @@ async function loadYear() {
     const open = state.open.has(m.month);
     const empty = !m.entrate && !m.uscite;
     // le uscite del mese, una categoria per riga dalla più grande: nome, barra bianca larga quanto pesa sulle uscite (importi veri) e importo; un tocco apre i movimenti
-    const cats = Object.entries(m.tags).sort((a, b) => b[1] - a[1]);
+    const cats = Object.entries(m.uscite ? { utenze: 0, ...m.tags } : m.tags).sort((a, b) => b[1] - a[1]); // «Utenze» c'è sempre, anche a zero
     const tags = cats.length ? `<div class="legend">${cats.map(([k, v]) => `<button class="chip" data-see="${k}" data-see-month="${m.month}" title="Vedi i movimenti">
-      <span class="cname">${esc(TAGS[k] ?? k)}</span><span class="cbar"><i style="width:${(v / m.uscite) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`).join('')}</div>` : '';
+      <span class="cname">${icon(k)}${esc(TAGS[k] ?? k)}</span><span class="cbar"><i style="width:${(v / m.uscite) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`).join('')}</div>` : '';
     return `<tr class="m" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
       + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessuna uscita.'}</td></tr>` : '');
   }).join('');
@@ -268,7 +281,7 @@ async function loadMoves() {
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
       <div class="d-main"><div class="d-title">${esc(title)}${pill}</div><div class="d-sub">${esc([dest, where].filter(Boolean).join(' · '))}</div></div>
       <div class="d-amt">${amt}</div>
-      <div class="d-tag">${select}</div>
+      <div class="d-tag">${icon(t.tag)}${select}</div>
     </div>`;
   }).join('');
 }
@@ -278,7 +291,7 @@ $('#movimenti').addEventListener('change', async (e) => {
   else if (el.id === 'mvMonth') state.mv.month = Number(el.value);
   else if (el.id === 'mvTag') state.mv.tag = el.value;
   else if (el.dataset.tag) {
-    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); el.style.color = `var(--t-${el.value})`; toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
+    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); el.style.color = `var(--t-${el.value})`; el.previousElementSibling?.classList.contains('ticon') && (el.previousElementSibling.outerHTML = icon(el.value)); toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
     return;
   } else return;
   loadMoves().catch(fail);
@@ -300,10 +313,10 @@ async function loadBudget() {
   $('#budgetCards').innerHTML = Object.entries(m.cats).map(([k, c]) => {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
     const cls = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
-    return `<div class="card"><div class="k">${esc(c.label)}${c.budget ? ` · budget ${money(c.budget)}` : ''}</div>
+    return `<div class="card"><div class="k">${icon(k)}${esc(c.label)}</div>
       <div class="v ${c.budget ? (c.left >= 0 ? 'pos' : 'neg') : ''}">${c.budget ? money(c.left) : money(c.spent)}</div>
       <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div>
-      <div class="sub">${c.budget ? `residuo · speso ${money(c.spent)}` : 'nessun budget: speso nel mese'}</div>
+      <div class="sub">${c.budget ? `budget ${money(c.budget)} · speso ${money(c.spent)}` : 'nessun budget: speso nel mese'}</div>
       <div class="sub">stima ${c.estDaily == null ? '–' : money(c.estDaily)}/g · reale ${money(c.realDaily)}/g</div></div>`;
   }).join('');
 }

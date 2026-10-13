@@ -5,7 +5,7 @@
 :root {
   --paper: #f3f0ea; --ink: #131211; --mute: #6b665e; --hair: #d8d3c8;
   --red: #e8431a; --green: #1d6b3c;
-  --t-spesa: #1f4fd8; --t-svago: #c2188b; --t-carburante: #b8860b; --t-altro: #5b4b8a; --t-non_definito: #131211; --t-entrata: #1d6b3c; --t-giroconto: #9a958b;
+  --t-spesa: #1f4fd8; --t-svago: #c2188b; --t-carburante: #b8860b; --t-altro: #5b4b8a; --t-utenze: #0e7490; --t-non_definito: #131211; --t-entrata: #1d6b3c; --t-giroconto: #9a958b;
   --f-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --f-sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --f-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
@@ -16,7 +16,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --paper: #121211; --ink: #edeae3; --mute: #9a958b; --hair: #2e2c29; --red: #ff5a2e; --green: #5ccb8a;
-    --t-spesa: #7a9cff; --t-svago: #ff7ac8; --t-carburante: #e6b84a; --t-altro: #b3a3e6; --t-non_definito: #edeae3; --t-entrata: #5ccb8a; --t-giroconto: #6d6a63;
+    --t-spesa: #7a9cff; --t-svago: #ff7ac8; --t-carburante: #e6b84a; --t-altro: #b3a3e6; --t-utenze: #5cc8dc; --t-non_definito: #edeae3; --t-entrata: #5ccb8a; --t-giroconto: #6d6a63;
     color-scheme: dark;
   }
 }
@@ -245,7 +245,7 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 
 /* Storico: il dettaglio di un mese, una categoria per riga: nome | barra bianca (quanto pesa sulle uscite) | importo */
 .legend { display: grid; margin-top: 4px; }
-.chip { display: grid; grid-template-columns: 112px minmax(0, 1fr) 96px; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--mute); padding: 9px 0; text-align: left; color: var(--ink); }
+.chip { display: grid; grid-template-columns: 136px minmax(0, 1fr) 96px; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--mute); padding: 9px 0; text-align: left; color: var(--ink); }
 .chip:last-child { border-bottom: 0; }
 .chip:hover { color: var(--red); border-bottom-color: var(--red); }
 .chip .cname { font: 600 var(--fs-label)/1.2 var(--f-mono); letter-spacing: .05em; text-transform: uppercase; overflow-wrap: anywhere; }
@@ -253,7 +253,7 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 .chip .cbar i { display: block; height: 100%; min-width: 2px; background: var(--ink); }
 .chip:hover .cbar i { background: var(--red); }
 .chip .camt { font: 600 var(--fs-sm) var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
-@media (max-width: 720px) { .chip { grid-template-columns: 92px minmax(0, 1fr) 90px; gap: 10px; } }
+@media (max-width: 720px) { .chip { grid-template-columns: 120px minmax(0, 1fr) 90px; gap: 10px; } }
 tr.detail td { padding-top: 10px; padding-bottom: 12px; }
 
 /* Banche: le righe di conto e pocket si toccano per vedere i loro movimenti; filtro per conto nei Movimenti */
@@ -309,3 +309,11 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 .serverfield { display: flex; }
 .serverfield .ghost { min-height: var(--h); height: var(--h); padding: 0 10px; border-right: 0; font: 600 var(--fs-sm) var(--f-mono); text-transform: none; letter-spacing: 0; white-space: nowrap; }
 .serverfield input { flex: 1 1 auto; min-width: 0; }
+
+/* icone delle categorie (in un solo colore, quello del testo) */
+.ticon { display: inline-block; width: 18px; height: 18px; flex: none; vertical-align: -4px; }
+.d-tag { display: flex; align-items: center; gap: 8px; }
+.d-tag .ticon { color: var(--mute); }
+.chip .cname { display: flex; align-items: center; gap: 8px; }
+.card .k .ticon { margin-right: 8px; vertical-align: -4px; }
+.chip .cbar i[style*="width:0%"] { min-width: 0; }

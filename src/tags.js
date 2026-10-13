@@ -1,10 +1,11 @@
 // I tag dei movimenti. Li decide il pocket Revolut da cui parte il pagamento:
 //   01 Spesa → Spesa · 02 Svago → Svago · 03 Carburante → Carburante · 04 Altro → Altro
 // Tutto il resto (altri pocket, conto principale, UniCredit) è «Non definito», da smistare a mano. Le entrate sono «Entrata»; i giri di
-// denaro tra i propri conti e pocket sono «Giroconto» e non contano in nessun totale. Una scelta a mano vince sempre.
+// denaro tra i propri conti e pocket sono «Giroconto» e non contano in nessun totale. «Utenze» non è mai automatica: si sceglie a mano.
+// Una scelta a mano vince sempre.
 
 export const TAGS = {
-  spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro',
+  spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze',
   non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto',
 };
 export const BUDGET_TAGS = ['spesa', 'svago', 'carburante']; // le tre categorie con un budget

@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.18.0
+- **Nuova categoria «Utenze»**: non è mai assegnata in automatico (nessun movimento si sposta da solo) e non ha un budget: si sceglie a mano dal menu di ogni movimento. Nel dettaglio dello Storico la riga «Utenze» c'è sempre, anche a zero. Serve il server alla 0.18.0 (altrimenti «Tag non valido»).
+- **Icone**: ogni categoria ha una piccola icona (Movimenti, dettaglio dello Storico, Budget).
+- **Budget**: tolti la descrizione e il titolo «Questo mese»; in alto i tre riquadri con il nome (e l'icona) sopra, sotto il budget mensile.
+
 ## 0.17.0
 - **Storico**: toccando un mese si vedono le uscite una categoria per riga, dalla più grande: nome, barra bianca larga quanto pesa sulle uscite del mese (importi veri, senza colori) e importo, in colonne allineate. Un tocco su una riga apre i **Movimenti** già filtrati per quell'anno, mese e categoria.
 - **Statistiche**: la scheda non c'è più (lo Storico fa lo stesso lavoro). `GET /api/stats` resta sul server ma l'app non lo usa.
