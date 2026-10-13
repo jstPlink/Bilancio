@@ -18,7 +18,7 @@ export const cutoffOf = (db) => (/^\d{4}-\d{2}-\d{2}$/.test(db.settings?.cutoff 
 export function applyCutoff(db) {
   const from = cutoffOf(db);
   let removed = 0;
-  for (const [id, t] of Object.entries(db.transactions)) if (t.date < from) { delete db.transactions[id]; removed++; }
+  for (const [id, t] of Object.entries(db.transactions)) if (t.date < from && !t.imported) { delete db.transactions[id]; removed++; } // gli importati da estratto conto restano
   for (const id of Object.keys(db.overrides)) if (!db.transactions[id]) delete db.overrides[id];
   return removed;
 }

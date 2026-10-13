@@ -15,10 +15,10 @@ Tre parti, con i compiti ben separati:
 ```
 src/       server.js (API) · start.js (avvio del server) · local.js e proxy.js (localhost solo frontend)
            eb.js (client Enable Banking) · banks.js (collegamento, letture, limiti) · tags.js (tag e giroconti)
-           notifications.js (notifiche) · stats.js (storico, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
+           notifications.js (notifiche) · documents.js (cartelle dei documenti) · import.js (importazione da estratto) · stats.js (storico, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
 public/    index.html, style.css, app.js, icon.svg
 android/   MainActivity, MyBankWidget, WidgetData, Server, Notifier, NotifyReceiver; layout e risorse del widget; manifest
-scripts/   banca-finta.mjs, demo.mjs, build-apk.mjs
+scripts/   banca-finta.mjs, demo.mjs, build-apk.mjs, estratto-revolut.mjs
 design/    proposte di logo (SVG) e logo scelto
 test/      schedule, tags, flow (giro completo con la banca finta), proxy, android (layout del widget e dell'app)
 ```
@@ -48,7 +48,7 @@ Sul telefono si passa da Storico a Movimenti, Budget e Banche **scorrendo il dit
 - **Storico** (principale): l'anno scelto (il selettore dice già di che anno si parla: i titoli sono solo «Entrate», «Uscite», «Bilancio»), mese per mese, con il totale; in alto i tre totali dell'anno, sempre affiancati su tre colonne. Un tocco su un mese mostra le sue uscite **una categoria per riga** (la riga «Utenze» c'è sempre, anche a zero), dalla più grande alla più piccola: nome, una **barra bianca** larga quanto pesa sulle uscite del mese (in proporzione agli importi veri, senza colori) e l'importo, con una riga sottile sotto che la fa capire cliccabile. Un tocco su una riga apre la scheda Movimenti già filtrata per quell'anno, mese e categoria. (La scheda Statistiche non c'è più: faceva quasi lo stesso lavoro.)
 - **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. Ogni riga è: **data** (giorno e mese, sotto l'anno), **titolo** (la causale se c'è) con sotto il **destinatario** e il conto, **importo**, **categoria**: sul web in quattro colonne, sul telefono in tre (data, titolo e destinatario, importo con sotto la categoria). I pagamenti in sospeso contano subito e hanno una targhetta e una barra rossa a sinistra; le altre righe hanno lo stesso margine, quindi la spaziatura non cambia. Toccando una riga di conto o pocket nella scheda Banche si arriva ai Movimenti filtrati per quel conto o pocket (con «Togli il filtro»).
 - **Budget**: tre colonne (Spesa, Svago, Carburante); in ognuna il titolo con l'icona (grande), una riga sotto, sopra al campo la «spesa media ultimi 3 mesi» (in grigio, con il valore in bianco: media dei 3 mesi completi precedenti, contando solo i mesi da quando ci sono dati), il campo del **budget mensile**, l'**importo residuo** del mese (budget meno speso) con la scritta «residuo» accanto (bianco se positivo, rosso se negativo) e la **barra** dello stato; sotto «Salva budget».
-- **Documenti**: una scheda a parte (separata dalle altre da un filetto), per ora vuota. Non fa parte dello scorrimento col dito.
+- **Documenti**: una scheda a parte (separata dalle altre da un filetto) con tre categorie che si chiudono e si aprono: **Buste paga**, **Estratti conto**, **Bollette**. Ognuna è una cartella su Seafile: in «Link della cartella» si incolla il **link di consultazione** (`…/d/codice/`) e, se si vuole caricare da qui, il **link di caricamento** (`…/u/d/codice/`); i link stanno nel server, mai nel codice. Aprendo una categoria si vedono i **documenti rilevati** nella cartella (dal più recente per nome): un tocco apre il file su Seafile (nell'app, nel browser del telefono). **Carica documenti** sceglie uno o più file dal dispositivo, ne mostra i nomi **modificabili** e li carica nella stessa cartella. In «Estratti conto» c'è anche **Importa movimenti da file** (vedi sotto). Non fa parte dello scorrimento col dito.
 - **Banche**: collegamento di UniCredit e Revolut (ogni banca si chiude e si apre; Revolut, con i suoi pocket, parte chiusa); **aggiornamento**: fino a **4 automatici al giorno**, di base alle **5, 11, 14 e 19** (ora italiana), in una riga che sul telefono occupa tutta la larghezza: si tocca un orario per cambiarlo, la × lo toglie, un menu ne aggiunge; più il pulsante **Aggiorna ora** per le letture in più. Il riquadro mostra, per ogni banca, le **richieste fatte nelle ultime 24 ore** nella forma «Revolut · Richieste automatiche 1/4 · Manuali 3/10» (le restanti sono la differenza). Poi la rinomina dei pocket e le credenziali di Enable Banking. Ogni banca ed Enable Banking sono un titolo con la riga sotto, che resta anche a sezione chiusa.
 - **Opzioni** (pulsante in alto a destra): in cima le **Notifiche** (sezione che si chiude e si apre con un tocco sul titolo), poi **Cambia password** (finestra con la password attuale e due volte la nuova, almeno 5 caratteri; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), **Server** con «Cambia server» (solo nell'app e nel localhost) e in fondo **Esci**. Ogni categoria è un titolo con la riga sotto.
 
@@ -57,6 +57,20 @@ In alto, a sinistra, il logo e il nome; a destra la **versione** (nell'app è qu
 ### Notifiche (Opzioni → Notifiche)
 
 Promemoria per il telefono: per ognuno scegli il **testo** (fino a 200 caratteri), il **giorno del mese** (1-31) e l'**orario**; si aggiungono, si modificano e si eliminano dalle Opzioni. Stanno **nel server** (`GET/POST /api/notifications`, `PUT/DELETE /api/notifications/:id`); l'app Android le legge a ogni apertura, nell'aggiornamento periodico del widget e dopo ogni modifica, e le programma con l'AlarmManager (la prossima volta di ognuna: poi riprogramma da sola; anche dopo il riavvio del telefono o un aggiornamento dell'app). Nei mesi più corti il giorno 29, 30 o 31 vale l'ultimo giorno del mese. L'orario è quello del telefono. Alla prima volta Android 13+ chiede il permesso di mostrare le notifiche. Sul sito e sul localhost si gestiscono ma non suonano.
+
+### Importare i movimenti da un estratto conto
+
+La banca rende disponibili solo gli ultimi mesi: per quelli più vecchi si possono importare i movimenti letti dall'**estratto conto Revolut** (PDF). Serve `pdftotext` (poppler) nel PATH.
+
+```bash
+node scripts/estratto-revolut.mjs "Estratto conto 2026.06.pdf" giugno.json
+```
+
+Lo script legge le tre sezioni dell'estratto (conto, pocket, deposito), ricava il segno di ogni movimento dal saldo e **si ferma se i conti non tornano** con il riepilogo del PDF (saldo iniziale, saldo finale e totali di ogni sezione). Poi, dalla scheda Documenti → Estratti conto → **Importa movimenti da file**, si carica il `.json` (`POST /api/import`). Regole:
+- i movimenti importati **restano anche prima della data di inizio** e le letture o lo scollegamento della banca non li toccano;
+- si **rifiutano** (saltati) quelli da quella data in poi: li legge la banca e si duplicherebbero;
+- importare due volte lo stesso file non duplica nulla;
+- l'estratto non dice da quale pocket parte una spesa: i movimenti sono sul «Conto», sul «Pocket» (tutti insieme) o sul «Deposito» e le spese restano **Non definito** da smistare a mano; i giri tra conto, pocket e deposito si riconoscono come giroconti (anche la dicitura «Prelievo da Pocket»).
 
 ### Widget Android 5×1
 
@@ -119,6 +133,8 @@ Tutte dietro password (cookie o `Authorization: Bearer`), tranne login, versione
 | `GET /api/stats?year=&month=` | statistiche: categorie, mesi, controparti, entrate (non più usate dall'app) |
 | `GET /api/transactions?year=&month=&tag=&q=&account=` | movimenti con tag; `account` = un conto o pocket |
 | `PUT /api/transactions/:id/tag` | tag a mano (`null` = automatico) |
+| `GET/PUT /api/documents`, `GET/POST /api/documents/:key/files` | i link delle tre cartelle (`payslips`, `statements`, `bills`), l'elenco dei file letto da Seafile e il caricamento di un file (corpo = file, `?name=`) |
+| `POST /api/import` | importa movimenti letti da un estratto conto (solo prima della data di inizio) |
 | `GET/POST /api/notifications`, `PUT/DELETE /api/notifications/:id` | notifiche (testo, giorno del mese, orario) |
 | `GET /api/budgets`, `PUT /api/budgets` | budget mensile e stato del mese |
 | `GET /api/widget` | dati del widget |

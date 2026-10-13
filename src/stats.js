@@ -41,7 +41,7 @@ export function listTransactions(db, { year, month, tag, q, account } = {}) {
     const tg = tags.get(t.id);
     if (tag && tg !== tag) continue;
     if (needle && !`${t.description} ${t.remittance ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;
-    out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), accountName: names.get(t.account)?.name ?? '' });
+    out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), accountName: names.get(t.account)?.name ?? t.accountLabel ?? '' });
   }
   out.sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   return out;

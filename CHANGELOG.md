@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.20.0
+- **Documenti**: tre categorie che si chiudono e si aprono (Buste paga, Estratti conto, Bollette), ognuna legata a una cartella Seafile (link di consultazione e, facoltativo, di caricamento, salvati nel server). Si vedono i **documenti rilevati** nella cartella e un tocco li apre su Seafile; si possono **caricare documenti** nella stessa cartella cambiando il nome prima dell'invio. API `GET/PUT /api/documents`, `GET/POST /api/documents/:key/files`.
+- **Importazione da estratto conto** (Documenti → Estratti conto → Importa movimenti da file): nuovo script `scripts/estratto-revolut.mjs` che legge il PDF mensile di Revolut (conto, pocket, deposito), ricava il segno dal saldo e si ferma se i conti non tornano con il riepilogo; `POST /api/import` salva i movimenti anche prima della data di inizio, senza duplicati e senza mai toccare i mesi letti dalla banca. «Prelievo da Pocket» è riconosciuto come giroconto.
+- **App Android**: il selettore di file funziona dentro l'app (caricamenti e importazione) e i documenti si aprono nel browser del telefono.
+- Serve il server alla 0.20.0.
+
 ## 0.19.0
 - **Budget** ridisegnato in tre colonne (Spesa, Svago, Carburante): titolo con icona, riga sotto, **spesa media degli ultimi 3 mesi** (etichetta grigia, valore bianco), campo del budget mensile, **importo residuo** con la scritta «residuo» (bianco se positivo, rosso se negativo) e barra dello stato; sotto «Salva budget». Tolti descrizione, titolo «Budget mensile», «Questo mese» e le stime giornaliere. Testi coerenti con il resto dell'app. Serve il server alla 0.19.0 per la spesa media (`avg3` in `GET /api/budgets`; col server vecchio mostra «–»).
 - **Movimenti**: cambiando la categoria di un movimento con un filtro per tag attivo, l'elenco si aggiorna subito.

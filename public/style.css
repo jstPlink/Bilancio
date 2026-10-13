@@ -335,3 +335,20 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 #budgetCards .meter { margin: 0; height: 8px; }
 #budgetForm .foot { margin-top: 6px; }
 @media (max-width: 720px) { #budgetCards .resid .v { font-size: 17px; } }
+
+/* Documenti: tre categorie che si chiudono (titolo con la riga sotto, come nelle Opzioni), elenco dei file, caricamento e link */
+#docGroups > details.group { margin: 0 0 30px; }
+details.group > summary h2.section { margin: 0; }
+.docbody { display: grid; gap: 14px; padding-top: 12px; }
+.docfile { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--hair); padding: 10px 0; text-align: left; color: var(--ink); }
+.docfile:hover { color: var(--red); border-bottom-color: var(--red); }
+.docfile .n { font-weight: 600; overflow-wrap: anywhere; }
+.docfile .s { font: 500 var(--fs-label) var(--f-mono); color: var(--mute); white-space: nowrap; }
+.filebtn { display: inline-flex; align-items: center; justify-content: center; min-height: var(--h); padding: 0 20px; border: 1px solid var(--ink); font: 600 var(--fs-md)/1 var(--f-sans); text-transform: none; letter-spacing: 0; color: var(--ink); cursor: pointer; width: fit-content; }
+.filebtn:hover { background: var(--ink); color: var(--paper); }
+.stagedrow { display: flex; gap: 8px; margin-bottom: 8px; }
+.stagedrow input { flex: 1 1 auto; min-width: 0; }
+.stagedrow .x { width: 36px; flex: none; background: transparent; border: 1px solid var(--ink); color: var(--red); font: 700 20px/1 var(--f-sans); }
+.docset > summary { cursor: pointer; font: 600 var(--fs-sm) var(--f-sans); color: var(--mute); }
+.docset form { display: grid; gap: 12px; margin-top: 10px; }
+.docimport code { font: 12px var(--f-mono); }

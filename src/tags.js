@@ -18,12 +18,13 @@ export const pocketTag = (name) => POCKETS[norm(name)] ?? null;
 // Revolut dà a ogni pocket il nome dell'intestatario; il nome vero (es. «01 Spesa») compare nel testo dei suoi movimenti:
 // «Accredita EUR 01 Spesa da EUR» quando entra denaro, «Da EUR 02 Svago» / «A EUR 02 Svago» quando si sposta tra pocket.
 const POCKET_IN = /^Accredita\s+EUR\s+(.+?)\s+da\s+EUR$/i;
+const POCKET_WITHDRAW = /^Prelievo da Pocket$/i; // la dicitura degli estratti conto in PDF
 const POCKET_MOVE = /^(?:Da|A|From|To)\s+EUR\s+(.+)$/i;
 
 const texts = (t) => [t.description, t.remittance].map((s) => String(s ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
 
 /** Un giro tra pocket Revolut, riconosciuto dal testo del movimento. */
-export const isPocketTransfer = (t) => texts(t).some((s) => POCKET_IN.test(s) || POCKET_MOVE.test(s));
+export const isPocketTransfer = (t) => texts(t).some((s) => POCKET_IN.test(s) || POCKET_MOVE.test(s) || POCKET_WITHDRAW.test(s));
 
 /** Il nome vero di un pocket, dedotto dal testo dei suoi movimenti: prima i «Accredita…», poi gli altri; vince il più frequente. */
 export function inferPocketName(txs) {

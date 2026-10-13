@@ -172,7 +172,7 @@ function show(tab) {
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
-  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, documenti: async () => {}, opzioni: loadOptions })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, documenti: loadDocuments, opzioni: loadOptions })[tab]().catch(fail);
 }
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') state.mv.account = ''; show(b.dataset.tab); });
 $('#optionsBtn').addEventListener('click', () => show('opzioni'));
@@ -425,6 +425,154 @@ $('#ebForm').addEventListener('submit', async (e) => {
     toast('Enable Banking salvato.');
     await loadBanks();
   } catch (err) { if (err instanceof Unauthorized) return fail(err); $('#ebError').textContent = err.message; }
+});
+
+// ------------------------------------------------------------------ documenti (tre cartelle online)
+
+const DOC_LABELS = { payslips: 'Buste paga', statements: 'Estratti conto', bills: 'Bollette' };
+const fmtSize = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const openExternal = (url) => {
+  try { if (window.Native?.openUrl) return window.Native.openUrl(url); } catch { /* si apre come in un browser */ }
+  window.open(url, '_blank', 'noopener');
+};
+state.docOpen = {};
+state.staged = {};
+
+async function loadDocuments() {
+  const d = await api('GET', '/api/documents');
+  state.docs = Object.fromEntries(d.links.map((l) => [l.key, l]));
+  $('#docGroups').innerHTML = d.links.map((l) => `<details class="group doc" data-doc="${esc(l.key)}" ${state.docOpen[l.key] ? 'open' : ''}>
+    <summary><h2 class="section">${esc(l.label)}</h2></summary>
+    <div class="docbody">
+      <div class="doclist" data-list="${esc(l.key)}"><p class="muted">${l.url ? 'Leggo la cartella…' : 'Inserisci qui sotto il link della cartella per vedere i documenti.'}</p></div>
+      ${l.upload ? `<div class="docupload"><label class="ghost filebtn">Carica documenti<input type="file" multiple hidden data-pick="${esc(l.key)}"></label><div class="staged" data-staged="${esc(l.key)}"></div></div>` : ''}
+      ${l.key === 'statements' ? `<div class="docimport"><p class="muted">Importa i movimenti letti da un estratto conto (file .json preparato dallo script <code>scripts/estratto-revolut.mjs</code>).</p>
+        <label class="ghost filebtn">Importa movimenti da file<input type="file" accept=".json,application/json" hidden data-import></label></div>` : ''}
+      <details class="docset"><summary>Link della cartella</summary>
+        <form data-links="${esc(l.key)}">
+          <label>Link di consultazione (…/d/codice/)<input name="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.url)}"></label>
+          <label>Link di caricamento (…/u/d/codice/), facoltativo<input name="upload" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://…" value="${esc(l.upload)}"></label>
+          <div class="foot"><button class="primary" type="submit">Salva link</button></div>
+        </form>
+      </details>
+    </div></details>`).join('');
+  for (const l of d.links) { renderStaged(l.key); if (state.docOpen[l.key]) loadFolder(l.key).catch(() => {}); }
+}
+
+async function loadFolder(key) {
+  const box = document.querySelector(`[data-list="${key}"]`);
+  if (!box || !state.docs?.[key]?.url) return;
+  try {
+    const d = await api('GET', `/api/documents/${key}/files`);
+    state.docFiles = { ...(state.docFiles ?? {}), [key]: d };
+    box.innerHTML = d.files.length
+      ? `${d.files.map((f, i) => `<button class="docfile" data-file="${key}:${i}"><span class="n">${esc(f.name)}</span><span class="s">${fmtSize(f.size)}${f.modified ? ` · ${esc(new Date(f.modified).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }))}` : ''}</span></button>`).join('')}
+        ${d.total > d.files.length ? `<p class="muted">Mostro i primi ${d.files.length} di ${d.total}.</p>` : ''}
+        <p class="muted"><button class="link" data-folder="${esc(d.folderUrl)}">Apri la cartella su Seafile</button></p>`
+      : '<p class="muted">La cartella è vuota.</p>';
+  } catch (err) {
+    if (err instanceof Unauthorized) throw err;
+    box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+function renderStaged(key) {
+  const box = document.querySelector(`[data-staged="${key}"]`);
+  if (!box) return;
+  const list = state.staged[key] ?? [];
+  box.innerHTML = list.length
+    ? `${list.map((s, i) => `<div class="stagedrow"><input data-rename="${key}:${i}" value="${esc(s.name)}" aria-label="Nome del file ${i + 1}" maxlength="150"><button class="x" data-unstage="${key}:${i}" title="Togli">×</button></div>`).join('')}
+       <div class="foot"><button class="primary" data-upload="${key}">Carica ${list.length === 1 ? 'il file' : `${list.length} file`}</button><span class="muted">Puoi cambiare il nome prima di caricare.</span></div>`
+    : '';
+}
+
+$('#docGroups').addEventListener('toggle', (e) => {
+  const key = e.target.dataset?.doc;
+  if (!key) return;
+  state.docOpen[key] = e.target.open;
+  if (e.target.open) loadFolder(key).catch(fail);
+}, true);
+
+$('#docGroups').addEventListener('change', async (e) => {
+  const el = e.target;
+  if (el.dataset.pick) {
+    const key = el.dataset.pick;
+    state.staged[key] = [...(state.staged[key] ?? []), ...[...el.files].map((file) => ({ file, name: file.name }))];
+    el.value = '';
+    renderStaged(key);
+  } else if (el.dataset.rename) {
+    const [key, i] = el.dataset.rename.split(':');
+    if (state.staged[key]?.[i]) state.staged[key][i].name = el.value;
+  } else if (el.dataset.import !== undefined) {
+    const file = el.files[0];
+    el.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const r = await api('POST', '/api/import', { transactions: data.transactions ?? data });
+      toast(`Importati ${r.added} movimenti nuovi${r.updated ? `, ${r.updated} già presenti` : ''}${r.skipped ? `, ${r.skipped} saltati (da quella data li legge la banca)` : ''}.`);
+    } catch (err) { if (err instanceof SyntaxError) toast('Il file non è un JSON valido.'); else fail(err); }
+  }
+});
+
+$('#docGroups').addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.dataset?.rename) return;
+  const [key, i] = el.dataset.rename.split(':');
+  if (state.staged[key]?.[i]) state.staged[key][i].name = el.value;
+});
+
+$('#docGroups').addEventListener('click', async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  try {
+    if (b.dataset.file) { // un documento rilevato: si apre su Seafile
+      const [key, i] = b.dataset.file.split(':');
+      const f = state.docFiles?.[key]?.files?.[Number(i)];
+      if (f) openExternal(f.url);
+    } else if (b.dataset.folder) openExternal(b.dataset.folder);
+    else if (b.dataset.unstage) {
+      const [key, i] = b.dataset.unstage.split(':');
+      state.staged[key].splice(Number(i), 1);
+      renderStaged(key);
+    } else if (b.dataset.upload) {
+      const key = b.dataset.upload;
+      const list = state.staged[key] ?? [];
+      b.disabled = true;
+      let done = 0;
+      try {
+        for (const s of list) {
+          const res = await fetch(`/api/documents/${key}/files?name=${encodeURIComponent(s.name)}`, {
+            method: 'POST', body: s.file,
+            headers: { 'Content-Type': s.file.type || 'application/octet-stream', ...(local.on && local.server ? { 'X-MyBank-Server': local.server } : {}) },
+          });
+          if (res.status === 401) throw new Unauthorized();
+          const out = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(`${s.name}: ${out.error ?? `errore ${res.status}`}`);
+          done++;
+        }
+      } finally {
+        state.staged[key] = list.slice(done); // quelli già caricati si tolgono
+        renderStaged(key);
+      }
+      toast(done === 1 ? 'File caricato.' : `${done} file caricati.`);
+      await loadFolder(key);
+    }
+  } catch (err) { fail(err); }
+});
+
+$('#docGroups').addEventListener('submit', async (e) => {
+  const form = e.target.closest('form[data-links]');
+  if (!form) return;
+  e.preventDefault();
+  const key = form.dataset.links;
+  const fd = Object.fromEntries(new FormData(form).entries());
+  try {
+    await api('PUT', '/api/documents', { [key]: { url: fd.url, upload: fd.upload } });
+    toast('Link salvati.');
+    state.docOpen[key] = true;
+    await loadDocuments();
+  } catch (err) { fail(err); }
 });
 
 // ------------------------------------------------------------------ notifiche (Opzioni)

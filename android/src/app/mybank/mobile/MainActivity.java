@@ -13,6 +13,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceResponse;
@@ -35,6 +36,7 @@ import java.util.Map;
  */
 public class MainActivity extends Activity {
     private WebView web;
+    private ValueCallback<Uri[]> fileCallback; // la scelta di un file dalla pagina (caricare documenti, importare movimenti)
     private boolean night;
     private int paper, ink;
 
@@ -127,6 +129,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void saveToken(String token) { Server.saveToken(MainActivity.this, token); MyBankWidget.refreshAll(MainActivity.this); }
         /** La versione dell'app (e quindi del frontend che mostra), che la pagina scrive in alto. */
         @JavascriptInterface public String version() { return Server.version(MainActivity.this); }
+        /** Apre un indirizzo nel browser del telefono (i documenti stanno su un sito esterno). */
+        @JavascriptInterface public void openUrl(String url) {
+            if (url == null || !url.matches("(?i)^https?://.*")) return;
+            try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e) { /* nessun browser */ }
+        }
         @JavascriptInterface public void refreshWidget() { MyBankWidget.refreshAll(MainActivity.this); }
         /** Rilegge le notifiche dal server e le riprogramma; la prima volta chiede il permesso di mostrarle (Android 13 e successivi). */
         @JavascriptInterface public void syncNotifications() {
@@ -152,7 +159,15 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         web.addJavascriptInterface(new Bridge(), "Native");
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (fileCallback != null) fileCallback.onReceiveValue(null);
+                fileCallback = callback;
+                try { startActivityForResult(params.createIntent(), 7); }
+                catch (Exception e) { fileCallback = null; return false; }
+                return true;
+            }
+        });
         final Uri server = Uri.parse(base);
         web.setWebViewClient(new WebViewClient() {
             /**
@@ -199,6 +214,13 @@ public class MainActivity extends Activity {
     private static String pageOf(Intent intent) {
         String open = intent == null ? null : intent.getStringExtra("open");
         return open == null || !open.matches("[a-z]+(:[a-z_]+)?") ? "" : "#" + open;
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != 7 || fileCallback == null) return;
+        fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
+        fileCallback = null;
     }
 
     @Override protected void onNewIntent(Intent intent) {

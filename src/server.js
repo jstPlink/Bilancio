@@ -8,6 +8,8 @@ import { AUTO_PER_DAY, BANKS, applyCutoff, startLink, finishLink, syncConnection
 import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
+import { DOCUMENTS, cleanFileName, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
+import { importTransactions } from './import.js';
 import { normalizeNotification } from './notifications.js';
 import { openStore } from './store.js';
 import { accountNames, BUDGET_TAGS, TAGS } from './tags.js';
@@ -24,7 +26,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   const auth = createAuth({ dir, password });
   const app = express();
   app.set('trust proxy', true);
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '6mb' }));
 
   const bad = (res, message, status = 400) => res.status(status).json({ error: message });
   const wrap = (fn) => async (req, res) => { try { await fn(req, res); } catch (e) { bad(res, e.message); } };
@@ -108,6 +110,36 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
 
   app.get('/api/widget', (req, res) => res.json(widgetData(db)));
 
+  // ---------------------------------------------------------------- importazione da estratto conto
+  app.post('/api/import', wrap(async (req, res) => {
+    const result = importTransactions(db, req.body?.transactions);
+    await store.save();
+    res.json(result);
+  }));
+
+  // ---------------------------------------------------------------- documenti (tre cartelle online)
+  const docKey = (req) => { if (!DOCUMENTS[req.params.key]) throw new Error('Categoria di documenti sconosciuta.'); return req.params.key; };
+  app.get('/api/documents', (req, res) => res.json({ links: listDocuments(db) }));
+  app.put('/api/documents', wrap(async (req, res) => {
+    db.settings.documents = normalizeDocuments(req.body, db.settings.documents);
+    await store.save();
+    res.json({ links: listDocuments(db) });
+  }));
+  // L'elenco dei file della cartella (letto da Seafile) con l'indirizzo per aprire ognuno.
+  app.get('/api/documents/:key/files', wrap(async (req, res) => {
+    const url = db.settings.documents?.[docKey(req)]?.url;
+    if (!url) return bad(res, 'Prima inserisci il link della cartella.');
+    res.json(await listFolder(url, fetchImpl));
+  }));
+  // Carica un file (il corpo della richiesta è il file) nella cartella, con il nome scelto dall'utente.
+  app.post('/api/documents/:key/files', express.raw({ type: () => true, limit: '40mb' }), wrap(async (req, res) => {
+    const upload = db.settings.documents?.[docKey(req)]?.upload;
+    if (!upload) return bad(res, 'Prima inserisci il link di caricamento della cartella.');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return bad(res, 'Il file è vuoto.');
+    await uploadFile(upload, cleanFileName(req.query.name), req.body, fetchImpl);
+    res.json({ ok: true });
+  }));
+
   // ---------------------------------------------------------------- notifiche
   // Promemoria con testo, giorno del mese e orario: li salva il server, l'app Android li legge e li programma sul telefono.
   const listNotifications = () => ({ notifications: db.notifications });
@@ -178,7 +210,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     if (!conn) return bad(res, 'Collegamento sconosciuto.', 404);
     try { await createClient(bankApp(), fetchImpl).deleteSession(conn.id); } catch { /* la sessione può essere già scaduta */ }
     db.banking.connections = db.banking.connections.filter((c) => c !== conn);
-    for (const [id, t] of Object.entries(db.transactions)) if (t.bank === conn.bank) delete db.transactions[id];
+    for (const [id, t] of Object.entries(db.transactions)) if (t.bank === conn.bank && !t.imported) delete db.transactions[id]; // quelli importati da un estratto restano
     await store.save();
     res.json(bankInfo(req));
   }));
