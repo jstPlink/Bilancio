@@ -11,7 +11,7 @@ import { checkKey, createClient, psuHeaders } from './eb.js';
 import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
 import { DOCUMENTS, cleanFileName, downloadFile, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
-import { parseStatement } from './estratto.js';
+import { PARSER_VERSION, parseStatement } from './estratto.js';
 import { importTransactions, importedVisible } from './import.js';
 import { normalizeNotification } from './notifications.js';
 import { openStore } from './store.js';
@@ -143,7 +143,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       const { transactions } = parseStatement(await pdfToText(await downloadFile(statementUrl(), name, fetchImpl)));
       const r = importTransactions(db, transactions);
       rec[name] = { sig, at, found: transactions.length, added: r.added, updated: r.updated };
-    } catch (e) { rec[name] = { sig, at, error: e.message }; }
+    } catch (e) { rec[name] = { sig, at, error: e.message, parser: PARSER_VERSION }; }
     return rec[name];
   }
   let statementsBusy = null;
@@ -160,7 +160,8 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
         const m = STATEMENT.exec(f.name);
         if (!m) continue;
         const sig = `${f.size}|${f.modified}`;
-        if (rec[f.name]?.sig === sig) continue; // già letto (o già fallito): si riprova solo se il file cambia
+        const was = rec[f.name];
+        if (was?.sig === sig && !(was.error && was.parser !== PARSER_VERSION)) continue; // già letto (o già fallito): si riprova se il file cambia o se il lettore è migliorato
         if (`${m[1]}-${m[2]}` >= firstMonth) { rec[f.name] = { sig, skipped: true }; continue; } // da qui in poi i movimenti li legge la banca
         read.push({ name: f.name, ...(await readStatement(f.name, sig)) });
       }

@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.21.1
+- **Estratti conto**: il lettore capisce anche il testo di altre versioni di `pdftotext` (quella dell'immagine Docker scrive gli importi con «€», per esempio `10,00€ 24,46€`, e può mettere «ID transazione:» e simili sulla stessa riga): prima, sul server, tutti gli estratti davano «manca il saldo». Gli estratti rimasti in errore si rileggono da soli dopo l'aggiornamento (versione del lettore).
+
 ## 0.21.0
 - **Estratti conto letti in automatico**: ogni «Estratto conto AAAA.MM.pdf» nuovo o cambiato nella cartella dei documenti, dei mesi prima di agosto 2026, si legge da solo (aprendo l'elenco e a ogni aggiornamento automatico delle banche): il server lo scarica da Seafile, lo legge con `pdftotext` e controlla che i conti tornino con il riepilogo. Da agosto in poi non si scarica né si legge nulla (li legge la banca). L'esito di ogni file si vede sotto il nome (movimenti letti, errore con «Riprova»).
 - **Per ora si mostrano solo maggio e giugno 2026**: i movimenti letti si salvano tutti, ma gli altri mesi restano nascosti in ogni schermata (`settings.importedVisible`).

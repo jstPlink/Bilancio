@@ -2,6 +2,9 @@
 // L'estratto ha tre sezioni (conto, pocket, deposito); ogni riga ha importo e saldo e il segno si ricava dalla variazione del saldo. Il risultato
 // si controlla con il riepilogo del PDF: saldo iniziale e finale di ogni sezione devono coincidere, altrimenti si ferma con un errore.
 // Il PDF non dice da quale pocket parte una spesa: i movimenti dei pocket stanno tutti in un unico «conto» dei pocket (il tag si sceglie a mano).
+/** Si alza quando il lettore migliora: gli estratti che prima non si erano letti vengono ritentati. */
+export const PARSER_VERSION = 2;
+
 const MONTHS = { gen: 1, feb: 2, mar: 3, apr: 4, mag: 5, giu: 6, lug: 7, ago: 8, set: 9, ott: 10, nov: 11, dic: 12 };
 const SECTIONS = [
   { key: 'conto', heading: /^Transazioni del conto\b/, summary: /^Conto \(conto corrente\)/, label: 'Conto (estratto)' },
@@ -16,7 +19,12 @@ const cents = (n) => n / 100;
 
 /** Dal testo `pdftotext -raw` dell'estratto ai movimenti. Lancia un errore se i conti non tornano con il riepilogo. */
 export function parseStatement(text, { bank = 'revolut' } = {}) {
-  const lines = text.replace(/\r/g, '').split('\n').map((l) => l.trim()).filter(Boolean);
+  // Versioni diverse di pdftotext danno testi un po' diversi: importi con il simbolo € («10,00€», «€10,00»), spazi non separabili e, nella
+  // stessa riga, anche «ID transazione:», «Riferimento:», «Da:», «A:», «Carta:». Si porta tutto alla stessa forma: una voce per riga, senza €.
+  const normalized = text.replace(/\r/g, '').replace(/[  ]/g, ' ')
+    .replace(/€/g, '')
+    .replace(/[ \t]+(?=(?:ID transazione|Riferimento|Carta|Da|A):\s)/g, '\n');
+  const lines = normalized.split('\n').map((l) => l.trim()).filter(Boolean);
   // riepilogo: saldo iniziale, uscite, entrate, saldo finale di ogni sezione
   const summary = {};
   for (const l of lines) {

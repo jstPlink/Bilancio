@@ -562,4 +562,8 @@ test("estratti conto: se un estratto non si legge, l'errore resta registrato e n
   await fetch(`${base}/api/documents/statements/files`);
   assert.equal(reads, 2); // giugno e maggio una volta sola
   assert.equal(Object.keys(made.db.transactions).length, 0);
+  // con un lettore migliorato (versione diversa) gli estratti falliti si ritentano
+  for (const r of Object.values(made.db.settings.statementsRead)) if (r.error) r.parser = 0;
+  await fetch(`${base}/api/documents/statements/files`);
+  assert.equal(reads, 4);
 });
