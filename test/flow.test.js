@@ -8,6 +8,7 @@ import { createApp } from '../src/server.js';
 import { applyCutoff } from '../src/banks.js';
 import { TEXT } from './fixture-estratto.js';
 import { importedVisible } from '../src/import.js';
+import { contoWords, cartaWords } from './fixture-unicredit.js';
 import { createFakeBank } from '../scripts/banca-finta.mjs';
 
 const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } });
@@ -390,6 +391,15 @@ async function fakeSeafile() {
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://x");
     const json = (o, status = 200) => { res.writeHead(status, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+    if (url.pathname === "/api/v2.1/share-links/UNI1/dirents/") {
+      const at = "2026-09-30T10:00:00+00:00";
+      if (url.searchParams.get("path") === "/2024/") return json({ dirent_list: [
+        { is_dir: false, file_name: "Estratto conto 2024.10 - 2024.12.pdf", file_path: "/2024/Estratto conto 2024.10 - 2024.12.pdf", size: 900, last_modified: at },
+        { is_dir: false, file_name: "Estratto Conto Carte Flexia 2024.12.pdf", file_path: "/2024/Estratto Conto Carte Flexia 2024.12.pdf", size: 800, last_modified: at },
+      ] });
+      return json({ dirent_list: [{ is_dir: true, folder_name: "2024", folder_path: "/2024/", size: 0, last_modified: at }] });
+    }
+    if (url.pathname === "/d/UNI1/files/" && url.searchParams.get("dl") === "1") { downloads.push(url.searchParams.get("p")); res.writeHead(200, { "Content-Type": "application/pdf" }); return res.end(Buffer.from(url.searchParams.get("p").includes("Flexia") ? "CARTA" : "CONTO")); }
     if (url.pathname === "/api/v2.1/share-links/PAY1/dirents/") {
       const at = "2026-09-30T10:00:00+00:00";
       if (url.searchParams.get("path") === "/2025/") return json({ dirent_list: [{ is_dir: false, file_name: "Busta Paga IGF 2025.12.pdf", file_path: "/2025/Busta Paga IGF 2025.12.pdf", size: 900, last_modified: at }, { is_dir: false, file_name: "Tredic.ma IGF 2025.pdf", file_path: "/2025/Tredic.ma IGF 2025.pdf", size: 800, last_modified: at }] });
@@ -456,7 +466,7 @@ test("documenti: tre cartelle online (elenco dei file, apertura su Seafile, cari
   assert.deepEqual(list.json.files.map((f) => f.folder), ["", "", "", "", "2025"]);
   assert.equal(list.json.files[4].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/2025/Estratto conto 2025.12.pdf")}`);
   assert.equal(list.json.files[2].url, `${sf.base}/d/ABC123/files/?p=${encodeURIComponent("/Estratto conto 2026.06.pdf")}`);
-  assert.deepEqual(list.json.files.map((f) => f.statement?.state), [undefined, "banca", "banca", "banca", undefined]); // qui la data di inizio è il 2000: tutti li legge la banca; l'estratto della carta non è mensile
+  assert.deepEqual(list.json.files.map((f) => f.statement?.state), ["banca", "banca", "banca", "banca", "banca"]); // qui la data di inizio è il 2000: tutti li legge la banca; l'estratto della carta non è mensile
   assert.equal((await api("GET", "/api/documents/payslips/files")).status, 400); // la cartella non risponde
   assert.equal((await api("GET", "/api/documents/boh/files")).status, 400);
 
@@ -525,7 +535,8 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si
   let reads = 0;
   // il testo di ogni estratto: lo stesso fatto in giugno per il file di giugno e spostato a maggio per quello di maggio
   const pdfToText = async (buffer) => { reads++; return /2026\.05/.test(buffer.toString()) ? TEXT.replaceAll(" giu 2026", " mag 2026").replace(/giugno 2026/g, "maggio 2026").replaceAll("ID transazione: ", "ID transazione: maggio-") : TEXT; };
-  const made = createApp({ dir, password: "", pdfToText }); // data di inizio di base: 1 agosto 2026
+  const wordsOf = async () => { throw new Error("PDF non leggibile"); }; // la carta Flexia qui non si legge (si prova a parte)
+  const made = createApp({ dir, password: "", pdfToText, wordsOf }); // data di inizio di base: 1 agosto 2026
   made.db.settings.documents = { statements: { url: `${sf.base}/d/ABC123/` } };
   assert.equal(importedVisible(made.db), null); // di base si mostrano tutti i mesi
   made.db.settings.importedVisible = ["2026-06"]; // qui si prova il nascondere: solo giugno
@@ -536,9 +547,9 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si
 
   const list = await get("/api/documents/statements/files");
   // giugno e maggio si leggono; settembre no (lo legge la banca) e non si scarica nemmeno; l'estratto della carta non è mensile
-  assert.deepEqual(list.files.map((f) => [f.name, f.statement?.state]), [["Estratto Conto Carte Flexia 2026.06.pdf", undefined], ["Estratto conto 2026.09.pdf", "banca"], ["Estratto conto 2026.06.pdf", "letto"], ["Estratto conto 2026.05.pdf", "letto"], ["Estratto conto 2025.12.pdf", undefined]]); // il file della sottocartella si mostra ma non si legge
-  assert.deepEqual(sf.downloads.sort(), ["/Estratto conto 2026.05.pdf", "/Estratto conto 2026.06.pdf"]);
-  assert.deepEqual(list.read.map((r) => r.name).sort(), ["Estratto conto 2026.05.pdf", "Estratto conto 2026.06.pdf"]);
+  assert.deepEqual(list.files.map((f) => [f.name, f.statement?.state]), [["Estratto Conto Carte Flexia 2026.06.pdf", "errore"], ["Estratto conto 2026.09.pdf", "banca"], ["Estratto conto 2026.06.pdf", "letto"], ["Estratto conto 2026.05.pdf", "letto"], ["Estratto conto 2025.12.pdf", "letto"]]); // anche la sottocartella e la carta (qui non leggibile)
+  assert.deepEqual(sf.downloads.sort(), ["/2025/Estratto conto 2025.12.pdf", "/Estratto Conto Carte Flexia 2026.06.pdf", "/Estratto conto 2026.05.pdf", "/Estratto conto 2026.06.pdf"]);
+  assert.deepEqual(list.read.map((r) => r.name).sort(), ["2025/Estratto conto 2025.12.pdf", "Estratto Conto Carte Flexia 2026.06.pdf", "Estratto conto 2026.05.pdf", "Estratto conto 2026.06.pdf"]);
   assert.equal(Object.keys(made.db.transactions).length, 10); // 5 di giugno + 5 di maggio, tutti salvati
   assert.equal(list.files[2].statement.visible, true); // giugno si mostra
   assert.equal(list.files[3].statement.visible, false); // maggio è letto ma nascosto per ora
@@ -546,7 +557,7 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si
   // un'altra apertura dell'elenco non rilegge nulla
   const again = await get("/api/documents/statements/files");
   assert.equal(again.read.length, 0);
-  assert.equal(reads, 2);
+  assert.equal(reads, 3); // giugno, maggio e quello della sottocartella, una volta sola
 
   // si mostrano solo i movimenti di giugno, in ogni schermata
   const all = await get("/api/transactions");
@@ -565,7 +576,9 @@ test("estratti conto: i nuovi si leggono da soli fino a luglio, da agosto no; si
   const retry = await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Estratto conto 2026.06.pdf")}`, { method: "POST" });
   assert.equal(retry.status, 200);
   assert.equal((await retry.json()).updated, 5);
-  assert.equal((await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Estratto Conto Carte Flexia 2026.06.pdf")}`, { method: "POST" })).status, 400);
+  assert.equal((await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Estratto Conto Carte Flexia 2026.06.pdf")}`, { method: "POST" })).status, 400); // la carta qui non si legge
+  assert.equal((await fetch(`${base}/api/documents/statements/import?path=${encodeURIComponent("2025/Estratto conto 2025.12.pdf")}`, { method: "POST" })).status, 200); // il percorso con la sottocartella
+  assert.equal((await fetch(`${base}/api/documents/statements/import?name=${encodeURIComponent("Note.txt")}`, { method: "POST" })).status, 400); // non è un estratto
 });
 
 test("estratti conto: se un estratto non si legge, l'errore resta registrato e non si riprova finché il file non cambia", async (t) => {
@@ -573,7 +586,7 @@ test("estratti conto: se un estratto non si legge, l'errore resta registrato e n
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
   t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   let reads = 0;
-  const made = createApp({ dir, password: "", pdfToText: async () => { reads++; throw new Error("PDF illeggibile"); } });
+  const made = createApp({ dir, password: "", pdfToText: async () => { reads++; throw new Error("PDF illeggibile"); }, wordsOf: async () => { throw new Error("PDF illeggibile"); } });
   made.db.settings.documents = { statements: { url: `${sf.base}/d/ABC123/` } };
   const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
   t.after(() => server.close());
@@ -581,12 +594,12 @@ test("estratti conto: se un estratto non si legge, l'errore resta registrato e n
   const first = await (await fetch(`${base}/api/documents/statements/files`)).json();
   assert.deepEqual(first.files[2].statement, { state: "errore", error: "PDF illeggibile" });
   await fetch(`${base}/api/documents/statements/files`);
-  assert.equal(reads, 2); // giugno e maggio una volta sola
+  assert.equal(reads, 3); // giugno, maggio e quello della sottocartella, una volta sola
   assert.equal(Object.keys(made.db.transactions).length, 0);
   // con un lettore migliorato (versione diversa) gli estratti falliti si ritentano
   for (const r of Object.values(made.db.settings.statementsRead)) if (r.error) r.parser = 0;
   await fetch(`${base}/api/documents/statements/files`);
-  assert.equal(reads, 4);
+  assert.equal(reads, 6);
 });
 
 test("buste paga: le nuove si leggono da sole (anche nelle sottocartelle) e diventano entrate; da agosto no", async (t) => {
@@ -659,4 +672,32 @@ test("movimenti: a pagine (limit e offset), per mostrarne 200 alla volta quando 
   assert.deepEqual(await ids("?limit=3&offset=9"), ["", 7, 9]);
   assert.deepEqual(await ids("?limit=5000&offset=-4"), ["t7,t6,t5,t4,t3,t2,t1", 7, 0]); // limiti sensati
   assert.equal((await api("GET", "/api/transactions?limit=2&sort=amount&dir=asc")).json.transactions.map((x) => x.id).join(), "t7,t6"); // l'ordine vale anche a pagine
+});
+
+test("estratti UniCredit (conto trimestrale e carta Flexia) nelle sottocartelle: si leggono da soli e l'addebito della carta non si conta due volte", async (t) => {
+  const sf = await fakeSeafile();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
+  t.after(async () => { await sf.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  const wordsOf = async (buffer) => (buffer.toString() === "CARTA" ? cartaWords() : contoWords());
+  const made = createApp({ dir, password: "", wordsOf });
+  made.db.settings.documents = { statements: { url: `${sf.base}/d/UNI1/` } };
+  const server = await new Promise((r) => { const s = made.app.listen(0, "127.0.0.1", () => r(s)); });
+  t.after(() => server.close());
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const get = async (p) => (await fetch(`${base}${p}`)).json();
+
+  const list = await get("/api/documents/statements/files");
+  assert.deepEqual(list.files.map((f) => [f.path, f.statement?.state, f.statement?.count]), [["2024/Estratto Conto Carte Flexia 2024.12.pdf", "letto", 1], ["2024/Estratto conto 2024.10 - 2024.12.pdf", "letto", 3]]);
+  assert.equal(Object.keys(made.db.transactions).length, 4); // 3 del conto + 1 della carta
+
+  const all = await get("/api/transactions");
+  const byDesc = Object.fromEntries(all.transactions.map((x) => [x.description, x]));
+  assert.equal(byDesc["BONIFICO A VOSTRO FAVORE"].tag, "entrata");
+  assert.equal(byDesc["PAGAMENTO PER UTILIZZO CARTE DI CREDITO"].tag, "giroconto"); // di dicembre 2024 c'è l'estratto della carta
+  assert.equal(byDesc["Pagamento E-Commerce BAR ROMA"].accountName, "Carta Flexia (estratto)");
+  assert.equal(byDesc["Pagamento E-Commerce BAR ROMA"].tag, "non_definito");
+  assert.deepEqual(all.totals, { entrate: 1500, uscite: 40 }); // 20 con la carta di debito + 20 con la carta di credito; l'addebito di 50 non conta
+  // di nuovo: nessun duplicato
+  await get("/api/documents/statements/files");
+  assert.equal(Object.keys(made.db.transactions).length, 4);
 });

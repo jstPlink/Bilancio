@@ -15,7 +15,7 @@ Tre parti, con i compiti ben separati:
 ```
 src/       server.js (API) · start.js (avvio del server) · local.js e proxy.js (localhost solo frontend)
            eb.js (client Enable Banking) · banks.js (collegamento, letture, limiti) · tags.js (tag e giroconti)
-           notifications.js (notifiche) · documents.js (cartelle dei documenti) · import.js e estratto.js (importazione da estratto conto) · stats.js (storico, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
+           notifications.js (notifiche) · documents.js (cartelle dei documenti) · import.js, estratto.js e unicredit.js (importazione da estratto conto) · stats.js (storico, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
 public/    index.html, style.css, app.js, icon.svg
 android/   MainActivity, MyBankWidget, WidgetData, Server, Notifier, NotifyReceiver; layout e risorse del widget; manifest
 scripts/   banca-finta.mjs, demo.mjs, build-apk.mjs, estratto-revolut.mjs
@@ -60,13 +60,23 @@ Promemoria per il telefono: per ognuno scegli il **testo** (fino a 200 caratteri
 
 ### Importazione automatica dagli estratti conto
 
-La banca rende disponibili solo gli ultimi mesi: per quelli più vecchi MyBank legge da sola gli **estratti conto Revolut** (PDF) della cartella «Estratti conto». Ogni «Estratto conto AAAA.MM.pdf» **nuovo o cambiato** viene letto quando si apre l'elenco dei documenti e a ogni aggiornamento automatico delle banche: il **server** lo scarica da Seafile, lo legge con `pdftotext` (poppler, già nell'immagine Docker), ricava i movimenti e **controlla che i conti tornino** con il riepilogo del PDF (saldo iniziale e finale di conto, pocket e deposito); se non tornano registra l'errore (sotto il file, con «Riprova») e non ritenta finché il file non cambia o il lettore non migliora (versioni diverse di `pdftotext` scrivono gli importi con «€» o mettono più voci sulla stessa riga: il lettore le tratta allo stesso modo). Regole:
-- si leggono gli estratti dei mesi **prima della data di inizio** (oggi: fino a luglio); da **agosto** in poi non si scarica né si legge nulla, perché li legge la banca;
-- i movimenti letti si **salvano tutti**, ma si **mostrano tutti** (in Storico, Movimenti, Budget, widget); se serve nasconderne dei mesi si imposta `settings.importedVisible` (elenco dei mesi «AAAA-MM» da mostrare). Sotto ogni estratto l'app dice quanti movimenti ha letto;
-- i movimenti importati **restano anche prima della data di inizio** e le letture o lo scollegamento della banca non li toccano; leggere due volte lo stesso estratto non duplica nulla;
-- l'estratto non dice da quale pocket parte una spesa: i movimenti sono sul «Conto», sul «Pocket» (tutti insieme) o sul «Deposito» e le spese restano **Non definito** da smistare a mano; i giri tra conto, pocket e deposito si riconoscono come giroconti (anche la dicitura «Prelievo da Pocket»).
+La banca rende disponibili solo gli ultimi mesi: per quelli più vecchi MyBank legge da sola gli **estratti conto in PDF** della cartella «Estratti conto» **e delle sue sottocartelle** (per esempio una per anno). Tre tipi, riconosciuti dal nome del file:
 
-Da riga di comando (con `pdftotext` nel PATH): `node scripts/estratto-revolut.mjs "Estratto conto 2026.06.pdf" giugno.json` scrive il JSON dei movimenti (`POST /api/import`).
+| File | Cosa è | Come si legge |
+|---|---|---|
+| `Estratto conto AAAA.MM.pdf` | conto **Revolut**, mensile (conto, pocket, deposito) | testo del PDF (`pdftotext -raw`) |
+| `Estratto conto AAAA.MM - AAAA.MM.pdf` | conto corrente **UniCredit**, trimestrale | coordinate delle parole (`pdftotext -bbox`): la colonna dice se un importo è un'uscita o un'entrata |
+| `Estratto Conto Carte Flexia AAAA.MM.pdf` | carta di credito **UniCredit Flexia**, mensile | coordinate delle parole |
+
+Ogni estratto **nuovo o cambiato** viene letto quando si apre l'elenco dei documenti e a ogni aggiornamento automatico delle banche: il **server** lo scarica da Seafile e ne ricava i movimenti con `pdftotext` (poppler, già nell'immagine Docker). **Controlla sempre i conti con i totali del PDF** (Revolut: saldo iniziale e finale di conto, pocket e deposito; conto UniCredit: uscite, entrate e saldo finale del riepilogo; carta: totale del mese); se non tornano registra l'errore (sotto il file, con «Riprova») e non ritenta finché il file non cambia o il lettore non migliora. Regole:
+- si leggono gli estratti dei mesi **prima della data di inizio** (oggi: fino a luglio); da **agosto** in poi non si scarica né si legge nulla, perché li legge la banca;
+- i movimenti letti si **salvano tutti** e si **mostrano tutti** (in Storico, Movimenti, Budget, widget); se serve nasconderne dei mesi si imposta `settings.importedVisible` (elenco dei mesi «AAAA-MM» da mostrare). Sotto ogni estratto l'app dice quanti movimenti ha letto;
+- i movimenti importati **restano anche prima della data di inizio** e le letture o lo scollegamento della banca non li toccano; leggere due volte lo stesso estratto non duplica nulla;
+- l'estratto Revolut non dice da quale pocket parte una spesa: i movimenti sono sul «Conto», sul «Pocket» (tutti insieme) o sul «Deposito» e le spese restano **Non definito** da smistare a mano; i giri tra conto, pocket e deposito si riconoscono come giroconti (anche la dicitura «Prelievo da Pocket»);
+- **carta di credito**: l'addebito mensile sul conto UniCredit («PAGAMENTO PER UTILIZZO CARTE DI CREDITO … ESTRATTO 12/2024») è un **giroconto** quando di quel mese c'è l'estratto della carta (gli acquisti sono già movimenti), altrimenti resta una spesa come le altre;
+- versioni diverse di `pdftotext` scrivono gli importi con «€» o mettono più voci sulla stessa riga: il lettore Revolut le tratta allo stesso modo.
+
+Da riga di comando (con `pdftotext` nel PATH): `node scripts/estratto-revolut.mjs "Estratto conto 2026.06.pdf" giugno.json` scrive il JSON dei movimenti Revolut (`POST /api/import`).
 
 ### Buste paga tra i movimenti (lettura automatica)
 

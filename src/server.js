@@ -12,6 +12,7 @@ import { AUTO_HOURS, TZ, nextRun } from './schedule.js';
 import { monthBudget, listTransactions, spendStats, widgetData, yearSummary } from './stats.js';
 import { DOCUMENTS, cleanFileName, downloadFile, listDocuments, listFolder, normalizeDocuments, uploadFile } from './documents.js';
 import { PARSER_VERSION, parseStatement } from './estratto.js';
+import { UNICREDIT_PARSER, parseFlexia, parseUnicreditAccount, pdfWords } from './unicredit.js';
 import { PAYSLIP_PARSER, payslipInfo, readPayslipNet } from './busta.js';
 import { importTransactions, importedVisible } from './import.js';
 import { normalizeNotification } from './notifications.js';
@@ -33,7 +34,7 @@ async function pdfText(buffer) {
 export const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
 /** Crea l'app: `dir` è la cartella dei dati, `password` la password di accesso (vuota = accesso libero, solo in locale). */
-export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '', pdfToText = pdfText, payslipNet = readPayslipNet } = {}) {
+export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetch, cutoff = '', pdfToText = pdfText, wordsOf = pdfWords, payslipNet = readPayslipNet } = {}) {
   const store = openStore(dir);
   const { db } = store;
   if (cutoff) db.settings.cutoff = cutoff; // di norma i movimenti partono dal 1 agosto 2026 (vedi banks.js)
@@ -140,19 +141,32 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   }));
 
   // ---------------------------------------------------------------- estratti conto: lettura automatica
-  // Ogni estratto mensile («Estratto conto AAAA.MM.pdf») nuovo o cambiato, dei mesi PRIMA della data di inizio, si scarica, si legge e i suoi
-  // movimenti si salvano. Quelli da quella data in poi non si leggono: li legge la banca. L'esito di ogni file sta in settings.statementsRead.
-  const STATEMENT = /^Estratto conto (\d{4})\.(\d{2})\.pdf$/i;
+  // Ogni estratto nuovo o cambiato della cartella (e delle sue sottocartelle), dei mesi PRIMA della data di inizio, si scarica, si legge e i suoi
+  // movimenti si salvano. Quelli da quella data in poi non si leggono: li legge la banca. Tre tipi di estratto, riconosciuti dal nome:
+  //   «Estratto conto AAAA.MM.pdf»                    → conto Revolut (mensile)        «Estratto conto AAAA.MM - AAAA.MM.pdf» → conto UniCredit (trimestrale)
+  //   «Estratto Conto Carte Flexia AAAA.MM.pdf»       → carta di credito UniCredit (mensile)
+  // L'esito di ogni file sta in settings.statementsRead (chiave: il percorso del file).
+  const STATEMENT_KINDS = [
+    { kind: 'revolut', re: /^Estratto conto (\d{4})\.(\d{2})\.pdf$/i },
+    { kind: 'conto', re: /^Estratto conto (\d{4})\.(\d{2}) - \d{4}\.\d{2}\.pdf$/i },
+    { kind: 'carta', re: /^Estratto Conto Carte Flexia (\d{4})\.(\d{2})\.pdf$/i },
+  ];
+  /** Il tipo di estratto dal nome del file e il primo mese che copre, o null. */
+  const statementKind = (name) => { for (const k of STATEMENT_KINDS) { const m = k.re.exec(name); if (m) return { kind: k.kind, month: `${m[1]}-${m[2]}` }; } return null; };
+  const STATEMENT_PARSER = `${PARSER_VERSION}.${UNICREDIT_PARSER}`; // cambia quando uno dei lettori migliora: gli estratti falliti si ritentano
   const statementUrl = () => db.settings.documents?.statements?.url ?? '';
-  async function readStatement(name, sig) {
+  async function readStatement(filePath, sig) {
     const rec = (db.settings.statementsRead ??= {});
     const at = new Date().toISOString();
     try {
-      const { transactions } = parseStatement(await pdfToText(await downloadFile(statementUrl(), name, fetchImpl)));
+      const { kind } = statementKind(filePath.split('/').at(-1)) ?? {};
+      if (!kind) throw new Error('Tipo di estratto sconosciuto.');
+      const pdf = await downloadFile(statementUrl(), filePath, fetchImpl);
+      const { transactions } = kind === 'revolut' ? parseStatement(await pdfToText(pdf)) : kind === 'conto' ? parseUnicreditAccount(await wordsOf(pdf)) : parseFlexia(await wordsOf(pdf));
       const r = importTransactions(db, transactions);
-      rec[name] = { sig, at, found: transactions.length, added: r.added, updated: r.updated };
-    } catch (e) { rec[name] = { sig, at, error: e.message, parser: PARSER_VERSION }; }
-    return rec[name];
+      rec[filePath] = { sig, at, found: transactions.length, added: r.added, updated: r.updated };
+    } catch (e) { rec[filePath] = { sig, at, error: e.message, parser: STATEMENT_PARSER }; }
+    return rec[filePath];
   }
   let statementsBusy = null;
   /** Legge gli estratti nuovi della cartella. Restituisce l'elenco di quelli letti adesso. */
@@ -165,15 +179,15 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       const firstMonth = cutoffOf(db).slice(0, 7);
       const read = [];
       for (const f of list) {
-        const m = f.folder ? null : STATEMENT.exec(f.name); // solo gli estratti della radice (le sottocartelle si mostrano soltanto)
-        if (!m) continue;
+        const k = statementKind(f.name);
+        if (!k) continue;
         const sig = `${f.size}|${f.modified}`;
-        const was = rec[f.name];
-        if (was?.sig === sig && !(was.error && was.parser !== PARSER_VERSION)) continue; // già letto (o già fallito): si riprova se il file cambia o se il lettore è migliorato
-        if (`${m[1]}-${m[2]}` >= firstMonth) { rec[f.name] = { sig, skipped: true }; continue; } // da qui in poi i movimenti li legge la banca
-        read.push({ name: f.name, ...(await readStatement(f.name, sig)) });
+        const was = rec[f.path];
+        if (was?.sig === sig && !(was.error && was.parser !== STATEMENT_PARSER)) continue; // già letto (o già fallito): si riprova se il file cambia o se il lettore è migliorato
+        if (k.month >= firstMonth) { rec[f.path] = { sig, skipped: true }; continue; } // da qui in poi i movimenti li legge la banca
+        read.push({ name: f.path, ...(await readStatement(f.path, sig)) });
       }
-      if (read.length || list.some((f) => rec[f.name]?.skipped)) await store.save();
+      if (read.length || list.some((f) => rec[f.path]?.skipped)) await store.save();
       return read;
     })().finally(() => { statementsBusy = null; });
     return statementsBusy;
@@ -238,10 +252,10 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       const visible = importedVisible(db);
       const rec = db.settings.statementsRead ?? {};
       for (const f of folder.files) {
-        const m = f.folder ? null : STATEMENT.exec(f.name);
-        if (!m) continue;
-        const r = rec[f.name];
-        f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible === null || visible.includes(`${m[1]}-${m[2]}`) } : { state: 'attesa' };
+        const k = statementKind(f.name);
+        if (!k) continue;
+        const r = rec[f.path];
+        f.statement = r?.error ? { state: 'errore', error: r.error } : r?.skipped ? { state: 'banca' } : r ? { state: 'letto', count: r.found ?? 0, visible: visible === null || visible.includes(k.month) } : { state: 'attesa' };
       }
       folder.read = read.map((r) => ({ name: r.name, count: r.found ?? 0, error: r.error ?? '' }));
     }
@@ -268,12 +282,13 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   // Rilegge a mano un estratto conto (per riprovare dopo un errore).
   app.post('/api/documents/statements/import', wrap(async (req, res) => {
     if (!statementUrl()) return bad(res, 'Prima inserisci il link della cartella degli estratti conto.');
-    const name = cleanFileName(req.query.name);
-    if (!STATEMENT.test(name)) return bad(res, 'Si leggono solo gli estratti conto mensili «Estratto conto AAAA.MM.pdf».');
-    const r = await readStatement(name, db.settings.statementsRead?.[name]?.sig ?? '');
+    const parts = String(req.query.path ?? req.query.name ?? '').split('/').filter(Boolean).slice(0, 4).map(cleanFileName); // percorso nella cartella condivisa (con le sottocartelle)
+    const filePath = parts.join('/');
+    if (!parts.length || !statementKind(parts.at(-1))) return bad(res, 'Si leggono solo gli estratti conto riconosciuti (conto Revolut, conto UniCredit, carta Flexia).');
+    const r = await readStatement(filePath, db.settings.statementsRead?.[filePath]?.sig ?? '');
     await store.save();
     if (r.error) return bad(res, r.error);
-    res.json({ name, found: r.found, added: r.added, updated: r.updated });
+    res.json({ name: filePath, found: r.found, added: r.added, updated: r.updated });
   }));
 
   // ---------------------------------------------------------------- notifiche

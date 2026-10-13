@@ -92,3 +92,14 @@ test('budget: spesa media degli ultimi 3 mesi completi, solo dai mesi con dati',
   // ad agosto 2026 non c'è ancora nessun mese completo con dati
   assert.equal(monthBudget(db, new Date('2026-08-20T10:00:00Z')).cats.spesa.avg3, null);
 });
+
+test("addebito mensile della carta di credito: giroconto solo se di quel mese c'è l'estratto della carta", () => {
+  const settle = { id: 's', account: 'estratto:unicredit:conto', bank: 'unicredit', date: '2025-01-06', amount: -50, description: 'PAGAMENTO PER UTILIZZO CARTE DI CREDITO', remittance: 'ESTRATTO 12/2024 CARTA 5XXXXXXXXXXX1502' };
+  const other = { id: 'o', account: 'estratto:unicredit:conto', bank: 'unicredit', date: '2025-02-06', amount: -30, description: 'PAGAMENTO PER UTILIZZO CARTE DI CREDITO', remittance: 'ESTRATTO 01/2025 CARTA 5XXXXXXXXXXX1502' };
+  const card = { id: 'c', account: 'estratto:unicredit:carta', bank: 'unicredit', date: '2024-12-05', amount: -50, description: 'Pagamento E-Commerce' };
+  assert.equal(classify(dbWith([settle, other])).get('s'), 'non_definito'); // senza l'estratto della carta è una spesa come le altre
+  const tags = classify(dbWith([settle, other, card]));
+  assert.equal(tags.get('s'), 'giroconto'); // c'è l'estratto di dicembre 2024: gli acquisti sono già movimenti
+  assert.equal(tags.get('o'), 'non_definito'); // di gennaio 2025 non c'è
+  assert.equal(tags.get('c'), 'non_definito'); // l'acquisto con la carta è una spesa
+});

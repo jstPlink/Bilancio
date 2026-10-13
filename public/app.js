@@ -612,7 +612,7 @@ $('#docGroups').addEventListener('click', async (e) => {
       if (!f) return;
       b.disabled = true;
       try {
-        const r = await api('POST', `/api/documents/statements/import?name=${encodeURIComponent(f.name)}`);
+        const r = await api('POST', `/api/documents/statements/import?path=${encodeURIComponent(f.path ?? f.name)}`);
         toast(`${f.name}: ${r.found} movimenti letti.`);
       } finally { await loadFolder('statements'); }
     } else if (b.dataset.folder) openExternal(b.dataset.folder);

@@ -2,6 +2,13 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.26.0
+- **Estratti conto in tutte le sottocartelle**: gli estratti si leggono anche dalle sottocartelle della cartella condivisa (prima solo dalla radice: per questo molti non risultavano letti).
+- **Conto corrente UniCredit** (estratti trimestrali «Estratto conto AAAA.MM - AAAA.MM.pdf»): nuovo lettore che usa le coordinate delle parole (`pdftotext -bbox`): la colonna dice se un importo è uscita o entrata. Si ferma se uscite, entrate o saldo finale non tornano con il riepilogo del PDF. Provato su 13 estratti dal 2021 al 2026 (tutti con i totali esatti).
+- **Carta di credito Flexia** (mensile «Estratto Conto Carte Flexia AAAA.MM.pdf»): acquisti letti e controllati con il totale del mese.
+- **Addebito della carta sul conto**: «PAGAMENTO PER UTILIZZO CARTE DI CREDITO … ESTRATTO MM/AAAA» è un giroconto quando di quel mese c'è l'estratto della carta (gli acquisti sono già movimenti), altrimenti resta una spesa.
+- Gli estratti già falliti si rileggono da soli dopo l'aggiornamento (versione dei lettori). La rilettura a mano usa il percorso del file (`POST /api/documents/statements/import?path=`). Serve il server alla 0.26.0.
+
 ## 0.25.0
 - **Movimenti, ordinamento**: restano solo **Data** e **Importo** (tolti Movimento e Categoria), ognuno sopra la sua colonna sotto la riga informativa.
 - **Movimenti, riga informativa**: le cifre (numero dei movimenti, entrate, uscite) sono in bianco.

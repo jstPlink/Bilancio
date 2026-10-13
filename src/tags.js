@@ -45,6 +45,14 @@ export function inferPocketName(txs) {
   return count(POCKET_IN)?.name ?? count(POCKET_MOVE)?.name ?? null;
 }
 
+const CARD_ACCOUNT = 'estratto:unicredit:carta'; // il «conto» degli acquisti con la carta di credito, letti dall'estratto della carta
+const CARD_SETTLEMENT = /PAGAMENTO PER UTILIZZO CARTE DI CREDITO.*?ESTRATTO (\d{2})\/(\d{4})/i;
+/** L'addebito mensile della carta di credito sul conto («… ESTRATTO 12/2024 …») quando di quel mese c'è l'estratto della carta: non conta, ci sono già gli acquisti. */
+const isCardSettled = (t, cardMonths) => {
+  if (!(t.amount < 0)) return false;
+  const m = CARD_SETTLEMENT.exec(`${t.description ?? ''} ${t.remittance ?? ''}`);
+  return Boolean(m) && cardMonths.has(`${m[2]}-${m[1]}`);
+};
 const normIban = (s) => String(s ?? '').replace(/\s+/g, '').toUpperCase();
 
 /** Nome di ogni conto/pocket come lo vede l'utente: nome dato a mano, altrimenti dedotto dai movimenti, altrimenti quello della banca. */
@@ -73,13 +81,15 @@ export function accountNames(db) {
  */
 export function classify(db) {
   const names = accountNames(db);
+  // mesi per cui c'è l'estratto della carta di credito (i suoi acquisti sono già movimenti): l'addebito mensile sul conto è solo il saldo
+  const cardMonths = new Set(Object.values(db.transactions).filter((t) => t.account === CARD_ACCOUNT).map((t) => t.date.slice(0, 7)));
   const ownIbans = new Set(db.banking.connections.flatMap((c) => c.accounts.map((a) => normIban(a.iban))).filter(Boolean));
   const tags = new Map();
   const free = [];
   for (const t of Object.values(db.transactions)) {
     const forced = db.overrides[t.id];
     if (forced && TAGS[forced]) { tags.set(t.id, forced); continue; }
-    if (isPocketTransfer(t) || (t.counterIban && ownIbans.has(normIban(t.counterIban)))) { tags.set(t.id, 'giroconto'); continue; }
+    if (isPocketTransfer(t) || (t.counterIban && ownIbans.has(normIban(t.counterIban))) || isCardSettled(t, cardMonths)) { tags.set(t.id, 'giroconto'); continue; }
     free.push(t);
   }
   // coppie uscita/entrata dello stesso importo tra due conti della stessa banca
