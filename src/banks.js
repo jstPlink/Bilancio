@@ -20,6 +20,7 @@ export function applyCutoff(db) {
   let removed = 0;
   for (const [id, t] of Object.entries(db.transactions)) if (t.date < from && !t.imported) { delete db.transactions[id]; removed++; } // gli importati da estratto conto restano
   for (const id of Object.keys(db.overrides)) if (!db.transactions[id]) delete db.overrides[id];
+  for (const id of Object.keys(db.renames ?? {})) if (!db.transactions[id]) delete db.renames[id];
   return removed;
 }
 export const CONSENT_DAYS = 180;       // durata del consenso richiesto (la banca può ridurla)

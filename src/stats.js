@@ -43,8 +43,8 @@ export function listTransactions(db, { year, month, tag, q, account, sort = 'dat
     if (account && t.account !== account) continue;
     const tg = tags.get(t.id);
     if (tag && tg !== tag) continue;
-    if (needle && !`${t.description} ${t.remittance ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;
-    out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), accountName: names.get(t.account)?.name ?? t.accountLabel ?? '' });
+    if (needle && !`${t.description} ${t.remittance ?? ''} ${db.renames[t.id] ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;
+    out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), customName: db.renames[t.id] ?? '', accountName: names.get(t.account)?.name ?? t.accountLabel ?? '' });
   }
   // ordine: per data (di base, dal più recente) o per importo; a parità, dal più recente
   const col = SORTS[sort] ? sort : 'date';

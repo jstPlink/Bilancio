@@ -714,3 +714,43 @@ test("il tag dei giri tra i propri conti si chiama «Non contabile» (la chiave 
   assert.deepEqual([row.tag, row.manual], ["giroconto", true]);
   assert.deepEqual((await api("GET", "/api/transactions")).json.totals, { entrate: 0, uscite: 0 }); // non conta nei totali
 });
+
+test("rinominare un movimento: vale per quel movimento, si cerca per nome, resta dopo una nuova lettura e si ripristina", async (t) => {
+  const ctx = await setup(t);
+  const { api } = ctx;
+  await api("POST", "/api/login", { password: "segreta" });
+  await api("PUT", "/api/banks/app", { appId: "app-di-prova", privateKey });
+  await link(ctx, "revolut");
+  const list = () => api("GET", "/api/transactions").then((r) => r.json.transactions);
+  const first = (await list()).find((x) => x.amount < 0);
+  assert.equal(first.customName, "");
+
+  const r = await api("PUT", `/api/transactions/${first.id}/name`, { name: "  Spesa   al mercato  " });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.name, "Spesa al mercato"); // spazi ripuliti
+  const after = (await list()).find((x) => x.id === first.id);
+  assert.equal(after.customName, "Spesa al mercato");
+  assert.equal(after.description, first.description); // il dato della banca non cambia
+  assert.equal((await list()).filter((x) => x.customName).length, 1); // solo quel movimento
+
+  // si trova cercando il nuovo nome
+  const found = (await api("GET", "/api/transactions?q=mercato")).json.transactions;
+  assert.ok(found.some((x) => x.id === first.id));
+
+  // una nuova lettura dalla banca non lo cancella
+  assert.equal((await api("POST", "/api/banks/sync", {})).status, 200);
+  assert.equal((await list()).find((x) => x.id === first.id).customName, "Spesa al mercato");
+
+  // troppo lungo: si taglia a 120 caratteri; vuoto: torna il nome della banca
+  const long = await api("PUT", `/api/transactions/${first.id}/name`, { name: "x".repeat(300) });
+  assert.equal(long.json.name.length, 120);
+  assert.equal((await api("PUT", `/api/transactions/${first.id}/name`, { name: "   " })).json.name, "");
+  assert.equal((await list()).find((x) => x.id === first.id).customName, "");
+  assert.equal((await api("PUT", "/api/transactions/inesistente/name", { name: "x" })).status, 404);
+});
+
+test("togliere i movimenti vecchi toglie anche i loro nomi", () => {
+  const db = { settings: { cutoff: "2026-08-01" }, overrides: {}, renames: { a: "Vecchio", b: "Nuovo" }, transactions: { a: { id: "a", date: "2026-07-01" }, b: { id: "b", date: "2026-08-02" } } };
+  applyCutoff(db);
+  assert.deepEqual(Object.keys(db.renames), ["b"]);
+});

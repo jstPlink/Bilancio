@@ -17,6 +17,7 @@ export function openStore(dir) {
   db.banking.lastAuto ??= null;     // esito dell'ultimo aggiornamento automatico
   db.transactions ??= {};           // id → movimento
   db.overrides ??= {};              // id → tag scelto a mano
+  db.renames ??= {};                // id → nome scelto a mano per un movimento (al posto della causale o del nome della banca)
   db.notifications ??= [];          // promemoria per il telefono: { id, text, day (1-31), time ('HH:MM') }
 
   let chain = Promise.resolve();

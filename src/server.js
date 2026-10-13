@@ -118,6 +118,16 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     res.json({ ok: true });
   }));
 
+  // Nome scelto a mano per un movimento (vuoto torna al nome della banca). Vale per quel solo movimento e resta anche alle letture successive.
+  app.put('/api/transactions/:id/name', wrap(async (req, res) => {
+    const t = db.transactions[req.params.id];
+    if (!t) return bad(res, 'Movimento sconosciuto.', 404);
+    const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (name) db.renames[t.id] = name; else delete db.renames[t.id];
+    await store.save();
+    res.json({ ok: true, name });
+  }));
+
   app.get('/api/budgets', (req, res) => res.json({ budgets: db.settings.budgets, month: monthBudget(db) }));
   app.put('/api/budgets', wrap(async (req, res) => {
     for (const k of BUDGET_TAGS) {

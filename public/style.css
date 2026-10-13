@@ -379,3 +379,7 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 #mvSummary b { color: var(--ink); font-weight: inherit; }
 .mvmore { margin: 22px 0 6px; text-align: center; }
 .mvmore button { min-width: 180px; }
+
+/* Movimenti: la matita per rinominare un movimento (accesa se ha un nome scelto a mano) */
+.ren { background: none; border: 0; padding: 0 6px; margin-left: 4px; color: var(--mute); font-size: 14px; line-height: 1; cursor: pointer; vertical-align: baseline; }
+.ren:hover, .ren.on { color: var(--red); }

@@ -24,7 +24,7 @@ const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="
 // I nomi dei tag arrivano dal server; questo nome si impone anche qui, così si vede subito anche con un server non ancora aggiornato.
 const withNames = (tags) => ({ ...tags, giroconto: 'Non contabile' });
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc', items: [], total: 0, shown: Infinity, base: '', paged: false } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc', items: [], total: 0, shown: 100, base: '', paged: false } };
 
 // ------------------------------------------------------------------ rete
 
@@ -253,8 +253,8 @@ $('#yearTable').addEventListener('click', (e) => {
 
 // ------------------------------------------------------------------ movimenti
 
-// Fino a 1000 movimenti si mostrano tutti; se sono di più si mostrano i primi 200 e in fondo c'è «Mostra altro» (altri 200 ogni volta).
-const MORE = 200;
+// Si mostrano sempre 100 movimenti alla volta: se ce ne sono di più, in fondo c'è «Mostra altro» (altri 100 ogni volta).
+const MORE = 100;
 async function loadMoves(keep = false) {
   const { year, month, tag, q } = state.mv;
   const base = `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&sort=${state.mv.sort}&dir=${state.mv.dir}`;
@@ -297,7 +297,7 @@ async function loadMoves(keep = false) {
   state.mv.total = d.total;
   state.mv.base = base;
   state.mv.paged = 'offset' in d; // un server più vecchio non sa dare altre pagine
-  state.mv.shown = d.total <= 1000 ? Infinity : (keep && state.mv.shown !== Infinity ? Math.max(MORE, state.mv.shown) : MORE);
+  state.mv.shown = keep ? Math.max(MORE, state.mv.shown) : MORE;
   await ensureMoves();
   renderMovesList();
 }
@@ -320,22 +320,24 @@ function renderMovesList() {
   $('#mvList').innerHTML = rows.map((t) => {
     const bankName = { revolut: 'Revolut', unicredit: 'UniCredit', busta: 'Busta paga' }[t.bank] ?? t.bank;
     const where = `${bankName} · ${t.accountName}`;
-    const title = t.remittance || t.description; // la causale se c'è, altrimenti il nome
-    const dest = t.party && t.party !== title ? t.party : ''; // il destinatario (o chi paga)
+    const original = t.remittance || t.description; // la causale se c'è, altrimenti il nome
+    const title = t.customName || original; // il nome scelto a mano vince
+    const dest = t.party && t.party !== title && t.party !== original ? t.party : ''; // il destinatario (o chi paga)
+    const was = t.customName && t.customName !== original ? `originale: ${original}` : ''; // se l'hai rinominato, si vede com'era
     const pill = t.pending ? '<span class="pill warn">in sospeso</span>' : '';
     const amt = `<span class="amt ${t.amount > 0 ? 'in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</span>`;
     const select = `<select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select>`;
     return `<div class="mv${t.pending ? ' pending' : ''}">
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
-      <div class="d-main"><div class="d-title">${esc(title)}${pill}</div><div class="d-sub">${esc([dest, where].filter(Boolean).join(' · '))}</div></div>
+      <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div></div>
       <div class="d-amt">${amt}</div>
       <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div></div>
     </div>`;
   }).join('');
-  // «Mostra altro» in fondo, solo se ci sono più di 1000 movimenti e non sono già tutti mostrati
-  const left = state.mv.total - rows.length;
+  // «Mostra altro» in fondo, se ci sono altri movimenti da mostrare (un server vecchio ne dà al massimo 1000 e non sa dare altre pagine)
+  const left = (state.mv.paged ? state.mv.total : state.mv.items.length) - rows.length;
   const more = $('#mvMore');
-  more.hidden = !(state.mv.total > 1000 && left > 0);
+  more.hidden = !(left > 0);
   more.innerHTML = more.hidden ? '' : '<button class="ghost" data-more="1">Mostra altro</button>';
 }
 $('#movimenti').addEventListener('change', async (e) => {
@@ -350,10 +352,24 @@ $('#movimenti').addEventListener('change', async (e) => {
   loadMoves().catch(fail);
 });
 let searchTimer;
-$('#movimenti').addEventListener('click', (e) => {
+$('#movimenti').addEventListener('click', async (e) => {
+  const ren = e.target.closest('[data-rename-tx]');
+  if (ren) { // rinomina un movimento: vale per quel solo movimento
+    const t = state.mv.items.find((x) => x.id === ren.dataset.renameTx);
+    if (!t) return;
+    const name = prompt('Nome del movimento (vuoto = nome della banca):', t.customName || t.remittance || t.description);
+    if (name === null) return;
+    try {
+      const r = await api('PUT', `/api/transactions/${t.id}/name`, { name });
+      t.customName = r.name;
+      renderMovesList();
+      toast(r.name ? 'Movimento rinominato.' : 'Nome della banca ripristinato.');
+    } catch (err) { fail(err); }
+    return;
+  }
   if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); return; }
-  if (e.target.closest('[data-more]')) { // altri 200 movimenti
-    state.mv.shown = (state.mv.shown === Infinity ? 0 : state.mv.shown) + MORE;
+  if (e.target.closest('[data-more]')) { // altri 100 movimenti
+    state.mv.shown += MORE;
     ensureMoves().then(renderMovesList).catch(fail);
     return;
   }

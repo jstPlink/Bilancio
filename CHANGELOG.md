@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.28.0
+- **Rinominare un movimento**: accanto al titolo di ogni movimento c'è una matita (✎); toccandola si sceglie un nome per quel solo movimento. Il dato della banca non cambia, il nome resta anche alle letture successive, sotto compare «originale: …», la ricerca lo trova e un nome vuoto ripristina quello della banca (al massimo 120 caratteri). API: `PUT /api/transactions/:id/name`; `GET /api/transactions` dà `customName`. I nomi dei movimenti tolti per la data di inizio si tolgono con loro. Serve il server alla 0.28.0.
+- **Movimenti, 100 alla volta**: la pagina mostra sempre 100 movimenti; se ce ne sono di più, in fondo c'è «Mostra altro» (altri 100 ogni volta), sul web e nell'app (prima: fino a 1000 tutti, oltre i primi 200). Con un server vecchio, che dà al massimo 1000 movimenti, il pulsante sparisce quando sono finiti.
+- **Android**: l'app si installa con la chiave di debug di questo computer (quella dell'app già sul telefono era di un'altra: reinstallata una volta).
+
 ## 0.27.0
 - **Il tag «Giroconto» si chiama «Non contabile»** (movimenti che non contano in nessun totale: giri tra i tuoi conti, addebito della carta di credito già dettagliato). La chiave interna resta `giroconto`: i dati e le scelte già salvate non cambiano. Il nome si vede anche con un server non ancora aggiornato (la pagina lo impone da sola). Icona e colore sono quelli di prima.
 - **Movimenti**: tolta la frase «i giroconti non contano» dalla riga informativa.
