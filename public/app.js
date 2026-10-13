@@ -6,7 +6,7 @@ const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'L
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
 const THIS_YEAR = new Date().getFullYear();
-let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
+let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
 
 // Un'icona per categoria (tratto sottile, nel colore del testo).
 const ICON_PATHS = {
@@ -22,7 +22,7 @@ const ICON_PATHS = {
 const icon = (k) => `<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[k] ?? ICON_PATHS.altro}</svg>`;
 
 // I nomi dei tag arrivano dal server; questo nome si impone anche qui, così si vede subito anche con un server non ancora aggiornato.
-const withNames = (tags) => ({ ...tags, giroconto: 'Non contabile' });
+const withNames = (tags) => ({ ...tags, giroconto: 'Non contabile', carburante: 'Auto' });
 
 const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '', sort: 'date', dir: 'desc', items: [], total: 0, shown: 100, base: '', paged: false } };
 
@@ -227,11 +227,17 @@ async function loadYear() {
     const empty = !m.entrate && !m.uscite;
     // le uscite del mese, una categoria per riga dalla più grande: nome, barra bianca larga quanto pesa sulle uscite (importi veri) e importo; un tocco apre i movimenti
     const cats = Object.entries(m.uscite ? { utenze: 0, ...m.tags } : m.tags).sort((a, b) => b[1] - a[1]); // «Utenze» c'è sempre, anche a zero
-    const tags = cats.length ? `<div class="legend">${cats.map(([k, v]) => `<button class="chip" data-see="${k}" data-see-month="${m.month}" title="Vedi i movimenti">
-      <span class="cname">${icon(k)}${esc(TAGS[k] ?? k)}</span><span class="cbar"><i style="width:${(v / m.uscite) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`).join('')}</div>` : '';
+    // tutte le barre del mese hanno la stessa scala in euro (la più grande tra entrate e uscite = tutta la barra) e una tacca sottile ogni 250 euro
+    const scale = Math.max(m.entrate, m.uscite, 1);
+    const tick = (250 / scale) * 100; // passo delle tacche, in % della barra (se è troppo fitto non si disegnano)
+    const row = (k, name, v, extra = '') => `<button class="chip${extra}" data-see="${k}" data-see-month="${m.month}" title="Vedi i movimenti">
+      <span class="cname">${icon(k)}${esc(name)}</span><span class="cbar"${tick >= 1.5 ? ` style="--tick:${tick}%"` : ''}><i style="width:${(v / scale) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`;
+    // la riga delle entrate del mese (in verde), poi le categorie delle uscite
+    const entrate = m.entrate || m.uscite ? row('entrata', 'Entrate', m.entrate, ' in') : '';
+    const tags = entrate || cats.length ? `<div class="legend">${entrate}${cats.map(([k, v]) => row(k, TAGS[k] ?? k, v)).join('')}</div>` : '';
     const undef = (m.tags.non_definito ?? 0) > 0 ? ' undef' : ''; // il mese ha movimenti «Non definito»: la riga si colora di giallo
     return `<tr class="m${undef}" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
-      + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessuna uscita.'}</td></tr>` : '');
+      + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessun movimento.'}</td></tr>` : '');
   }).join('');
   $('#yearTable').innerHTML = `<thead><tr><th>Mese</th><th>Entrate</th><th>Uscite</th><th>Bilancio</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><th>Totale</th><td class="num pos">${money(t.entrate)}</td><td class="num neg">${money(t.uscite)}</td><td class="num ${tone(t.bilancio)}">${money(t.bilancio)}</td></tr></tfoot>`;

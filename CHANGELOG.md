@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.29.0
+- **Storico, dettaglio del mese**: nuova riga **Entrate** in cima (nome, barra e importo in verde), cliccabile come le categorie: apre i Movimenti filtrati per quel mese e il tag Entrata. Tutte le barre del mese hanno la stessa **scala in euro** (la più grande tra entrate e uscite è la barra intera) e una **tacca sottile ogni 250 €** per leggere meglio l'importo. Un mese senza movimenti dice «Nessun movimento».
+- **«Carburante» si chiama «Auto»** in tutta l'app (tag, filtri, Budget, Storico, widget, documentazione). La chiave interna resta `carburante`: dati, scelte a mano e budget già salvati non cambiano; il nome «Auto» si vede anche con un server non ancora aggiornato; il pocket di Revolut può chiamarsi «03 Carburante» o «03 Auto».
+
 ## 0.28.0
 - **Rinominare un movimento**: accanto al titolo di ogni movimento c'è una matita (✎); toccandola si sceglie un nome per quel solo movimento. Il dato della banca non cambia, il nome resta anche alle letture successive, sotto compare «originale: …», la ricerca lo trova e un nome vuoto ripristina quello della banca (al massimo 120 caratteri). API: `PUT /api/transactions/:id/name`; `GET /api/transactions` dà `customName`. I nomi dei movimenti tolti per la data di inizio si tolgono con loro. Serve il server alla 0.28.0.
 - **Movimenti, 100 alla volta**: la pagina mostra sempre 100 movimenti; se ce ne sono di più, in fondo c'è «Mostra altro» (altri 100 ogni volta), sul web e nell'app (prima: fino a 1000 tutti, oltre i primi 200). Con un server vecchio, che dà al massimo 1000 movimenti, il pulsante sparisce quando sono finiti.

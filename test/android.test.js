@@ -36,7 +36,7 @@ test("il file dell'icona e il manifest puntano a risorse che esistono", () => {
 test("ogni cella di categoria ha il suo nome scritto nel layout (non lo imposta il codice); le quattro celle hanno la stessa larghezza", () => {
   for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml']) {
     const xml = fs.readFileSync(file, 'utf8');
-    for (const [key, name] of [['spesa', 'SPESA'], ['svago', 'SVAGO'], ['carburante', 'CARBURANTE']]) {
+    for (const [key, name] of [['spesa', 'SPESA'], ['svago', 'SVAGO'], ['carburante', 'AUTO']]) {
       const m = new RegExp(`@\\+id/widget_${key}_label"[\\s\\S]*?android:text="([^"]*)"`).exec(xml);
       assert.equal(m?.[1], name, `${file}: nome di ${key}`);
     }

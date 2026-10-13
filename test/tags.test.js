@@ -7,6 +7,7 @@ test('il pocket decide il tag: numero iniziale e maiuscole non contano', () => {
   assert.equal(pocketTag('01 Spesa'), 'spesa');
   assert.equal(pocketTag('02 svago'), 'svago');
   assert.equal(pocketTag('3. Carburante'), 'carburante');
+  assert.equal(pocketTag('03 Auto'), 'carburante'); // il pocket può chiamarsi anche «Auto»
   assert.equal(pocketTag('04 ALTRO'), 'altro');
   assert.equal(pocketTag('Risparmi'), null);
   assert.equal(pocketTag(''), null);

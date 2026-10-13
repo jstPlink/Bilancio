@@ -1,18 +1,19 @@
 // I tag dei movimenti. Li decide il pocket Revolut da cui parte il pagamento:
-//   01 Spesa → Spesa · 02 Svago → Svago · 03 Carburante → Carburante · 04 Altro → Altro
+//   01 Spesa → Spesa · 02 Svago → Svago · 03 Carburante (o 03 Auto) → Auto · 04 Altro → Altro
+// Il tag «Auto» si chiamava «Carburante»: la chiave interna resta `carburante`, quindi i dati e le scelte già salvate non cambiano.
 // Tutto il resto (altri pocket, conto principale, UniCredit) è «Non definito», da smistare a mano. Le entrate sono «Entrata»; i giri di
 // denaro tra i propri conti e pocket sono «Non contabile» (chiave interna `giroconto`, rimasta com'era nei dati) e non contano in nessun totale. «Utenze» non è mai automatica: si sceglie a mano.
 // Una scelta a mano vince sempre.
 
 export const TAGS = {
-  spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', utenze: 'Utenze',
+  spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze',
   non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile',
 };
 export const BUDGET_TAGS = ['spesa', 'svago', 'carburante']; // le tre categorie con un budget
 
 // «01 Spesa» e «Spesa» sono lo stesso pocket: maiuscole, spazi e numero iniziale non contano.
 const norm = (s) => String(s ?? '').toLowerCase().replace(/^\s*\d+[\s.)-]*/, '').replace(/\s+/g, ' ').trim();
-const POCKETS = { spesa: 'spesa', svago: 'svago', carburante: 'carburante', altro: 'altro' };
+const POCKETS = { spesa: 'spesa', svago: 'svago', carburante: 'carburante', auto: 'carburante', altro: 'altro' }; // il pocket può chiamarsi «Carburante» o «Auto»
 export const pocketTag = (name) => POCKETS[norm(name)] ?? null;
 
 // Revolut dà a ogni pocket il nome dell'intestatario; il nome vero (es. «01 Spesa») compare nel testo dei suoi movimenti:

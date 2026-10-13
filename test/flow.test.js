@@ -754,3 +754,13 @@ test("togliere i movimenti vecchi toglie anche i loro nomi", () => {
   applyCutoff(db);
   assert.deepEqual(Object.keys(db.renames), ["b"]);
 });
+
+test("il tag carburante si chiama «Auto» (la chiave interna resta carburante)", async (t) => {
+  const { api } = await setup(t);
+  await api("POST", "/api/login", { password: "segreta" });
+  const tags = (await api("GET", "/api/transactions")).json.tags;
+  assert.equal(tags.carburante, "Auto");
+  assert.ok(!Object.values(tags).includes("Carburante"));
+  const budget = (await api("GET", "/api/budgets")).json.month.cats;
+  assert.equal(budget.carburante.label, "Auto");
+});

@@ -383,3 +383,10 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 /* Movimenti: la matita per rinominare un movimento (accesa se ha un nome scelto a mano) */
 .ren { background: none; border: 0; padding: 0 6px; margin-left: 4px; color: var(--mute); font-size: 14px; line-height: 1; cursor: pointer; vertical-align: baseline; }
 .ren:hover, .ren.on { color: var(--red); }
+
+/* Storico: la riga delle entrate nel dettaglio del mese (importo verde, come il segno positivo) */
+.legend .chip.in, .legend .chip.in:hover { color: var(--green); }
+.legend .chip.in .cbar i { background: var(--green); }
+/* tacche sottili ogni 250 euro sulle barre del dettaglio del mese (--tick = passo in % della barra) */
+.chip .cbar { position: relative; }
+.chip .cbar[style*="--tick"]::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(var(--tick) - 1px), var(--paper) calc(var(--tick) - 1px), var(--paper) var(--tick)); }

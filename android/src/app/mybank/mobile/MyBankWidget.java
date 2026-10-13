@@ -25,9 +25,9 @@ import java.util.Locale;
  * Widget 5×1 in quattro celle di uguale larghezza, ognuna con una barra verticale a sinistra. La prima:
  * i giorni che restano alla fine del mese e l'ora dell'ultimo aggiornamento delle banche (la barra del mese sale dal basso con i giorni trascorsi,
  * in bianco, e ha un vuoto a fine di ogni domenica). Le barre delle categorie si svuotano dall'alto verso il basso.
- * Le altre tre, Spesa, Svago e Carburante: il nome, il residuo del budget (budget meno speso nel mese; la barra è il residuo), la spesa
+ * Le altre tre, Spesa, Svago e Auto: il nome, il residuo del budget (budget meno speso nel mese; la barra è il residuo), la spesa
  * giornaliera stimata (budget diviso i giorni del mese) e quella reale (speso diviso i giorni passati, oggi compreso), verde se è pari o migliore della stima, rossa se
- * peggiore. Un tocco sulla prima cella apre il Budget; su Spesa, Svago o Carburante apre i Movimenti del mese già filtrati per quella categoria; sul resto apre l'app.
+ * peggiore. Un tocco sulla prima cella apre il Budget; su Spesa, Svago o Auto apre i Movimenti del mese già filtrati per quella categoria; sul resto apre l'app.
  * Un solo carattere (sans-serif) e gli stessi colori dell'app: carta e inchiostro con il rosso come accento.
  */
 public class MyBankWidget extends AppWidgetProvider {
