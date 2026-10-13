@@ -224,7 +224,7 @@ test("la password può avere 5 caratteri", async (t) => {
   assert.equal((await api("POST", "/api/login", { password: "abcde" })).status, 200);
 });
 
-test("si memorizzano solo i movimenti dal 1 settembre 2026: quelli di prima non si leggono e non si mostrano", async (t) => {
+test("si memorizzano solo i movimenti dal 1 agosto 2026: quelli di prima non si leggono e non si mostrano", async (t) => {
   const bank = createFakeBank();
   process.env.ENABLE_BANKING_API = `http://127.0.0.1:${await bank.listen(0)}`;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
@@ -238,16 +238,16 @@ test("si memorizzano solo i movimenti dal 1 settembre 2026: quelli di prima non 
   await fetch((await fetch(url, { redirect: "manual" })).headers.get("location"), { redirect: "manual" });
   const all = (await (await fetch(`${base}/api/transactions`)).json()).transactions;
   assert.ok(all.length > 0);
-  assert.ok(all.every((x) => x.date >= "2026-09-01"));
-  assert.equal((await (await fetch(`${base}/api/banks`)).json()).since, "2026-09-01");
+  assert.ok(all.every((x) => x.date >= "2026-08-01"));
+  assert.equal((await (await fetch(`${base}/api/banks`)).json()).since, "2026-08-01");
   const sum = await (await fetch(`${base}/api/summary?year=2026`)).json();
-  assert.ok(sum.months.slice(0, 8).every((m) => m.entrate === 0 && m.uscite === 0)); // gennaio-agosto vuoti
+  assert.ok(sum.months.slice(0, 7).every((m) => m.entrate === 0 && m.uscite === 0)); // gennaio-luglio vuoti
 });
 
 test("all'avvio i movimenti precedenti alla data di inizio si tolgono dai dati", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mybank-"));
   fs.writeFileSync(path.join(dir, "mybank.json"), JSON.stringify({
-    transactions: { a: { id: "a", date: "2026-08-31", amount: -5, account: "x", bank: "revolut", description: "Prima" }, b: { id: "b", date: "2026-09-01", amount: -7, account: "x", bank: "revolut", description: "Dopo" } },
+    transactions: { a: { id: "a", date: "2026-07-31", amount: -5, account: "x", bank: "revolut", description: "Prima" }, b: { id: "b", date: "2026-08-01", amount: -7, account: "x", bank: "revolut", description: "Dopo" } },
     overrides: { a: "svago", b: "spesa" },
   }));
   const { db } = createApp({ dir, password: "" });

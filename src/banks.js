@@ -9,9 +9,9 @@ export const BANKS = {
 
 const DAY = 86400000;
 
-// Si memorizzano solo i movimenti dal 1 settembre 2026 (per ora): quelli prima non si leggono, non si salvano e non si mostrano.
+// Si memorizzano solo i movimenti dal 1 agosto 2026 (per ora): quelli prima non si leggono, non si salvano e non si mostrano.
 // La data si può cambiare con `settings.cutoff` (AAAA-MM-GG).
-export const MOVEMENTS_FROM = '2026-09-01';
+export const MOVEMENTS_FROM = '2026-08-01';
 export const cutoffOf = (db) => (/^\d{4}-\d{2}-\d{2}$/.test(db.settings?.cutoff ?? '') ? db.settings.cutoff : MOVEMENTS_FROM);
 
 /** Toglie dai dati i movimenti precedenti alla data di inizio (e le scelte a mano che li riguardavano). Restituisce quanti ne ha tolti. */
@@ -64,7 +64,7 @@ export async function startLink({ client, db, bank, redirectUrl, now = Date.now(
 /** Al ritorno dalla banca: il codice si scambia con la sessione e si salvano i conti collegati. */
 export async function finishLink({ client, db, code, state, now = Date.now() }) {
   const pending = db.banking.pending[state];
-  if (!pending || now - pending.createdAt > PENDING_MS) throw new Error('Richiesta di collegamento scaduta o sconosciuta: riparti da Opzioni → Banche.');
+  if (!pending || now - pending.createdAt > PENDING_MS) throw new Error('Richiesta di collegamento scaduta o sconosciuta: riparti dalla scheda Banche.');
   const session = await client.createSession(code);
   delete db.banking.pending[state];
   const conn = {
@@ -142,7 +142,7 @@ export function quota(conn, now = Date.now()) {
  */
 export async function syncConnection({ client, db, conn, auto = false, now = Date.now() }) {
   const label = BANKS[conn.bank]?.label ?? conn.bank;
-  if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca da Opzioni → Banche.`);
+  if (Date.parse(conn.validUntil) <= now) throw new Error(`Il collegamento con ${label} è scaduto: ricollega la banca dalla scheda Banche.`);
   const left = quota(conn, now);
   if (auto ? left.auto <= 0 : left.manual <= 0) throw new Error(`${label}: raggiunto il limite di ${auto ? AUTO_PER_DAY : MANUAL_PER_DAY} letture al giorno. Riprova più tardi.`);
   conn.calls.push({ t: now, auto });

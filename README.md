@@ -15,7 +15,7 @@ Tre parti, con i compiti ben separati:
 ```
 src/       server.js (API) · start.js (avvio del server) · local.js e proxy.js (localhost solo frontend)
            eb.js (client Enable Banking) · banks.js (collegamento, letture, limiti) · tags.js (tag e giroconti)
-           notifications.js (notifiche) · stats.js (storico, statistiche, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
+           notifications.js (notifiche) · stats.js (storico, budget, widget) · auth.js (password e gettone) · schedule.js (orari) · store.js (dati)
 public/    index.html, style.css, app.js, icon.svg
 android/   MainActivity, MyBankWidget, WidgetData, Server, Notifier, NotifyReceiver; layout e risorse del widget; manifest
 scripts/   banca-finta.mjs, demo.mjs, build-apk.mjs
@@ -25,7 +25,7 @@ test/      schedule, tags, flow (giro completo con la banca finta), proxy, andro
 
 ## Cosa fa
 
-**Da quando.** Per ora MyBank memorizza e mostra solo i movimenti **dal 1 settembre 2026** (se la data viene anticipata, la prima lettura successiva rilegge tutto dalla nuova data): quelli di prima non si leggono né si salvano (all'avvio il server toglie dai dati quelli già presenti).
+**Da quando.** Per ora MyBank memorizza e mostra solo i movimenti **dal 1 agosto 2026** (se la data viene anticipata, la prima lettura successiva rilegge tutto dalla nuova data): quelli di prima non si leggono né si salvano (all'avvio il server toglie dai dati quelli già presenti).
 
 **Tag dei movimenti.** Revolut è la banca principale ed è divisa in pocket. Ogni movimento in uscita prende il tag del **pocket da cui parte**:
 
@@ -38,20 +38,19 @@ test/      schedule, tags, flow (giro completo con la banca finta), proxy, andro
 | qualsiasi altro pocket, conto principale, UniCredit | **Non definito** (lo smisti tu) |
 
 Gli altri due tag sono automatici: **Entrata** (denaro che arriva da fuori) e **Giroconto** (denaro che sposti tra i tuoi conti e pocket: non conta in nessun totale). Il tag si cambia a mano dal menu di ogni movimento (scheda Movimenti): vale per quel movimento e vince sull'automatico.
-Il nome vero di un pocket la banca non lo dà (dà il nome dell'intestatario): MyBank lo ricava dal testo dei movimenti («Accredita EUR 01 Spesa da EUR») e, se serve, lo imposti a mano con **Rinomina** (Opzioni → Banche).
+Il nome vero di un pocket la banca non lo dà (dà il nome dell'intestatario): MyBank lo ricava dal testo dei movimenti («Accredita EUR 01 Spesa da EUR») e, se serve, lo imposti a mano con **Rinomina** (scheda Banche).
 Un giroconto si riconosce da: testo del giro tra pocket, IBAN della controparte che è un tuo conto, oppure lo stesso importo che esce da un conto e rientra in un altro della stessa banca entro un giorno.
 
 ### Le schede
 
-Sul telefono si passa da Storico a Movimenti, Statistiche e Budget **scorrendo il dito** in orizzontale (un colpo deciso e più orizzontale che verticale; non parte da campi o tabelle larghe). I titoli delle schede sono più grandi (18 px sul web, 14 sul telefono).
+Sul telefono si passa da Storico a Movimenti, Budget e Banche **scorrendo il dito** in orizzontale (un colpo deciso e più orizzontale che verticale; non parte da campi o tabelle larghe). I titoli delle schede sono più grandi (18 px sul web, 14 sul telefono).
 
-- **Storico** (principale): l'anno scelto (il selettore dice già di che anno si parla: i titoli sono solo «Entrate», «Uscite», «Bilancio»), mese per mese, con il totale; in alto i tre totali dell'anno, sempre affiancati su tre colonne. Un tocco su un mese mostra le uscite per tag.
-- **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. Ogni riga è: **data** (giorno e mese, sotto l'anno), **titolo** (la causale se c'è) con sotto il **destinatario** e il conto, **importo**, **categoria**: sul web in quattro colonne, sul telefono in tre (data, titolo e destinatario, importo con sotto la categoria). I pagamenti in sospeso contano subito e hanno una targhetta e una barra rossa a sinistra; le altre righe hanno lo stesso margine, quindi la spaziatura non cambia. Toccando una riga di conto o pocket nella Opzioni → Banche si arriva ai Movimenti filtrati per quel conto o pocket (con «Togli il filtro»).
-- **Statistiche**: entrate, uscite e bilancio dell'anno o di un mese; le uscite **per categoria** (importo e quota), **mese per mese** (entrate in una barra verde sottile, uscite in barre divise per categoria; un tocco su un mese lo filtra). I giroconti non contano.
+- **Storico** (principale): l'anno scelto (il selettore dice già di che anno si parla: i titoli sono solo «Entrate», «Uscite», «Bilancio»), mese per mese, con il totale; in alto i tre totali dell'anno, sempre affiancati su tre colonne. Un tocco su un mese mostra le sue uscite **una categoria per riga**, dalla più grande alla più piccola: nome, una **barra bianca** larga quanto pesa sulle uscite del mese (in proporzione agli importi veri, senza colori) e l'importo, con una riga sottile sotto che la fa capire cliccabile. Un tocco su una riga apre la scheda Movimenti già filtrata per quell'anno, mese e categoria. (La scheda Statistiche non c'è più: faceva quasi lo stesso lavoro.)
+- **Movimenti**: l'elenco con filtri (anno, mese, tag, ricerca) e il tag modificabile. Ogni riga è: **data** (giorno e mese, sotto l'anno), **titolo** (la causale se c'è) con sotto il **destinatario** e il conto, **importo**, **categoria**: sul web in quattro colonne, sul telefono in tre (data, titolo e destinatario, importo con sotto la categoria). I pagamenti in sospeso contano subito e hanno una targhetta e una barra rossa a sinistra; le altre righe hanno lo stesso margine, quindi la spaziatura non cambia. Toccando una riga di conto o pocket nella scheda Banche si arriva ai Movimenti filtrati per quel conto o pocket (con «Togli il filtro»).
 - **Budget**: il budget mensile di Spesa, Svago e Carburante (tre campi affiancati) e, per il mese in corso, residuo, spesa giornaliera stimata e reale (tre riquadri).
 - **Documenti**: una scheda a parte (separata dalle altre da un filetto), per ora vuota. Non fa parte dello scorrimento col dito.
-- **Opzioni** (pulsante in alto a destra): in cima **Banche** (non è più una scheda; l'intera sezione si chiude e si apre con un tocco sul titolo, come le Notifiche; ogni categoria delle Opzioni è un titolo con la riga sotto, e quella riga resta anche a sezione chiusa; lo stesso vale per UniCredit, Revolut ed Enable Banking). Nel riquadro **Aggiornamento** c'è, per ogni banca, il numero di **richieste fatte nelle ultime 24 ore** (automatiche su 4, a mano su 10) e quante ne restano: collegamento di UniCredit e Revolut (ogni banca si chiude e si apre; Revolut, con i suoi pocket, parte chiusa); **aggiornamento**: fino a **4 automatici al giorno**, di base alle **5, 11, 14 e 19** (ora italiana), in una riga che sul telefono occupa tutta la larghezza: si tocca un orario per cambiarlo, la × lo toglie, un menu ne aggiunge; più il pulsante **Aggiorna ora** per le letture in più; rinomina dei pocket; credenziali di Enable Banking.
-  Poi le **Notifiche** (vedi sotto), **Cambia password** (finestra con la password attuale e due volte la nuova, almeno 5 caratteri; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), **Server** con «Cambia server» (solo nell'app e nel localhost) e in fondo **Esci**.
+- **Banche**: collegamento di UniCredit e Revolut (ogni banca si chiude e si apre; Revolut, con i suoi pocket, parte chiusa); **aggiornamento**: fino a **4 automatici al giorno**, di base alle **5, 11, 14 e 19** (ora italiana), in una riga che sul telefono occupa tutta la larghezza: si tocca un orario per cambiarlo, la × lo toglie, un menu ne aggiunge; più il pulsante **Aggiorna ora** per le letture in più. Il riquadro mostra, per ogni banca, le **richieste fatte nelle ultime 24 ore** nella forma «Revolut · Richieste automatiche 1/4 · Manuali 3/10» (le restanti sono la differenza). Poi la rinomina dei pocket e le credenziali di Enable Banking. Ogni banca ed Enable Banking sono un titolo con la riga sotto, che resta anche a sezione chiusa.
+- **Opzioni** (pulsante in alto a destra): in cima le **Notifiche** (sezione che si chiude e si apre con un tocco sul titolo), poi **Cambia password** (finestra con la password attuale e due volte la nuova, almeno 5 caratteri; da lì in poi vale la nuova, salvata come impronta in `data/auth.json`, e gli altri accessi devono rifare il login), **Server** con «Cambia server» (solo nell'app e nel localhost) e in fondo **Esci**. Ogni categoria è un titolo con la riga sotto.
 
 In alto, a sinistra, il logo e il nome; a destra la **versione** (nell'app è quella dell'app, sul web quella del server) e il pulsante Opzioni.
 
@@ -89,9 +88,9 @@ npm test                 # i test
 **Provare senza banche vere:** `npm run demo` avvia una banca finta e un'app con dati inventati su `http://localhost:4871` (database a parte in `data/demo`, avviso rosso «Dati di prova inventati»).
 
 ### Collegare le banche
-1. Su [enablebanking.com](https://enablebanking.com) crea un'applicazione (gratis per uso personale) e registra come **indirizzo di ritorno** quello mostrato in *Opzioni → Banche → Enable Banking* (`https://<il tuo server>/api/banks/callback`; per Enable Banking serve https, tranne in prova).
-2. In *Opzioni → Banche → Enable Banking* incolla l'**ID** e la **chiave privata** (file `.pem`): restano solo sul server. La chiave si scarica **una sola volta**, quando crei l'applicazione sul sito di Enable Banking, e non si può rivedere; se la perdi crea una nuova applicazione (o una nuova chiave) e aggiorna ID e chiave qui.
-3. Premi **Collega UniCredit** / **Collega Revolut**: si apre il sito della banca per autorizzare la sola lettura; al ritorno MyBank legge lo storico dal 1 settembre 2026.
+1. Su [enablebanking.com](https://enablebanking.com) crea un'applicazione (gratis per uso personale) e registra come **indirizzo di ritorno** quello mostrato in *scheda Banche → Enable Banking* (`https://<il tuo server>/api/banks/callback`; per Enable Banking serve https, tranne in prova).
+2. In *scheda Banche → Enable Banking* incolla l'**ID** e la **chiave privata** (file `.pem`): restano solo sul server. La chiave si scarica **una sola volta**, quando crei l'applicazione sul sito di Enable Banking, e non si può rivedere; se la perdi crea una nuova applicazione (o una nuova chiave) e aggiorna ID e chiave qui.
+3. Premi **Collega UniCredit** / **Collega Revolut**: si apre il sito della banca per autorizzare la sola lettura; al ritorno MyBank legge lo storico dal 1 agosto 2026.
 
 ### Sul server (NAS, Docker)
 ```bash
@@ -117,7 +116,7 @@ Tutte dietro password (cookie o `Authorization: Bearer`), tranne login, versione
 | `POST /api/login`, `POST /api/logout`, `GET /api/session`, `POST /api/password` | accesso e cambio password |
 | `GET /api/version` | versione del server |
 | `GET /api/summary?year=` | storico: entrate, uscite, bilancio per mese |
-| `GET /api/stats?year=&month=` | statistiche: categorie, mesi, controparti, entrate |
+| `GET /api/stats?year=&month=` | statistiche: categorie, mesi, controparti, entrate (non più usate dall'app) |
 | `GET /api/transactions?year=&month=&tag=&q=&account=` | movimenti con tag; `account` = un conto o pocket |
 | `PUT /api/transactions/:id/tag` | tag a mano (`null` = automatico) |
 | `GET/POST /api/notifications`, `PUT/DELETE /api/notifications/:id` | notifiche (testo, giorno del mese, orario) |
@@ -146,7 +145,7 @@ Stile tipografico da giornale svizzero: **carta e inchiostro** (chiaro e scuro c
 | Sintomo | Causa e rimedio |
 |---|---|
 | «Il server non ha ancora questa funzione» | Il server è più vecchio dell'app: `docker compose pull && docker compose up -d`. |
-| «Redirect URI not allowed» collegando la banca | L'indirizzo di ritorno non è registrato su Enable Banking: apri MyBank dall'indirizzo https pubblico e registra esattamente quello mostrato in *Opzioni → Banche → Enable Banking* (finisce con `/api/banks/callback`); si può fissare con `MYBANK_PUBLIC_URL`. |
+| «Redirect URI not allowed» collegando la banca | L'indirizzo di ritorno non è registrato su Enable Banking: apri MyBank dall'indirizzo https pubblico e registra esattamente quello mostrato in *scheda Banche → Enable Banking* (finisce con `/api/banks/callback`); si può fissare con `MYBANK_PUBLIC_URL`. |
 | La password è ancora quella del file | La password cambiata dalle Opzioni sostituisce quella di `MYBANK_PASSWORD`; se non l'hai cambiata vale ancora il segnaposto del `docker-compose.yml`. Per tornare a quella del file, cancella `data/auth.json` e riavvia. |
 | Dopo un aggiornamento la pagina del browser sembra vecchia | La pagina non si tiene in cache ma il browser può avere il vecchio script: ricarica con Ctrl+F5. |
 | Il widget dice «Problema nel caricamento» | Nel layout c'è una view non ammessa nei RemoteViews: lancia `npm test`. |
@@ -156,4 +155,4 @@ Stile tipografico da giornale svizzero: **carta e inchiostro** (chiaro e scuro c
 
 ## Versioni e rilascio
 
-Ogni modifica alza la versione (`package.json`) e aggiunge una voce a `CHANGELOG.md`; il tag Git è `mybank-vX.Y.Z` (i tag `vX.Y.Z` sono della vecchia app Bilancio). Dopo un push GitHub costruisce l'immagine Docker; il NAS si aggiorna con `docker compose pull && docker compose up -d`; il telefono con `npm run apk:installa`.
+Ogni commit alza la versione (`package.json`, una sola volta, subito prima del commit) e aggiunge una voce a `CHANGELOG.md`; il tag Git è `mybank-vX.Y.Z` (i tag `vX.Y.Z` sono della vecchia app Bilancio). Dopo un push GitHub costruisce l'immagine Docker; il NAS si aggiorna con `docker compose pull && docker compose up -d`; il telefono con `npm run apk:installa`.

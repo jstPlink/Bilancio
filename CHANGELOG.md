@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.17.0
+- **Storico**: toccando un mese si vedono le uscite una categoria per riga, dalla più grande: nome, barra bianca larga quanto pesa sulle uscite del mese (importi veri, senza colori) e importo, in colonne allineate. Un tocco su una riga apre i **Movimenti** già filtrati per quell'anno, mese e categoria.
+- **Statistiche**: la scheda non c'è più (lo Storico fa lo stesso lavoro). `GET /api/stats` resta sul server ma l'app non lo usa.
+- **Banche**: torna una scheda (tra Budget e Documenti); le Opzioni hanno Notifiche, Account, Server e Sessione. Lo scorrimento col dito passa tra Storico, Movimenti, Budget e Banche.
+- **Movimenti da agosto**: i movimenti si leggono e si mostrano dal **1 agosto 2026** (prima dal 1 settembre); i collegamenti già esistenti rileggono tutto dalla nuova data alla prima lettura dopo l'aggiornamento del server.
+- **Banche → Aggiornamento**: le richieste delle ultime 24 ore si leggono come «Revolut · Richieste automatiche 1/4 · Manuali 3/10».
+- **Regole di lavoro**: la versione si alza una sola volta, subito prima di un commit (`CLAUDE.md`, README).
+
 ## 0.16.7
 - **Accesso**: davanti al campo del server c'è un pulsante che sceglie **http** o **https** (si autocompila `://`): basta scrivere `mybank.miodominio.it`. Vale per il localhost e per la schermata dell'app; un indirizzo incollato con `http://` o `https://` vale com'è.
 - **Widget**: le righe dei giorni del mese (vuoti a fine domenica) sono sottili come le tacche delle categorie.

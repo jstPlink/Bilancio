@@ -8,7 +8,7 @@ const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day:
 const THIS_YEAR = new Date().getFullYear();
 let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Carburante', altro: 'Altro', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Giroconto' };
 
-const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, st: { year: THIS_YEAR, month: 0 }, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '' } };
+const state = { tab: 'storico', year: THIS_YEAR, open: new Set(), bankOpen: {}, mv: { year: THIS_YEAR, month: 0, tag: '', q: '', account: '' } };
 
 // ------------------------------------------------------------------ rete
 
@@ -107,7 +107,6 @@ $('#logoutBtn').addEventListener('click', async () => { await api('POST', '/api/
 // ------------------------------------------------------------------ opzioni
 
 async function loadOptions() {
-  loadBanks().catch(fail);
   loadNotifications().catch(fail);
   const s = await api('GET', '/api/session');
   $('#logoutBtn').hidden = Boolean(s.open);
@@ -139,8 +138,8 @@ $('#pwForm').addEventListener('submit', async (e) => {
 
 // ------------------------------------------------------------------ schede
 
-const TABS = ['storico', 'movimenti', 'statistiche', 'budget', 'documenti', 'opzioni'];
-const SWIPE_TABS = ['storico', 'movimenti', 'statistiche', 'budget']; // le schede tra cui si scorre col dito (Documenti e Opzioni stanno a parte)
+const TABS = ['storico', 'movimenti', 'budget', 'banche', 'documenti', 'opzioni'];
+const SWIPE_TABS = ['storico', 'movimenti', 'budget', 'banche']; // le schede tra cui si scorre col dito (Documenti e Opzioni stanno a parte)
 // Indirizzi come «#movimenti:spesa» (li usa il widget): la scheda, e per i Movimenti il tag da filtrare, sul mese in corso.
 function applyHash() {
   const [tab, arg] = (location.hash || '#storico').slice(1).split(':');
@@ -153,14 +152,14 @@ function applyHash() {
 }
 
 function show(tab) {
-  if (tab === 'banche') tab = 'opzioni'; // la scheda Banche ora sta nelle Opzioni
+  if (tab === 'statistiche') tab = 'storico'; // la scheda Statistiche non c'è più: il suo lavoro lo fa lo Storico
   if (!TABS.includes(tab)) tab = 'storico';
   state.tab = tab;
   history.replaceState(null, '', `#${tab}`);
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
-  ({ storico: loadYear, movimenti: loadMoves, statistiche: loadStats, budget: loadBudget, documenti: async () => {}, opzioni: loadOptions })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, documenti: async () => {}, opzioni: loadOptions })[tab]().catch(fail);
 }
 document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') state.mv.account = ''; show(b.dataset.tab); });
 $('#optionsBtn').addEventListener('click', () => show('opzioni'));
@@ -210,7 +209,10 @@ async function loadYear() {
   const rows = d.months.map((m) => {
     const open = state.open.has(m.month);
     const empty = !m.entrate && !m.uscite;
-    const tags = Object.entries(m.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="pill" style="--c:var(--t-${k})" data-t="${k}">${esc(TAGS[k] ?? k)} ${money(v)}</span>`).join(' ');
+    // le uscite del mese, una categoria per riga dalla più grande: nome, barra bianca larga quanto pesa sulle uscite (importi veri) e importo; un tocco apre i movimenti
+    const cats = Object.entries(m.tags).sort((a, b) => b[1] - a[1]);
+    const tags = cats.length ? `<div class="legend">${cats.map(([k, v]) => `<button class="chip" data-see="${k}" data-see-month="${m.month}" title="Vedi i movimenti">
+      <span class="cname">${esc(TAGS[k] ?? k)}</span><span class="cbar"><i style="width:${(v / m.uscite) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`).join('')}</div>` : '';
     return `<tr class="m" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
       + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessuna uscita.'}</td></tr>` : '');
   }).join('');
@@ -219,6 +221,12 @@ async function loadYear() {
 }
 $('#yearSelect').addEventListener('change', (e) => { state.year = Number(e.target.value); loadYear().catch(fail); });
 $('#yearTable').addEventListener('click', (e) => {
+  const see = e.target.closest('[data-see]');
+  if (see) { // «Vedi movimenti»: la scheda Movimenti già filtrata per quell'anno, mese e categoria
+    Object.assign(state.mv, { year: state.year, month: Number(see.dataset.seeMonth), tag: see.dataset.see, q: '', account: '' });
+    $('#mvSearch').value = '';
+    return show('movimenti');
+  }
   const tr = e.target.closest('tr.m');
   if (!tr) return;
   const m = Number(tr.dataset.month);
@@ -235,7 +243,7 @@ async function loadMoves() {
     api('GET', `/api/summary?year=${year}`),
   ]);
   TAGS = d.tags;
-  // filtro per conto o pocket (si arriva da Opzioni → Banche): si vede e si toglie con un tocco
+  // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
   const bar = $('#mvAccount');
   bar.hidden = !d.account;
   if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
@@ -245,7 +253,7 @@ async function loadMoves() {
   const out = d.transactions.filter((t) => t.amount < 0 && t.tag !== 'giroconto').reduce((s, t) => s + -t.amount, 0);
   $('#mvSummary').textContent = d.total
     ? `${d.total} movimenti${d.total > d.transactions.length ? ` (mostro i primi ${d.transactions.length})` : ''} · uscite ${money(out)} · i giroconti non contano.`
-    : 'Nessun movimento. Collega una banca da Opzioni → Banche.';
+    : 'Nessun movimento. Collega una banca dalla scheda Banche.';
   const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   $('#mvList').innerHTML = d.transactions.map((t) => {
@@ -278,39 +286,6 @@ $('#movimenti').addEventListener('change', async (e) => {
 let searchTimer;
 $('#movimenti').addEventListener('click', (e) => { if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); } });
 $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.mv.q = e.target.value; loadMoves().catch(fail); }, 250); });
-
-// ------------------------------------------------------------------ statistiche di spesa
-
-async function loadStats() {
-  const { year, month } = state.st;
-  const d = await api('GET', `/api/stats?year=${year}&month=${month}`);
-  $('#stYear').innerHTML = yearOptions(d.years, year);
-  $('#stMonth').innerHTML = `<option value="0">Tutto l'anno</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
-  const none = '<p class="muted">Nessun movimento nel periodo.</p>';
-  $('#stCards').innerHTML = `
-    <div class="card"><div class="k">Entrate</div><div class="v pos">${money(d.income.total)}</div><div class="sub">${d.income.count} ${d.income.count === 1 ? 'movimento' : 'movimenti'}</div></div>
-    <div class="card"><div class="k">Uscite</div><div class="v neg">${money(d.total)}</div><div class="sub">${d.count} ${d.count === 1 ? 'movimento' : 'movimenti'}</div></div>
-    <div class="card"><div class="k">Bilancio</div><div class="v ${d.balance >= 0 ? 'pos' : 'neg'}">${money(d.balance)}</div><div class="sub">media uscita ${money(d.average)}</div></div>`;
-  const row = (label, share, amount, color = '') => `<div class="srow"><div class="slabel">${label}</div><div class="sbar"${color ? ` style="--bar:${color}"` : ''}><i style="width:${Math.max(share, 1)}%;background:var(--bar, var(--ink))"></i></div><div class="snum">${money(amount)}<small>${String(share).replace('.', ',')}%</small></div></div>`;
-  $('#stTags').innerHTML = d.count ? d.byTag.map((e) => row(`<span class="pill" style="--c:var(--t-${e.tag})">${esc(e.label)}</span>`, e.share, e.total, `var(--t-${e.tag})`)).join('') : none;
-  const max = Math.max(1, ...d.months.map((m) => Math.max(m.total, m.entrate)));
-  $('#stMonths').innerHTML = d.months.map((m) => {
-    const segs = Object.entries(m.tags).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<i title="${esc(TAGS[k] ?? k)} ${money(v)}" style="width:${(v / max) * 100}%;background:var(--t-${k})"></i>`).join('');
-    const empty = !m.total && !m.entrate;
-    return `<div class="mrow${m.month === month ? ' on' : ''}" data-month="${m.month}" title="Tocca per vedere solo questo mese"><div class="slabel">${MONTHS[m.month - 1].slice(0, 3)}</div>
-      <div class="mbars"><div class="sbar ebar"><i style="width:${(m.entrate / max) * 100}%"></i></div><div class="sbar">${segs}</div></div>
-      <div class="snum">${empty ? '–' : `<span class="pos">+${money(m.entrate)}</span><span class="neg">−${money(m.total)}</span>`}</div></div>`;
-  }).join('');
-}
-$('#stYear').addEventListener('change', (e) => { state.st.year = Number(e.target.value); loadStats().catch(fail); });
-$('#stMonth').addEventListener('change', (e) => { state.st.month = Number(e.target.value); loadStats().catch(fail); });
-$('#stMonths').addEventListener('click', (e) => {
-  const r = e.target.closest('.mrow');
-  if (!r) return;
-  const m = Number(r.dataset.month);
-  state.st.month = state.st.month === m ? 0 : m; // un secondo tocco torna a tutto l'anno
-  loadStats().catch(fail);
-});
 
 // ------------------------------------------------------------------ budget
 
@@ -357,7 +332,7 @@ async function loadBanks() {
   // richieste fatte alle banche nelle ultime 24 ore (le banche ne concedono 4 automatiche e 10 a mano al giorno) e quante ne restano
   const reqs = d.connections.length ? `<div class="reqs">${d.connections.map((c) => {
     const ua = c.limits.auto - c.left.auto, um = c.limits.manual - c.left.manual;
-    return `<p><b>${esc(c.label)}</b> · richieste nelle ultime 24 ore: <b>${ua + um}</b> · automatiche <b>${ua}/${c.limits.auto}</b> (restano ${c.left.auto}) · a mano <b>${um}/${c.limits.manual}</b> (restano ${c.left.manual})</p>`;
+    return `<p>${esc(c.label)} <span class="dim">· Richieste automatiche</span> ${ua}/${c.limits.auto} <span class="dim">· Manuali</span> ${um}/${c.limits.manual}</p>`;
   }).join('')}</div>` : '';
   $('#syncPanel').innerHTML = `
     <h2>Aggiornamento</h2>

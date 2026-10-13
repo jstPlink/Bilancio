@@ -32,8 +32,8 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="storico" aria-selected="true">Storico</button>
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
-      <button role="tab" data-tab="statistiche" aria-selected="false">Statistiche</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
+      <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
       <button role="tab" data-tab="documenti" aria-selected="false" class="apart">Documenti</button>
     </nav>
 
@@ -58,18 +58,6 @@
         <div id="mvList" class="mvlist"></div>
       </section>
 
-      <section id="statistiche" hidden>
-        <div class="bar">
-          <label>Anno <select id="stYear"></select></label>
-          <label>Mese <select id="stMonth"></select></label>
-        </div>
-        <div class="cards" id="stCards"></div>
-        <h2 class="section">Uscite per categoria</h2>
-        <div id="stTags"></div>
-        <h2 class="section">Mese per mese</h2>
-        <div id="stMonths"></div>
-      </section>
-
       <section id="budget" hidden>
         <form id="budgetForm" class="panel">
           <h2>Budget mensile</h2>
@@ -81,6 +69,22 @@
         <div class="cards" id="budgetCards"></div>
       </section>
 
+      <section id="banche" hidden>
+      <div class="panel" id="syncPanel"></div>
+      <div id="bankList"></div>
+      <details class="panel" id="ebPanel">
+        <summary><h2>Enable Banking</h2> <span class="muted" id="ebStatus"></span></summary>
+        <form id="ebForm">
+          <p class="muted">Crea l'applicazione su <a href="https://enablebanking.com" target="_blank" rel="noopener noreferrer">enablebanking.com</a> (gratis per uso personale), registra come indirizzo di ritorno quello qui sotto e incolla l'ID e la chiave privata. Restano solo sul server.</p>
+          <label>Indirizzo di ritorno <input id="ebRedirect" readonly></label>
+          <label>ID dell'applicazione <input id="ebAppId" autocomplete="off" required></label>
+          <label>Chiave privata (file .pem) <textarea id="ebKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
+          <p class="error" id="ebError" role="alert"></p>
+          <div class="foot"><button class="primary" type="submit">Salva</button></div>
+        </form>
+      </details>
+      </section>
+
       <section id="documenti" hidden>
         <div class="panel">
           <h2>Documenti</h2>
@@ -89,22 +93,6 @@
       </section>
 
       <section id="opzioni" hidden>
-        <details id="banche" class="group" open>
-          <summary><h2 class="section">Banche</h2></summary>
-          <div class="panel" id="syncPanel"></div>
-          <div id="bankList"></div>
-          <details class="panel" id="ebPanel">
-            <summary><h2>Enable Banking</h2> <span class="muted" id="ebStatus"></span></summary>
-            <form id="ebForm">
-              <p class="muted">Crea l'applicazione su <a href="https://enablebanking.com" target="_blank" rel="noopener noreferrer">enablebanking.com</a> (gratis per uso personale), registra come indirizzo di ritorno quello qui sotto e incolla l'ID e la chiave privata. Restano solo sul server.</p>
-              <label>Indirizzo di ritorno <input id="ebRedirect" readonly></label>
-              <label>ID dell'applicazione <input id="ebAppId" autocomplete="off" required></label>
-              <label>Chiave privata (file .pem) <textarea id="ebKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></label>
-              <p class="error" id="ebError" role="alert"></p>
-              <div class="foot"><button class="primary" type="submit">Salva</button></div>
-            </form>
-          </details>
-        </details>
         <details id="notifiche" class="group" open>
           <summary><h2 class="section">Notifiche</h2></summary>
         <div class="panel" id="notifyPanel">

@@ -16,7 +16,8 @@ Node 24 + Express 5, dati in un file JSON (`data/mybank.json`), pagine web in HT
 ## Regole di rilascio
 
 - **Commit e push solo quando l'utente li chiede.**
-- **Ad ogni modifica dell'app**: incrementa `version` in `package.json` (`npm version <x.y.z> --no-git-tag-version`), aggiungi la voce in `CHANGELOG.md`, esegui `npm test` e, se il telefono è collegato col debug wireless, aggiorna l'app con `npm run apk:installa`
+- **La versione si alza solo subito prima di un commit** (una versione per commit, niente salti): `npm version <x.y.z> --no-git-tag-version` e la voce in `CHANGELOG.md` si fanno quando l'utente chiede il commit, non a ogni modifica. Tra un commit e l'altro le modifiche si accumulano nella stessa versione ancora da rilasciare (l'APK installato per provarle porta il numero dell'ultimo commit).
+- **Ad ogni modifica dell'app**: esegui `npm test` e, se il telefono è collegato col debug wireless, aggiorna l'app con `npm run apk:installa`
   (l'SDK si trova da solo in `~/Android/Sdk` o `%LOCALAPPDATA%\Android\Sdk`; `adb` sta in `platform-tools` dell'SDK, non nel PATH; se il telefono non risponde prova `adb mdns services` e `adb devices -l`, e se resta muto dillo all'utente).
 - **Quando l'utente chiede commit e push**: committa tutto, crea il tag `mybank-vX.Y.Z` della versione corrente e pusha anche i tag (i tag `vX.Y.Z` sono tutti della vecchia app Bilancio: non vanno riusati). Il server (NAS) si aggiorna a parte: `docker compose pull && docker compose up -d` dopo che GitHub ha costruito l'immagine.
 - Semver: patch per correzioni, minor per nuove funzioni, major per cambi incompatibili.

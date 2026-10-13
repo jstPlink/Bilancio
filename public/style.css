@@ -243,32 +243,23 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
   .hour.add .ghost { flex: none; }
 }
 
-/* Statistiche di spesa */
-.srow, .mrow { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--hair); }
-.mrow { cursor: pointer; grid-template-columns: 56px minmax(0, 1fr) auto; }
-.mrow:hover, .mrow.on { background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.slabel { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
-.slabel .pill { margin: 0; }
-.sbar { display: flex; height: 10px; background: var(--hair); }
-.sbar i { display: block; height: 100%; }
-.snum { text-align: right; font: 600 15px var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.snum small { display: block; font: 500 var(--fs-label) var(--f-mono); color: var(--mute); }
-#stTags, #stMonths { border-top: 2px solid var(--ink); }
-@media (max-width: 720px) { .srow { grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; } .mrow { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 10px; } .snum { font-size: 13px; } #stCards .v { font-size: 20px; } #stCards { gap: 0 12px; } }
-@media (min-width: 721px) { #stCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 720px) { #stCards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Storico: il dettaglio di un mese, una categoria per riga: nome | barra bianca (quanto pesa sulle uscite) | importo */
+.legend { display: grid; margin-top: 4px; }
+.chip { display: grid; grid-template-columns: 112px minmax(0, 1fr) 96px; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--mute); padding: 9px 0; text-align: left; color: var(--ink); }
+.chip:last-child { border-bottom: 0; }
+.chip:hover { color: var(--red); border-bottom-color: var(--red); }
+.chip .cname { font: 600 var(--fs-label)/1.2 var(--f-mono); letter-spacing: .05em; text-transform: uppercase; overflow-wrap: anywhere; }
+.chip .cbar { display: block; height: 10px; background: var(--hair); }
+.chip .cbar i { display: block; height: 100%; min-width: 2px; background: var(--ink); }
+.chip:hover .cbar i { background: var(--red); }
+.chip .camt { font: 600 var(--fs-sm) var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+@media (max-width: 720px) { .chip { grid-template-columns: 92px minmax(0, 1fr) 90px; gap: 10px; } }
+tr.detail td { padding-top: 10px; padding-bottom: 12px; }
 
 /* Banche: le righe di conto e pocket si toccano per vedere i loro movimenti; filtro per conto nei Movimenti */
 .acct[data-account] { cursor: pointer; }
 .acct[data-account]:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .catfilter { margin: 0 0 10px; font-size: var(--fs-sm); }
-
-/* Statistiche: entrate (barra verde sottile sopra le uscite, per mese) */
-.mbars { display: grid; gap: 3px; min-width: 0; }
-.ebar { height: 5px; }
-.ebar i { background: var(--green); }
-.mrow .snum { display: grid; gap: 2px; }
-.mrow .snum span { display: block; }
 
 /* Schede: Documenti sta a parte (filetto a sinistra); le Banche stanno nelle Opzioni, con le Notifiche */
 .tabs > .apart { margin-left: 14px; border-left: 1px solid var(--hair); }
