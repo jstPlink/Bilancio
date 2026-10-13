@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pocketTag, inferPocketName, isPocketTransfer, classify } from '../src/tags.js';
+import { monthBudget } from '../src/stats.js';
 
 test('il pocket decide il tag: numero iniziale e maiuscole non contano', () => {
   assert.equal(pocketTag('01 Spesa'), 'spesa');
@@ -71,4 +72,23 @@ test('giroconti: testo del pocket, IBAN di un mio conto, coppia uscita/entrata n
   assert.equal(tags.get('t4'), 'giroconto'); // uscita dal principale ed entrata sul pocket, stesso importo, stessa banca
   assert.equal(tags.get('t5'), 'giroconto');
   assert.equal(tags.get('t6'), 'giroconto'); // a mano
+});
+
+test('budget: spesa media degli ultimi 3 mesi completi, solo dai mesi con dati', () => {
+  const db = dbWith([
+    { id: 'j', account: 'p1', date: '2026-07-15', amount: -999, description: 'Prima dei dati' }, // luglio: prima del 1 agosto, non conta
+    { id: 'a', account: 'p1', date: '2026-08-10', amount: -30, description: 'Esselunga' },
+    { id: 's', account: 'p1', date: '2026-09-05', amount: -60, description: 'Esselunga' },
+    { id: 'b', account: 'p2', date: '2026-09-06', amount: -20, description: 'Bar' }, // non definito: non è una categoria con budget
+    { id: 'o', account: 'p1', date: '2026-10-02', amount: -10, description: 'Esselunga' }, // il mese in corso non entra nella media
+    { id: 'i', account: 'uni', bank: 'unicredit', date: '2026-09-07', amount: 500, description: 'Stipendio' },
+  ], { names: { p1: '01 Spesa' } });
+  db.settings = { budgets: {} };
+  const now = new Date('2026-10-13T10:00:00Z');
+  const cats = monthBudget(db, now).cats;
+  assert.equal(cats.spesa.avg3, 45); // (30 + 60) / 2 mesi con dati
+  assert.equal(cats.svago.avg3, 0);
+  assert.equal(cats.spesa.spent, 10);
+  // ad agosto 2026 non c'è ancora nessun mese completo con dati
+  assert.equal(monthBudget(db, new Date('2026-08-20T10:00:00Z')).cats.spesa.avg3, null);
 });

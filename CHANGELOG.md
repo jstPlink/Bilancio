@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.19.0
+- **Budget** ridisegnato in tre colonne (Spesa, Svago, Carburante): titolo con icona, riga sotto, **spesa media degli ultimi 3 mesi** (etichetta grigia, valore bianco), campo del budget mensile, **importo residuo** con la scritta «residuo» (bianco se positivo, rosso se negativo) e barra dello stato; sotto «Salva budget». Tolti descrizione, titolo «Budget mensile», «Questo mese» e le stime giornaliere. Testi coerenti con il resto dell'app. Serve il server alla 0.19.0 per la spesa media (`avg3` in `GET /api/budgets`; col server vecchio mostra «–»).
+- **Movimenti**: cambiando la categoria di un movimento con un filtro per tag attivo, l'elenco si aggiorna subito.
+
 ## 0.18.0
 - **Nuova categoria «Utenze»**: non è mai assegnata in automatico (nessun movimento si sposta da solo) e non ha un budget: si sceglie a mano dal menu di ogni movimento. Nel dettaglio dello Storico la riga «Utenze» c'è sempre, anche a zero. Serve il server alla 0.18.0 (altrimenti «Tag non valido»).
 - **Icone**: ogni categoria ha una piccola icona (Movimenti, dettaglio dello Storico, Budget).

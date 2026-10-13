@@ -1,5 +1,6 @@
 // Cifre dell'app: storico dell'anno (entrate, uscite, bilancio per mese), budget del mese e dati del widget.
 import { accountNames, classify, BUDGET_TAGS, TAGS } from './tags.js';
+import { cutoffOf } from './banks.js';
 import { localParts } from './schedule.js';
 
 const round = (n) => Math.round(n * 100) / 100;
@@ -48,7 +49,8 @@ export function listTransactions(db, { year, month, tag, q, account } = {}) {
 
 /**
  * Il mese in corso per le tre categorie con budget: speso, residuo (budget − speso), spesa giornaliera stimata (budget diviso i giorni
- * del mese) e reale (speso diviso i giorni passati, oggi compreso).
+ * del mese) e reale (speso diviso i giorni passati, oggi compreso), più la spesa media mensile degli ultimi 3 mesi completi (`avg3`: conta solo
+ * i mesi da quando ci sono dati; `null` se non ce n'è ancora nessuno).
  */
 export function monthBudget(db, now = new Date()) {
   const p = localParts(now);
@@ -60,12 +62,22 @@ export function monthBudget(db, now = new Date()) {
     const tag = tags.get(t.id);
     if (tag in spent) spent[tag] += -t.amount;
   }
+  // i 3 mesi completi prima di questo, solo da quando ci sono dati
+  const first = cutoffOf(db).slice(0, 7);
+  const past = [1, 2, 3].map((i) => { const d = new Date(Date.UTC(p.year, p.month - 1 - i, 1)); return d.toISOString().slice(0, 7); }).filter((m) => m >= first);
+  const pastSpent = Object.fromEntries(BUDGET_TAGS.map((k) => [k, 0]));
+  for (const t of Object.values(db.transactions)) {
+    if (t.amount >= 0 || !past.includes(t.date.slice(0, 7))) continue;
+    const tag = tags.get(t.id);
+    if (tag in pastSpent) pastSpent[tag] += -t.amount;
+  }
   const cats = {};
   for (const k of BUDGET_TAGS) {
     const budget = Number(db.settings.budgets?.[k]) || 0;
     cats[k] = {
       label: TAGS[k], budget, spent: round(spent[k]), left: round(budget - spent[k]),
       estDaily: budget > 0 ? round(budget / p.daysInMonth) : null, realDaily: round(spent[k] / p.day),
+      avg3: past.length ? round(pastSpent[k] / past.length) : null,
     };
   }
   return { year: p.year, month: p.month, day: p.day, daysInMonth: p.daysInMonth, cats };

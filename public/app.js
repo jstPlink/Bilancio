@@ -291,7 +291,7 @@ $('#movimenti').addEventListener('change', async (e) => {
   else if (el.id === 'mvMonth') state.mv.month = Number(el.value);
   else if (el.id === 'mvTag') state.mv.tag = el.value;
   else if (el.dataset.tag) {
-    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); el.style.color = `var(--t-${el.value})`; el.previousElementSibling?.classList.contains('ticon') && (el.previousElementSibling.outerHTML = icon(el.value)); toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
+    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(); return; } el.style.color = `var(--t-${el.value})`; el.previousElementSibling?.classList.contains('ticon') && (el.previousElementSibling.outerHTML = icon(el.value)); toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
     return;
   } else return;
   loadMoves().catch(fail);
@@ -304,20 +304,15 @@ $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); sea
 
 async function loadBudget() {
   const d = await api('GET', '/api/budgets');
-  const form = $('#budgetFields');
-  if (!form.children.length) {
-    form.innerHTML = ['spesa', 'svago', 'carburante'].map((k) => `<label>${TAGS[k]} (€ al mese)<input name="${k}" inputmode="decimal" placeholder="0"></label>`).join('');
-  }
-  for (const k of ['spesa', 'svago', 'carburante']) { const i = form.querySelector(`[name=${k}]`); if (document.activeElement !== i) i.value = d.budgets[k] || ''; }
-  const m = d.month;
-  $('#budgetCards').innerHTML = Object.entries(m.cats).map(([k, c]) => {
+  // per ogni categoria: titolo con icona, la riga sotto, il campo del budget mensile, l'importo residuo e la barra dello stato
+  $('#budgetCards').innerHTML = Object.entries(d.month.cats).map(([k, c]) => {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
     const cls = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
     return `<div class="card"><div class="k">${icon(k)}${esc(c.label)}</div>
-      <div class="v ${c.budget ? (c.left >= 0 ? 'pos' : 'neg') : ''}">${c.budget ? money(c.left) : money(c.spent)}</div>
-      <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div>
-      <div class="sub">${c.budget ? `budget ${money(c.budget)} · speso ${money(c.spent)}` : 'nessun budget: speso nel mese'}</div>
-      <div class="sub">stima ${c.estDaily == null ? '–' : money(c.estDaily)}/g · reale ${money(c.realDaily)}/g</div></div>`;
+      <div class="avg"><span class="dim">spesa media ultimi 3 mesi</span><b>${c.avg3 == null ? '–' : money(c.avg3)}</b></div>
+      <input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}">
+      <div class="resid"><span class="v ${c.budget && c.left < 0 ? 'neg' : 'pos'}">${c.budget ? money(c.left) : money(c.spent)}</span><span class="dim">${c.budget ? 'residuo' : 'speso'}</span></div>
+      <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div></div>`;
   }).join('');
 }
 $('#budgetForm').addEventListener('submit', async (e) => {

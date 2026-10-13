@@ -317,3 +317,21 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 .chip .cname { display: flex; align-items: center; gap: 8px; }
 .card .k .ticon { margin-right: 8px; vertical-align: -4px; }
 .chip .cbar i[style*="width:0%"] { min-width: 0; }
+
+/* Budget: tre colonne; in ognuna il titolo con l'icona, la riga sotto, la spesa media, il campo del budget mensile, l'importo residuo e la barra dello stato.
+   Testi come nel resto dell'app: titoli in monospazio maiuscolo, note in sans 11 grigio, numeri in serif (15 la media, 22 il residuo; 17 sul telefono), campo come gli altri. */
+#budgetCards .card { border-top: 0; padding: 0 0 14px; }
+#budgetCards .k { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 2px solid var(--ink); color: var(--ink); font: 700 var(--fs-sm)/1.2 var(--f-mono); letter-spacing: .02em; text-transform: uppercase; }
+#budgetCards .k .ticon { margin: 0; }
+#budgetCards .avg { display: grid; gap: 4px; margin-bottom: 10px; }
+#budgetCards .avg .dim, #budgetCards .resid .dim { font: 400 var(--fs-label)/1.3 var(--f-sans); color: var(--mute); white-space: nowrap; }
+#budgetCards .avg .dim { white-space: normal; }
+#budgetCards .avg b { font: 600 var(--fs-md)/1.1 var(--f-serif); letter-spacing: -.01em; font-variant-numeric: tabular-nums lining-nums; color: var(--ink); }
+#budgetCards input { width: 100%; min-width: 0; padding: 0 8px; }
+#budgetCards .resid { display: flex; flex-wrap: nowrap; align-items: baseline; gap: 6px; margin: 12px 0 10px; }
+#budgetCards .resid .v { margin: 0; font: 600 var(--fs-lg)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
+#budgetCards .resid .v.pos { color: var(--ink); }
+#budgetCards .resid .v.neg { color: var(--red); }
+#budgetCards .meter { margin: 0; height: 8px; }
+#budgetForm .foot { margin-top: 6px; }
+@media (max-width: 720px) { #budgetCards .resid .v { font-size: 17px; } }
