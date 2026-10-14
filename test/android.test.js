@@ -69,6 +69,8 @@ test('notifiche: permessi, ricevitore nel manifest, icona e ponte per la pagina'
   assert.ok(fs.existsSync('android/res/drawable/ic_notify.xml'));
   assert.match(fs.readFileSync('android/src/app/mybank/mobile/MainActivity.java', 'utf8'), /void syncNotifications\(\)/);
   assert.match(fs.readFileSync('public/app.js', 'utf8'), /Native\?\.syncNotifications/);
+  assert.match(fs.readFileSync('public/app.js', 'utf8'), /Native\?\.tick/); // tocco aptico sui pulsanti
+  assert.match(fs.readFileSync('android/src/app/mybank/mobile/MainActivity.java', 'utf8'), /performHapticFeedback/);
   assert.match(fs.readFileSync('android/src/app/mybank/mobile/Notifier.java', 'utf8'), /\/api\/notifications/);
 });
 

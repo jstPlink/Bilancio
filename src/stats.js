@@ -59,7 +59,7 @@ export function listTransactions(db, { year, month, tag, q, account, sort = 'dat
  * Il mese in corso per le tre categorie con budget: speso, residuo (budget − speso), spesa giornaliera stimata (budget diviso i giorni
  * del mese) e reale (speso diviso i giorni passati, oggi compreso), più la spesa media mensile degli ultimi 3 mesi completi (`avg3`: conta solo
  * i mesi da quando ci sono dati; `null` se non ce n'è ancora nessuno), il `pace` (quanto avresti speso oggi spendendo in modo uniforme:
- * budget × giorni passati / giorni del mese) e i `totals` del mese (budget, speso, residuo, pace e giorni rimanenti).
+ * budget × giorni passati / giorni del mese) e i `totals` del mese (budget, speso, residuo, pace, media dei 3 mesi e giorni rimanenti).
  */
 export function monthBudget(db, now = new Date()) {
   const p = localParts(now);
@@ -91,7 +91,7 @@ export function monthBudget(db, now = new Date()) {
   }
   const all = Object.values(cats);
   const sum = (f) => round(all.reduce((a, c) => a + (f(c) ?? 0), 0));
-  const totals = { budget: sum((c) => c.budget), spent: sum((c) => c.spent), left: sum((c) => c.left), pace: sum((c) => c.pace), daysLeft: p.daysInMonth - p.day };
+  const totals = { budget: sum((c) => c.budget), spent: sum((c) => c.spent), left: sum((c) => c.left), pace: sum((c) => c.pace), avg3: all.some((c) => c.avg3 != null) ? sum((c) => c.avg3) : null, daysLeft: p.daysInMonth - p.day };
   return { year: p.year, month: p.month, day: p.day, daysInMonth: p.daysInMonth, cats, totals };
 }
 

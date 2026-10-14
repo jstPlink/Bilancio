@@ -389,6 +389,12 @@ $('#movimenti').addEventListener('click', async (e) => {
 });
 $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.mv.q = e.target.value; loadMoves().catch(fail); }, 250); });
 
+// Un leggero tocco aptico su ogni pulsante (solo nell'app Android: sul web `Native` non c'è).
+document.addEventListener('click', (e) => {
+  if (!e.target.closest?.('button, summary, select, [role="button"], [role="tab"], label[for], input[type="checkbox"], input[type="radio"], .tabs a')) return;
+  try { window.Native?.tick?.(); } catch { /* fuori dall'app non c'è */ }
+}, true);
+
 // ------------------------------------------------------------------ budget
 
 async function loadBudget() {
@@ -397,7 +403,7 @@ async function loadBudget() {
   // in cima il mese (residuo, budget, speso, giorni rimanenti); poi per ogni categoria titolo con icona, residuo, barra con tacche al 25/50/75%
   // (il livello è il residuo del budget) e il segno del ritmo (dove saresti oggi spendendo in modo uniforme), speso su budget e media 3 mesi
   const hero = t ? `<div class="bhero"><span class="label">Residuo del mese</span><div class="big ${t.left < 0 ? 'neg' : ''}">${money(t.left)}</div>
-      <div class="bstats"><div><span class="label">Budget</span><span class="n">${money(t.budget)}</span></div><div><span class="label">Speso</span><span class="n">${money(t.spent)}</span></div><div><span class="label">Giorni</span><span class="n">${t.daysLeft}</span></div></div></div>` : '';
+      <div class="bstats"><div><span class="label">Budget</span><span class="n">${money(t.budget)}</span></div><div><span class="label">Speso</span><span class="n">${money(t.spent)}</span></div><div><span class="label">Giorni rimanenti</span><span class="n">${t.daysLeft}</span></div>${t.avg3 == null ? '' : `<div><span class="label">Media 3 mesi</span><span class="n">${money(t.avg3)}</span></div>`}${t.pace == null ? '' : `<div><span class="label">Dovresti aver speso</span><span class="n">${money(t.pace)}</span></div>`}</div></div>` : '';
   $('#budgetCards').innerHTML = hero + Object.entries(d.month.cats).map(([k, c]) => {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
     const left = c.budget > 0 ? Math.max(0, 1 - ratio) : 0; // la barra mostra il residuo, non il speso

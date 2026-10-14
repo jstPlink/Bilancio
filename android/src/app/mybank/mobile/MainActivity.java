@@ -9,6 +9,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
@@ -133,6 +134,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void openUrl(String url) {
             if (url == null || !url.matches("(?i)^https?://.*")) return;
             try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e) { /* nessun browser */ }
+        }
+        /** Un leggero tocco aptico (come un tasto della tastiera) quando si preme un pulsante; non serve nessun permesso. */
+        @JavascriptInterface public void tick() {
+            runOnUiThread(new Runnable() { @Override public void run() { if (web != null) web.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP); } });
         }
         @JavascriptInterface public void refreshWidget() { MyBankWidget.refreshAll(MainActivity.this); }
         /** Rilegge le notifiche dal server e le riprogramma; la prima volta chiede il permesso di mostrarle (Android 13 e successivi). */

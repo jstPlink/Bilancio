@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.32.0
+- **Riquadro del mese più ricco** (scheda Budget): valori a 22 px (su una riga sul web, su più righe sul telefono) e due dati nuovi, la **media dei 3 mesi precedenti** e «**dovresti aver speso**» (il ritmo di tutte le categorie). Il server aggiunge `totals.avg3`; serve il server alla 0.32.0 per vederli.
+- **Tocco aptico** su ogni pulsante nell'app Android (`Native.tick()`, nessun permesso; segue l'impostazione di vibrazione al tocco del telefono).
+- Scheda Budget: tacche da 3 px, segno del ritmo più visibile (4 px con bordo), barre a tutta larghezza sul web.
+
 ## 0.31.0
 - **Scheda Budget ridisegnata (B2)**: in cima il **residuo del mese** con budget, speso e giorni rimanenti; poi una riga per categoria con una **barra alta che mostra il residuo** (si accorcia man mano che spendi; rossa sotto il 25%, tutta rossa oltre il budget), tacche da 3 px al 25, 50 e 75% e un **segno rosso del ritmo** (dove sarebbe il residuo spendendo in modo uniforme fino a oggi). Sotto la barra «Speso … di …» e la media 3 mesi. Il budget si cambia con «Modifica budget». Solo inchiostro, carta e il rosso dell'app; a tutta larghezza anche sul web.
 - **Server**: `GET/PUT /api/budgets` aggiungono `pace` a ogni categoria e `totals` (budget, speso, residuo, ritmo, giorni rimanenti) al mese, con un test. Serve il server alla 0.31.0 per vedere il ritmo e il riquadro del mese (con uno più vecchio compaiono solo le barre).

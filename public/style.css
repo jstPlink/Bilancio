@@ -319,9 +319,11 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 
 .bhero { border-top: 2px solid var(--ink); padding: 12px 0 14px; }
 .bhero .big { font: 600 var(--fs-num)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; margin: 2px 0 10px; }
-.bstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px 8px; }
 .bstats .n { display: block; }
 .bhero .n, .bcat .n { font: 600 var(--fs-md) var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.bhero .n { font-size: var(--fs-lg); }
+@media (min-width: 721px) { .bstats { grid-template-columns: repeat(5, 1fr); gap: 8px 16px; } }
 .bcat { border-top: 1px solid var(--hair); padding: 12px 0 14px; }
 .bh { display: flex; justify-content: space-between; align-items: baseline; }
 .bh .n { font-size: var(--fs-lg); }
