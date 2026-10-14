@@ -2,6 +2,12 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.31.0
+- **Scheda Budget ridisegnata (B2)**: in cima il **residuo del mese** con budget, speso e giorni rimanenti; poi una riga per categoria con una **barra alta che mostra il residuo** (si accorcia man mano che spendi; rossa sotto il 25%, tutta rossa oltre il budget), tacche da 3 px al 25, 50 e 75% e un **segno rosso del ritmo** (dove sarebbe il residuo spendendo in modo uniforme fino a oggi). Sotto la barra «Speso … di …» e la media 3 mesi. Il budget si cambia con «Modifica budget». Solo inchiostro, carta e il rosso dell'app; a tutta larghezza anche sul web.
+- **Server**: `GET/PUT /api/budgets` aggiungono `pace` a ogni categoria e `totals` (budget, speso, residuo, ritmo, giorni rimanenti) al mese, con un test. Serve il server alla 0.31.0 per vedere il ritmo e il riquadro del mese (con uno più vecchio compaiono solo le barre).
+- **Widget «MyBank barre»**: seconda versione del widget 5×1, accanto a quella a livello, con una barra a due blocchi per categoria; il residuo è rosso solo sotto il 25%; margini del widget a livello più larghi.
+- Mockup della scheda Budget in `design/`.
+
 ## 0.30.0
 - **Budget di «Altro»**: nuova quarta categoria con budget mensile, come Spesa, Svago e Auto (`BUDGET_TAGS`: `altro`); `PUT /api/budgets` e `GET /api/widget` la includono. Serve il server alla 0.30.0 (con uno più vecchio la scheda non compare e il widget dice «nessun budget»).
 - **Scheda Budget riprogettata**: una scheda per categoria, una sotto l'altra sul telefono (più colonne su schermi larghi): titolo con icona e filetto da 2 px sotto, poi Residuo con la barra, Media 3 mesi e Budget (il campo), con l'etichetta a sinistra e il valore a destra. Residuo, media e budget hanno lo stesso carattere (serif); residuo e budget la stessa dimensione (22).

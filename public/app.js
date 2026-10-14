@@ -393,21 +393,28 @@ $('#mvSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); sea
 
 async function loadBudget() {
   const d = await api('GET', '/api/budgets');
-  // per ogni categoria: titolo con icona, la riga sotto, il campo del budget mensile, l'importo residuo e la barra dello stato
-  $('#budgetCards').innerHTML = Object.entries(d.month.cats).map(([k, c]) => {
+  const t = d.month.totals;
+  // in cima il mese (residuo, budget, speso, giorni rimanenti); poi per ogni categoria titolo con icona, residuo, barra con tacche al 25/50/75%
+  // (il livello è il residuo del budget) e il segno del ritmo (dove saresti oggi spendendo in modo uniforme), speso su budget e media 3 mesi
+  const hero = t ? `<div class="bhero"><span class="label">Residuo del mese</span><div class="big ${t.left < 0 ? 'neg' : ''}">${money(t.left)}</div>
+      <div class="bstats"><div><span class="label">Budget</span><span class="n">${money(t.budget)}</span></div><div><span class="label">Speso</span><span class="n">${money(t.spent)}</span></div><div><span class="label">Giorni</span><span class="n">${t.daysLeft}</span></div></div></div>` : '';
+  $('#budgetCards').innerHTML = hero + Object.entries(d.month.cats).map(([k, c]) => {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
-    const cls = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
-    return `<div class="card"><div class="k">${icon(k)}${esc(c.label)}</div>
-      <div class="brow first"><span class="label">${c.budget ? 'Residuo' : 'Speso'}</span><span class="n big ${c.budget && c.left < 0 ? 'neg' : 'pos'}">${c.budget ? money(c.left) : money(c.spent)}</span></div>
-      <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div>
-      <div class="brow"><span class="label">Media 3 mesi</span><span class="n">${c.avg3 == null ? '–' : money(c.avg3)}</span></div>
-      <div class="brow"><span class="label">Budget</span><input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}"></div></div>`;
+    const left = c.budget > 0 ? Math.max(0, 1 - ratio) : 0; // la barra mostra il residuo, non il speso
+    const pace = c.pace != null && c.budget > 0 ? Math.max(0, 100 - (c.pace / c.budget) * 100) : null; // dove sarebbe il residuo spendendo in modo uniforme
+    return `<div class="bcat"><div class="bh"><span class="bname">${icon(k)}${esc(c.label)}</span><span class="n ${c.budget && c.left < 0 ? 'neg' : ''}">${c.budget ? money(c.left) : money(c.spent)}</span></div>
+      <div class="bbar${ratio > 1 ? ' over' : left < 0.25 && c.budget > 0 ? ' low' : ''}"><i style="width:${left * 100}%"></i><u style="left:25%"></u><u style="left:50%"></u><u style="left:75%"></u>${pace == null ? '' : `<em style="left:${pace}%" title="Ritmo di oggi: ${money(c.pace)}"></em>`}</div>
+      <div class="bsub"><span>${c.budget ? `Speso <b>${money(c.spent)}</b> di <b>${money(c.budget)}</b>` : 'Nessun budget'}</span><span>Media <b>${c.avg3 == null ? '–' : money(c.avg3)}</b></span></div></div>`;
   }).join('');
+  $('#budgetFields').innerHTML = Object.entries(d.month.cats).map(([k, c]) => `<label><span>${icon(k)}${esc(c.label)}</span><input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}"></label>`).join('');
 }
+const showBudgetEdit = (on) => { $('#budgetEdit').hidden = !on; $('#budgetEditBtn').hidden = on; };
+$('#budgetEditBtn').addEventListener('click', () => { showBudgetEdit(true); $('#budgetFields input')?.focus(); });
+$('#budgetCancel').addEventListener('click', () => { showBudgetEdit(false); loadBudget().catch(fail); });
 $('#budgetForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(new FormData(e.target).entries());
-  try { await api('PUT', '/api/budgets', body); $('#budgetMsg').textContent = 'Salvato.'; setTimeout(() => { $('#budgetMsg').textContent = ''; }, 2500); await loadBudget(); } catch (err) { fail(err); }
+  try { await api('PUT', '/api/budgets', body); showBudgetEdit(false); $('#budgetMsg').textContent = 'Salvato.'; setTimeout(() => { $('#budgetMsg').textContent = ''; }, 2500); await loadBudget(); } catch (err) { fail(err); }
 });
 
 // ------------------------------------------------------------------ banche

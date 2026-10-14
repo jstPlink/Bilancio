@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyBank · mockup Budget (Nothing Phone 4a, 393 × 852 px CSS)</title>
+<style>
+/* Stesse variabili di public/style.css. Il Nothing Phone 4a è ~1080×2392 px fisici: ~393 px CSS di larghezza (densità ~2,75),
+   quindi qui ogni telefono è largo 393 px e il testo ha la stessa scala dell'app (11/13/15/22/34). */
+:root { --paper:#f3f0ea; --ink:#131211; --mute:#6b665e; --hair:#d8d3c8; --red:#e8431a; --green:#1d6b3c;
+  --f-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; --f-sans:system-ui,"Segoe UI",Roboto,sans-serif; --f-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --t-spesa:#1f4fd8;--t-svago:#c2188b;--t-auto:#b8860b;--t-altro:#5b4b8a;--h:46px; }
+.dark{--paper:#121211;--ink:#edeae3;--mute:#9a958b;--hair:#2e2c29;--red:#ff5a2e;--green:#5ccb8a;--t-spesa:#7a9cff;--t-svago:#ff7ac8;--t-auto:#e6b84a;--t-altro:#b3a3e6;color-scheme:dark}
+*{box-sizing:border-box} h1,h2,p{margin:0}
+body{margin:0;padding:24px;background:#6f6b64;font:15px/1.5 var(--f-sans);color:var(--ink)}
+body>h1{font:700 15px var(--f-mono);color:#fff;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+body>p{color:#eee;font-size:13px;margin-bottom:20px;max-width:760px}
+.wall{display:grid;grid-template-columns:repeat(2,max-content);gap:28px 28px;align-items:start;justify-content:start}.wall figure:nth-child(even) figcaption{visibility:hidden}
+figure{margin:0}
+figcaption{color:#fff;font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+figcaption small{min-height:0;display:block;font:400 13px var(--f-sans);text-transform:none;letter-spacing:0;max-width:393px;margin-top:2px;color:#eee}
+.phone{color:var(--ink);width:393px;height:852px;overflow:hidden;background:var(--paper);position:relative;border:1px solid #000}
+.status{height:28px;font:600 11px var(--f-mono);display:flex;justify-content:space-between;padding:8px 16px 0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 16px 0;height:40px}
+.top b{font:700 15px var(--f-serif);letter-spacing:-.02em}
+.tabs{display:flex;gap:18px;padding:0 16px;border-bottom:1px solid var(--hair);height:38px;align-items:flex-end;font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.tabs span{padding-bottom:9px}.tabs .on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--red)}
+.body{padding:16px 16px 0}
+.lab{font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.ser{font-family:var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums;font-weight:600;white-space:nowrap}
+.neg{color:var(--red)}
+.ti{width:18px;height:18px;vertical-align:-3px;margin-right:6px;color:var(--c)}
+.name{font:700 13px var(--f-mono);letter-spacing:.02em;text-transform:uppercase;display:flex;align-items:center}
+.meter{height:6px;background:var(--hair);position:relative}.meter i{display:block;height:100%;background:var(--c,var(--ink))}.meter.over i{background:var(--red)}.meter.warn i{background:var(--red);opacity:.6}
+.field{height:var(--h);border:1px solid var(--ink);display:flex;align-items:center;justify-content:flex-end;padding:0 10px;font:600 22px var(--f-serif);letter-spacing:-.02em;gap:6px}
+.field s{text-decoration:none;font:11px var(--f-mono);color:var(--mute);margin-right:auto}
+.btn{height:var(--h);background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:700 13px var(--f-mono);letter-spacing:.06em;text-transform:uppercase}
+.save{position:absolute;left:16px;right:16px;bottom:16px}
+.nav{position:absolute;bottom:0;left:0;right:0;height:20px}
+/* A */
+.A .row{padding:14px 0;border-top:1px solid var(--hair)}.A .row:first-child{border-top:2px solid var(--ink)}
+.A .r1{display:flex;justify-content:space-between;align-items:baseline}.A .r1 .ser{font-size:28px}
+.A .meter{margin:10px 0 8px}.A .r3{display:flex;justify-content:space-between}
+.A .r3 b{font:600 13px var(--f-serif);color:var(--ink);letter-spacing:0}
+/* B */
+.B .hero{border-top:2px solid var(--ink);padding:12px 0 14px}
+.B .hero .big{font-size:34px;line-height:1.1;margin:2px 0 10px}
+.B .hero .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.B .hero .stats .ser{font-size:15px;display:block}
+.B .cat{border-top:1px solid var(--hair);padding:12px 0 14px}
+.B .cat .h{display:flex;justify-content:space-between;align-items:baseline}
+.B .bar{height:22px;background:var(--hair);position:relative;margin:10px 0 6px}.B .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--c,var(--ink))}.B .bar.over i{background:var(--red)}.meter.over i,.meter.warn i{background:var(--red)}
+.B .bar u{position:absolute;top:0;bottom:0;width:1px;background:var(--paper);opacity:.7}
+.B .bar em{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--red);font-style:normal}
+.B .sub{display:flex;justify-content:space-between;font-size:13px;color:var(--mute)}.B .sub b{color:var(--ink);font-weight:400}
+/* C */
+.C .grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:2px solid var(--ink)}
+.C .cell{padding:12px 12px 14px 0;border-bottom:1px solid var(--hair);position:relative;height:150px;display:flex;flex-direction:column;justify-content:space-between}
+.C .cell:nth-child(even){padding:12px 0 14px 12px;border-left:1px solid var(--hair)}
+.C .cell .ser{font-size:28px;line-height:1}.C .cell .lvl{height:6px}
+.C .cell .two{font-size:13px;color:var(--mute);line-height:1.35}.C .cell .two b{color:var(--ink);font-weight:400}
+.C .cell.low .ser{color:var(--red)}
+.C .tot{padding:14px 0;display:flex;justify-content:space-between;align-items:baseline}.C .tot .ser{font-size:34px}
+/* D */
+.D table{width:100%;border-collapse:collapse}
+.D th{font:11px var(--f-mono);letter-spacing:.06em;color:var(--mute);text-align:right;padding:0 0 6px;font-weight:400;border-bottom:2px solid var(--ink)}
+.D th:first-child,.D td:first-child{text-align:left}
+.D td{padding:11px 0 4px;text-align:right;font-size:15px}
+.D td:first-child{font:700 13px var(--f-mono);text-transform:uppercase}
+.D tr.m td{padding:0 0 11px;border-bottom:1px solid var(--hair)}.D tr.m .meter{height:4px}
+.D .sec{margin-top:22px;border-top:2px solid var(--ink);padding-top:8px}
+.D .ed{display:grid;grid-template-columns:1fr 150px;align-items:center;border-bottom:1px solid var(--hair);padding:6px 0}
+.D .ed .field{height:42px;font-size:15px;border-color:var(--hair)}
+</style></head><body>
+<h1>MyBank · Budget · nuovi mockup</h1>
+<p>Tema chiaro e scuro dell'app, con il colore di ogni categoria (Spesa blu, Svago magenta, Auto ocra, Altro viola; il rosso solo per l'80% e oltre). Quattro idee per la scheda Budget, disegnate a 393 × 852 px CSS (il Nothing Phone 4a ha ~1080 × 2392 px fisici, densità ~2,75). Stessa estetica dell'app: carta e inchiostro, un solo rosso, angoli vivi, serif per i numeri. Dati di esempio, 14 ottobre (17 giorni rimanenti). Zone toccabili ≥ 46 px.</p>
+<div class="wall" id="wall"></div>
+
+<script>
+const ICON={spesa:'<path d="M3 4h2.5l2 11h10.5l2-8H6.3"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',svago:'<path d="M12 3l2.8 5.9 6.2.8-4.6 4.3 1.2 6.3L12 17.3 6.4 20.3l1.2-6.3L3 9.7l6.2-.8z"/>',auto:'<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5"/>',altro:'<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>'};
+const ic=k=>`<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>`;
+const D=[{k:'spesa',n:'Spesa',b:400,s:312,a:340},{k:'svago',n:'Svago',b:150,s:142,a:128},{k:'auto',n:'Auto',b:100,s:38,a:76},{k:'altro',n:'Altro',b:200,s:236,a:190}];
+D.forEach(c=>{c.l=c.b-c.s;c.r=c.s/c.b;c.cls=c.r>=1?'over':c.r>=.8?'warn':''});
+const COL=k=>`--c:var(--t-${k})`;
+const e=n=>(n<0?'−':'')+Math.abs(n).toLocaleString('it-IT')+' €';
+const TB=D.reduce((a,c)=>a+c.b,0),TS=D.reduce((a,c)=>a+c.s,0);
+const head=(t)=>`<div class="status"><span>9:41</span><span>5G ▮▮▮</span></div><div class="top"><b>MyBank</b><span class="lab">Aggiorna</span></div><div class="tabs"><span>Storico</span><span>Movimenti</span><span class="on">Budget</span><span>Banche</span></div>`;
+const wrap=(cl,cap,sub,inner)=>['','dark'].map(t=>`<figure><figcaption>${cap} · ${t?'scuro':'chiaro'}<small>${sub}</small></figcaption><div class="phone ${cl} ${t}">${head()}<div class="body">${inner}</div></div></figure>`).join('');
+
+// A — elenco: residuo grande, barra sottile, media e budget in una riga
+const A=D.map(c=>`<div class="row" style="${COL(c.k)}"><div class="r1"><span class="name">${ic(c.k)}${c.n}</span><span class="ser ${c.l<0?'neg':''}">${e(c.l)}</span></div>
+<div class="meter ${c.cls}"><i style="width:${Math.min(100,c.r*100)}%"></i></div>
+<div class="r3 lab"><span>Speso <b class="ser">${e(c.s)}</b></span><span>Media <b class="ser">${e(c.a)}</b></span><span>Budget <b class="ser">${e(c.b)}</b></span></div></div>`).join('')
++`<div class="save btn">Salva budget</div>`;
+
+// B — totale del mese in cima + barre spesse con linea «dove dovresti essere» (giorni passati)
+const pace=14/31;
+const B=`<div class="hero"><span class="lab">Residuo del mese</span><div class="big ser">${e(TB-TS)}</div>
+<div class="stats"><div><span class="lab">Budget</span><span class="ser">${e(TB)}</span></div><div><span class="lab">Speso</span><span class="ser">${e(TS)}</span></div><div><span class="lab">Giorni</span><span class="ser">17</span></div></div></div>`
++D.map(c=>`<div class="cat" style="${COL(c.k)}"><div class="h"><span class="name">${ic(c.k)}${c.n}</span><span class="ser ${c.l<0?'neg':''}" style="font-size:22px">${e(c.l)}</span></div>
+<div class="bar ${c.cls==='over'?'over':''}"><i style="width:${Math.min(100,c.r*100)}%"></i><u style="left:25%"></u><u style="left:50%"></u><u style="left:75%"></u><em style="left:${pace*100}%"></em></div>
+<div class="sub"><span>Speso <b>${e(c.s)}</b> di <b>${e(c.b)}</b></span><span>Media <b>${e(c.a)}</b></span></div></div>`).join('')
++`<div class="save btn">Modifica budget</div>`;
+
+// C — celle 2×2 come il widget, tocco su una cella = modifica
+const C=`<div class="tot"><div><span class="lab">Residuo totale</span><div class="ser">${e(TB-TS)}</div></div><div style="text-align:right"><span class="lab">Giorni rimanenti</span><div class="ser" style="font-size:22px">17</div></div></div>
+<div class="grid">`+D.map(c=>`<div class="cell ${c.r>=.75?'low':''}" style="${COL(c.k)}"><div><span class="name">${ic(c.k)}${c.n}</span></div><div class="ser">${e(c.l)}</div>
+<div><div class="meter lvl ${c.cls}" style="margin-bottom:8px"><i style="width:${Math.min(100,c.r*100)}%"></i></div><div class="two">Budget <b>${e(c.b)}</b><br>Media 3 mesi <b>${e(c.a)}</b></div></div></div>`).join('')+`</div>
+<p class="lab" style="margin-top:14px">Tocca una cella per cambiare il budget</p>`;
+
+// D — tabella da giornale + modifica in fondo
+const D_=`<table><tr><th>Categoria</th><th>Speso</th><th>Budget</th><th>Residuo</th></tr>`+D.map(c=>`<tr style="${COL(c.k)}"><td>${ic(c.k)}${c.n}</td><td class="ser">${e(c.s)}</td><td class="ser">${e(c.b)}</td><td class="ser ${c.l<0?'neg':''}">${e(c.l)}</td></tr><tr class="m" style="${COL(c.k)}"><td colspan="4"><div class="meter ${c.cls}"><i style="width:${Math.min(100,c.r*100)}%"></i></div></td></tr>`).join('')
++`<tr><td style="padding-top:12px">Totale</td><td class="ser" style="padding-top:12px">${e(TS)}</td><td class="ser" style="padding-top:12px">${e(TB)}</td><td class="ser" style="padding-top:12px">${e(TB-TS)}</td></tr></table>
+<div class="sec"><span class="lab">Budget mensile</span>`+D.map(c=>`<div class="ed"><span class="name">${c.n}</span><div class="field"><s>€ / mese</s>${c.b}</div></div>`).join('')+`</div><div class="save btn">Salva budget</div>`;
+
+document.getElementById('wall').innerHTML=
+ wrap('A','A · Elenco','Una riga per categoria: il residuo è il numero grande, sotto barra sottile e tre dati. Tutte e quattro in una schermata, budget in sola lettura (si modifica col pulsante in fondo).',A)+
+ wrap('B','B · Mese e barre','Il totale del mese in cima, poi barre spesse con tacche al 25/50/75% e un segno rosso: dove saresti oggi se spendessi in modo uniforme (giorno 14 di 31).',B)+
+ wrap('C','C · Celle come il widget','Quattro celle 2×2 come il widget sulla Home: stessa lettura a colpo d\'occhio; un tocco su una cella apre la modifica del budget.',C)+
+ wrap('D','D · Tabella','Stile giornale: colonne Speso, Budget, Residuo con la barra sotto ogni riga, totale, e i campi del budget raccolti in fondo (46 px di altezza, ben toccabili).',D_);
+</script></body></html>

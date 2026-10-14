@@ -61,8 +61,12 @@
 
       <section id="budget" hidden>
         <form id="budgetForm">
-          <div class="cards" id="budgetCards"></div>
-          <div class="foot"><button class="primary" type="submit">Salva budget</button><span class="muted" id="budgetMsg"></span></div>
+          <div id="budgetCards"></div>
+          <div class="foot"><button class="primary" type="button" id="budgetEditBtn">Modifica budget</button><span class="muted" id="budgetMsg"></span></div>
+          <div id="budgetEdit" hidden>
+            <div class="fields" id="budgetFields"></div>
+            <div class="foot"><button class="primary" type="submit">Salva budget</button><button class="ghost" type="button" id="budgetCancel">Annulla</button></div>
+          </div>
         </form>
       </section>
 

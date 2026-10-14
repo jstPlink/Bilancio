@@ -7,7 +7,7 @@ import fs from 'node:fs';
 const ALLOWED = new Set(['FrameLayout', 'LinearLayout', 'RelativeLayout', 'GridLayout', 'AnalogClock', 'Button', 'Chronometer', 'ImageButton', 'ImageView', 'ProgressBar', 'TextClock', 'TextView', 'ViewFlipper', 'AdapterViewFlipper', 'GridView', 'ListView', 'StackView']);
 const tags = (file) => [...fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([A-Za-z][\w.]*)[\s>/]/g)].map((m) => m[1]).filter((t) => t !== 'layer-list');
 
-for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml']) {
+for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml', 'android/res/layout/widget_mybank_barre.xml', 'android/res/layout/widget_mybank_barre_preview.xml']) {
   test(`${file}: solo view ammesse nei widget`, () => {
     const bad = tags(file).filter((t) => !ALLOWED.has(t));
     assert.deepEqual(bad, []);
@@ -87,4 +87,34 @@ test("login: un pulsante sceglie http o https e nel campo basta l'indirizzo (app
   assert.match(activity, /"http:\/\/"/);
   assert.match(fs.readFileSync('public/index.html', 'utf8'), /id="schemeBtn"/);
   assert.match(fs.readFileSync('public/app.js', 'utf8'), /setScheme/);
+});
+
+test('widget a barre (seconda versione): registrato nel manifest accanto al primo, con layout e identificativi suoi', () => {
+  const manifest = fs.readFileSync('android/AndroidManifest.xml', 'utf8');
+  assert.match(manifest, /android:name="\.MyBankWidget"/);
+  assert.match(manifest, /android:name="\.MyBankWidgetBarre"/);
+  assert.match(fs.readFileSync('android/res/xml/widget_info_barre.xml', 'utf8'), /@layout\/widget_mybank_barre"/);
+  const java = fs.readFileSync('android/src/app/mybank/mobile/MyBankWidgetBarre.java', 'utf8');
+  assert.match(java, /R\.layout\.widget_mybank_barre\b/);
+  const layout = fs.readFileSync('android/res/layout/widget_mybank_barre.xml', 'utf8');
+  const defined = new Set([...layout.matchAll(/@\+id\/(\w+)/g)].map((m) => m[1]));
+  const used = new Set([...java.matchAll(/R\.id\.(\w+)/g)].map((m) => m[1]));
+  assert.deepEqual([...used].filter((id) => !defined.has(id)), []);
+  for (const id of ['spesa_bar', 'svago_bar', 'carburante_bar', 'altro_bar', 'weeks', 'days_num', 'days_text']) assert.ok(defined.has('widget_' + id), id);
+  assert.match(java, /static Bitmap levelBar\(/);
+  assert.doesNotMatch(java, /TICK|lastSync|aggiornato/); // niente tacche e niente orario di aggiornamento
+  // il primo widget aggiorna anche la seconda versione
+  assert.match(fs.readFileSync('android/src/app/mybank/mobile/MyBankWidget.java', 'utf8'), /MyBankWidgetBarre\.refreshAll/);
+});
+
+test('widget a barre: nomi nel layout e cinque celle di uguale larghezza', () => {
+  for (const file of ['android/res/layout/widget_mybank_barre.xml', 'android/res/layout/widget_mybank_barre_preview.xml']) {
+    const xml = fs.readFileSync(file, 'utf8');
+    for (const [key, name] of [['spesa', 'SPESA'], ['svago', 'SVAGO'], ['carburante', 'AUTO'], ['altro', 'ALTRO']]) {
+      const m = new RegExp(`@\\+id/widget_${key}_label"[\\s\\S]*?android:text="([^"]*)"`).exec(xml);
+      assert.equal(m?.[1], name, `${file}: nome di ${key}`);
+    }
+    const cells = [...xml.matchAll(/android:layout_width="0dp"\s+android:layout_height="match_parent"\s+android:layout_weight="1"/g)];
+    assert.equal(cells.length, 5, file);
+  }
 });

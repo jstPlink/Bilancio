@@ -313,21 +313,32 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 .card .k .ticon { margin-right: 8px; vertical-align: -4px; }
 .chip .cbar i[style*="width:0%"] { min-width: 0; }
 
-/* Budget: una scheda per categoria (una colonna sul telefono, più colonne su schermi larghi). Il titolo con l'icona e il filetto da 2px sotto; poi righe
-   con l'etichetta a sinistra (monospazio maiuscolo grigio) e il valore a destra: Residuo (con la barra sotto), Media 3 mesi e Budget (il campo).
-   Residuo, media e budget sono numeri in serif; residuo e budget alla stessa dimensione (22), la media più piccola (15). */
-#budgetCards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 28px; }
-#budgetCards .card { border-top: 0; padding: 0 0 20px; }
-#budgetCards .k { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 2px solid var(--ink); color: var(--ink); font: 700 var(--fs-sm)/1.2 var(--f-mono); letter-spacing: .02em; text-transform: uppercase; }
-#budgetCards .k .ticon { margin: 0; }
-#budgetCards .brow { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--hair); }
-#budgetCards .brow.first { border-top: 0; padding-bottom: 4px; }
-#budgetCards .brow .n { text-align: right; font: 600 var(--fs-md)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
-#budgetCards .brow .n.big { font-size: var(--fs-lg); }
-#budgetCards .brow .n.pos { color: var(--ink); }
-#budgetCards .brow .n.neg { color: var(--red); }
-#budgetCards input { width: 100%; min-width: 0; padding: 0 10px; text-align: right; font: 600 var(--fs-lg) var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
-#budgetCards .meter { margin: 0 0 4px; height: 6px; }
+/* Budget: in cima il mese (residuo, budget, speso, giorni); poi una riga per categoria: titolo con icona e residuo, barra alta 22px con tacche al 25/50/75%
+   e il segno rosso del ritmo (dove saresti oggi spendendo in modo uniforme), speso su budget e media 3 mesi. La barra mostra il residuo (si accorcia man mano che spendi) ed è rossa solo sotto il 25% (tutta rossa oltre il budget).
+   Il budget si modifica con «Modifica budget» (campi alti --h). Solo inchiostro, carta e --red. */
+
+.bhero { border-top: 2px solid var(--ink); padding: 12px 0 14px; }
+.bhero .big { font: 600 var(--fs-num)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; margin: 2px 0 10px; }
+.bstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bstats .n { display: block; }
+.bhero .n, .bcat .n { font: 600 var(--fs-md) var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+.bcat { border-top: 1px solid var(--hair); padding: 12px 0 14px; }
+.bh { display: flex; justify-content: space-between; align-items: baseline; }
+.bh .n { font-size: var(--fs-lg); }
+.bname { display: flex; align-items: center; gap: 6px; font: 700 var(--fs-sm)/1.2 var(--f-mono); letter-spacing: .02em; text-transform: uppercase; }
+.bbar { position: relative; height: 22px; background: var(--hair); margin: 10px 0 6px; }
+.bbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+.bbar.low i { background: var(--red); }
+.bbar.over { background: var(--red); }
+.bbar u { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--paper); }
+.bbar em { position: absolute; top: -7px; bottom: -7px; width: 4px; margin-left: -2px; background: var(--red); box-shadow: 0 0 0 2px var(--paper); z-index: 1; }
+.bsub { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-sm); color: var(--mute); }
+.bsub b { color: var(--ink); font-weight: 400; }
+#budgetEdit { margin-top: 6px; }
+#budgetFields { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 14px; }
+#budgetFields label { display: flex; flex-direction: column; gap: 6px; }
+#budgetFields .ticon { vertical-align: -3px; margin-right: 6px; }
+#budgetFields input { width: 100%; padding: 0 10px; text-align: right; font: 600 var(--fs-lg) var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
 #budgetForm .foot { margin-top: 6px; }
 
 /* Documenti: tre categorie che si chiudono (titolo con la riga sotto, come nelle Opzioni), elenco dei file, caricamento e link */

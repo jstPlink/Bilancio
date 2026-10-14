@@ -7,14 +7,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:padding="3dp"
+    android:paddingLeft="8dp"
+    android:paddingRight="8dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp"
     android:background="@drawable/widget_bg">
     <FrameLayout
         android:id="@+id/widget_month_cell"
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_margin="1.5dp">
+        android:layout_margin="2.25dp">
         <ImageView
             android:src="@drawable/preview_month"
             android:layout_width="match_parent"
@@ -77,7 +80,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_margin="1.5dp">
+        android:layout_margin="2.25dp">
         <ImageView
             android:src="@drawable/preview_spesa"
             android:layout_width="match_parent"
@@ -156,7 +159,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_margin="1.5dp">
+        android:layout_margin="2.25dp">
         <ImageView
             android:src="@drawable/preview_svago"
             android:layout_width="match_parent"
@@ -235,7 +238,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_margin="1.5dp">
+        android:layout_margin="2.25dp">
         <ImageView
             android:src="@drawable/preview_carburante"
             android:layout_width="match_parent"
@@ -314,7 +317,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_weight="1"
-        android:layout_margin="1.5dp">
+        android:layout_margin="2.25dp">
         <ImageView
             android:src="@drawable/preview_altro"
             android:layout_width="match_parent"

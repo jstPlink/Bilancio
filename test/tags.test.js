@@ -104,3 +104,15 @@ test("addebito mensile della carta di credito: giroconto solo se di quel mese c'
   assert.equal(tags.get('o'), 'non_definito'); // di gennaio 2025 non c'è
   assert.equal(tags.get('c'), 'non_definito'); // l'acquisto con la carta è una spesa
 });
+
+test('budget: ritmo (spesa uniforme fino a oggi) e totali del mese', () => {
+  const db = dbWith([
+    { id: 'o', account: 'p1', date: '2026-10-02', amount: -10, description: 'Esselunga' },
+  ], { names: { p1: '01 Spesa' } });
+  db.settings = { budgets: { spesa: 310, svago: 62 } };
+  const m = monthBudget(db, new Date('2026-10-14T10:00:00Z')); // 14 ottobre: 14 giorni su 31
+  assert.equal(m.cats.spesa.pace, 140);
+  assert.equal(m.cats.svago.pace, 28);
+  assert.equal(m.cats.auto?.pace ?? m.cats.carburante.pace, null); // senza budget il ritmo non c'è
+  assert.deepEqual(m.totals, { budget: 372, spent: 10, left: 362, pace: 168, daysLeft: 17 });
+});

@@ -56,6 +56,7 @@ public class MyBankWidget extends AppWidgetProvider {
     /** Rilegge i dati dal server e ridisegna tutti i widget presenti sulla Home. */
     static void refreshAll(final Context context) {
         final Context c = context.getApplicationContext();
+        MyBankWidgetBarre.refreshAll(c); // anche la seconda versione del widget
         final AppWidgetManager m = AppWidgetManager.getInstance(c);
         final int[] ids = m.getAppWidgetIds(new ComponentName(c, MyBankWidget.class));
         if (ids.length == 0) return;
@@ -199,7 +200,7 @@ public class MyBankWidget extends AppWidgetProvider {
                 v.setTextColor(id[0], PAPER);
             } else {
                 v.setTextViewText(id[0], has ? money(d.left[i]) : "—");
-                v.setTextColor(id[0], has && (worse || d.left[i] < 0) ? LATE : PAPER);
+                v.setTextColor(id[0], low ? LATE : PAPER); // il residuo è rosso con la stessa regola del livello: solo sotto il 25%
                 v.setTextViewText(id[1], has ? chip("stima", perDay(d.est[i]), PAPER) : chip("nessun", "budget", MUTE));
                 v.setTextViewText(id[2], chip("reale", perDay(d.real[i]), !has || !worse ? PAPER : LATE)); // migliore della stima: bianco; peggiore: rosso
             }
