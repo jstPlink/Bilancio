@@ -207,15 +207,11 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 
 .logo { display: block; }
 
-/* Storico (entrate, uscite, bilancio) e Budget: sempre su tre colonne, anche sul telefono */
-#yearCards, #budgetCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-#budgetForm .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Storico (entrate, uscite, bilancio): sempre su tre colonne, anche sul telefono */
+#yearCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 720px) {
-  #yearCards, #budgetCards { gap: 0 12px; }
-  #yearCards .v, #budgetCards .v { font-size: 17px; }
-  #budgetCards .sub { font-size: 11px; }
-  #budgetForm .fields { gap: 10px; }
-  #budgetForm label { font-size: 10px; }
+  #yearCards { gap: 0 12px; }
+  #yearCards .v { font-size: 17px; }
 }
 
 /* Storico: numeri grandi il 30% in più */
@@ -223,9 +219,6 @@ dialog h2 { font: 700 var(--fs-lg)/1.2 var(--f-serif); }
 #yearCards .k { font-size: calc(var(--fs-label) * 1.2); }
 @media (max-width: 720px) {
   #yearCards .v { font-size: 26px; }
-  /* Budget: i tre campi stanno nelle tre colonne, senza uscire dallo schermo */
-  #budgetForm .fields > label { min-width: 0; }
-  #budgetForm .fields input { width: 100%; min-width: 0; padding: 0 8px; }
 }
 /* Banche: gli orari stanno su una riga (menu senza freccia, più stretti) */
 .hours { gap: 8px 5px; }
@@ -320,23 +313,22 @@ details.panel > summary::before, details.panel[open] > summary::before { content
 .card .k .ticon { margin-right: 8px; vertical-align: -4px; }
 .chip .cbar i[style*="width:0%"] { min-width: 0; }
 
-/* Budget: tre colonne; in ognuna il titolo con l'icona, la riga sotto, la spesa media, il campo del budget mensile, l'importo residuo e la barra dello stato.
-   Testi come nel resto dell'app: titoli in monospazio maiuscolo, note in sans 11 grigio, numeri in serif (15 la media, 22 il residuo; 17 sul telefono), campo come gli altri. */
-#budgetCards .card { border-top: 0; padding: 0 0 14px; }
-#budgetCards .k { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 2px solid var(--ink); color: var(--ink); font: 700 var(--fs-sm)/1.2 var(--f-mono); letter-spacing: .02em; text-transform: uppercase; }
+/* Budget: una scheda per categoria (una colonna sul telefono, più colonne su schermi larghi). Il titolo con l'icona e il filetto da 2px sotto; poi righe
+   con l'etichetta a sinistra (monospazio maiuscolo grigio) e il valore a destra: Residuo (con la barra sotto), Media 3 mesi e Budget (il campo).
+   Residuo, media e budget sono numeri in serif; residuo e budget alla stessa dimensione (22), la media più piccola (15). */
+#budgetCards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 28px; }
+#budgetCards .card { border-top: 0; padding: 0 0 20px; }
+#budgetCards .k { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 2px solid var(--ink); color: var(--ink); font: 700 var(--fs-sm)/1.2 var(--f-mono); letter-spacing: .02em; text-transform: uppercase; }
 #budgetCards .k .ticon { margin: 0; }
-#budgetCards .avg { display: grid; gap: 4px; margin-bottom: 10px; }
-#budgetCards .avg .dim, #budgetCards .resid .dim { font: 400 var(--fs-label)/1.3 var(--f-sans); color: var(--mute); white-space: nowrap; }
-#budgetCards .avg .dim { white-space: normal; }
-#budgetCards .avg b { font: 600 var(--fs-md)/1.1 var(--f-serif); letter-spacing: -.01em; font-variant-numeric: tabular-nums lining-nums; color: var(--ink); }
-#budgetCards input { width: 100%; min-width: 0; padding: 0 8px; }
-#budgetCards .resid { display: flex; flex-wrap: nowrap; align-items: baseline; gap: 6px; margin: 12px 0 10px; }
-#budgetCards .resid .v { margin: 0; font: 600 var(--fs-lg)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
-#budgetCards .resid .v.pos { color: var(--ink); }
-#budgetCards .resid .v.neg { color: var(--red); }
-#budgetCards .meter { margin: 0; height: 8px; }
+#budgetCards .brow { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--hair); }
+#budgetCards .brow.first { border-top: 0; padding-bottom: 4px; }
+#budgetCards .brow .n { text-align: right; font: 600 var(--fs-md)/1.1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
+#budgetCards .brow .n.big { font-size: var(--fs-lg); }
+#budgetCards .brow .n.pos { color: var(--ink); }
+#budgetCards .brow .n.neg { color: var(--red); }
+#budgetCards input { width: 100%; min-width: 0; padding: 0 10px; text-align: right; font: 600 var(--fs-lg) var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
+#budgetCards .meter { margin: 0 0 4px; height: 6px; }
 #budgetForm .foot { margin-top: 6px; }
-@media (max-width: 720px) { #budgetCards .resid .v { font-size: 17px; } }
 
 /* Documenti: tre categorie che si chiudono (titolo con la riga sotto, come nelle Opzioni), elenco dei file, caricamento e link */
 #docGroups > details.group { margin: 0 0 30px; }

@@ -120,15 +120,19 @@ test('collegamento di UniCredit e Revolut, tag dei pocket, storico, budget e wid
   assert.equal((await api('GET', '/api/transactions')).json.transactions.find((x) => x.id === nd.id).tag, 'non_definito');
 
   // budget e widget
-  assert.equal((await api('PUT', '/api/budgets', { spesa: '300,50', svago: '100', carburante: 80 })).status, 200);
+  assert.equal((await api('PUT', '/api/budgets', { spesa: '300,50', svago: '100', carburante: 80, altro: '60' })).status, 200);
   assert.equal((await api('PUT', '/api/budgets', { spesa: 'abc' })).status, 400);
   const w = (await api('GET', '/api/widget')).json;
-  for (const k of ['spesa', 'svago', 'carburante']) {
+  for (const k of ['spesa', 'svago', 'carburante', 'altro']) {
     const c = w.cats[k];
     assert.equal(c.left, Math.round((c.budget - c.spent) * 100) / 100);
     assert.equal(c.estDaily, Math.round((c.budget / w.daysInMonth) * 100) / 100);
   }
   assert.equal(w.cats.spesa.budget, 300.5);
+  assert.equal(w.cats.altro.budget, 60);
+  assert.equal(w.cats.altro.label, 'Altro');
+  assert.equal(w.cats.altro.budget, 60);
+  assert.equal(w.cats.altro.label, 'Altro');
   assert.equal(w.daysLeft, w.daysInMonth - w.day);
   assert.ok(w.sundays.length >= 4 && w.sundays.length <= 5);
   assert.ok(w.lastSync);

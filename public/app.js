@@ -398,10 +398,10 @@ async function loadBudget() {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
     const cls = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warn' : '';
     return `<div class="card"><div class="k">${icon(k)}${esc(c.label)}</div>
-      <div class="avg"><span class="dim">spesa media ultimi 3 mesi</span><b>${c.avg3 == null ? '–' : money(c.avg3)}</b></div>
-      <input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}">
-      <div class="resid"><span class="v ${c.budget && c.left < 0 ? 'neg' : 'pos'}">${c.budget ? money(c.left) : money(c.spent)}</span><span class="dim">${c.budget ? 'residuo' : 'speso'}</span></div>
-      <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div></div>`;
+      <div class="brow first"><span class="label">${c.budget ? 'Residuo' : 'Speso'}</span><span class="n big ${c.budget && c.left < 0 ? 'neg' : 'pos'}">${c.budget ? money(c.left) : money(c.spent)}</span></div>
+      <div class="meter ${cls}"><i style="width:${Math.min(100, Math.round(ratio * 100))}%"></i></div>
+      <div class="brow"><span class="label">Media 3 mesi</span><span class="n">${c.avg3 == null ? '–' : money(c.avg3)}</span></div>
+      <div class="brow"><span class="label">Budget</span><input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}"></div></div>`;
   }).join('');
 }
 $('#budgetForm').addEventListener('submit', async (e) => {

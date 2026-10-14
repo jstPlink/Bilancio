@@ -9,7 +9,7 @@ export const TAGS = {
   spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze',
   non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile',
 };
-export const BUDGET_TAGS = ['spesa', 'svago', 'carburante']; // le tre categorie con un budget
+export const BUDGET_TAGS = ['spesa', 'svago', 'carburante', 'altro']; // le quattro categorie con un budget
 
 // «01 Spesa» e «Spesa» sono lo stesso pocket: maiuscole, spazi e numero iniziale non contano.
 const norm = (s) => String(s ?? '').toLowerCase().replace(/^\s*\d+[\s.)-]*/, '').replace(/\s+/g, ' ').trim();

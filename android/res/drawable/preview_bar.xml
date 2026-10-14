@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Barra verticale del mese di esempio: i giorni trascorsi in basso, in bianco, con i vuoti a fine di ogni domenica -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><solid android:color="#3A3733" /></shape></item>
-    <item android:top="36dp"><shape android:shape="rectangle"><solid android:color="#F3F0EA" /></shape></item>
-    <item android:top="44dp" android:bottom="24dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
-    <item android:top="56dp" android:bottom="12dp"><shape android:shape="rectangle"><solid android:color="#131211" /></shape></item>
-</layer-list>

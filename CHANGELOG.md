@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.30.0
+- **Budget di «Altro»**: nuova quarta categoria con budget mensile, come Spesa, Svago e Auto (`BUDGET_TAGS`: `altro`); `PUT /api/budgets` e `GET /api/widget` la includono. Serve il server alla 0.30.0 (con uno più vecchio la scheda non compare e il widget dice «nessun budget»).
+- **Scheda Budget riprogettata**: una scheda per categoria, una sotto l'altra sul telefono (più colonne su schermi larghi): titolo con icona e filetto da 2 px sotto, poi Residuo con la barra, Media 3 mesi e Budget (il campo), con l'etichetta a sinistra e il valore a destra. Residuo, media e budget hanno lo stesso carattere (serif); residuo e budget la stessa dimensione (22).
+- **Widget Android ridisegnato, cinque celle** (Mese, Spesa, Svago, Auto, Altro): in ogni categoria il livello del residuo riempie tutta la cella dal basso, con linea e tre tacche leggere al 25, 50 e 75%; il riempimento è rosso solo sotto il 25%. Nome e residuo su una targhetta scura, stima e reale in due etichette piene (rossa la reale se supera la stima). Il mese mostra i giorni rimanenti e le settimane del calendario (lunedì-domenica) con i weekend in rosso; tolto l'orario di aggiornamento delle banche.
+
 ## 0.29.0
 - **Storico, dettaglio del mese**: nuova riga **Entrate** in cima (nome, barra e importo in verde), cliccabile come le categorie: apre i Movimenti filtrati per quel mese e il tag Entrata. Tutte le barre del mese hanno la stessa **scala in euro** (la più grande tra entrate e uscite è la barra intera) e una **tacca sottile ogni 250 €** per leggere meglio l'importo. Un mese senza movimenti dice «Nessun movimento».
 - **«Carburante» si chiama «Auto»** in tutta l'app (tag, filtri, Budget, Storico, widget, documentazione). La chiave interna resta `carburante`: dati, scelte a mano e budget già salvati non cambiano; il nome «Auto» si vede anche con un server non ancora aggiornato; il pocket di Revolut può chiamarsi «03 Carburante» o «03 Auto».

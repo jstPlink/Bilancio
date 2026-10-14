@@ -33,15 +33,15 @@ test("il file dell'icona e il manifest puntano a risorse che esistono", () => {
   }
 });
 
-test("ogni cella di categoria ha il suo nome scritto nel layout (non lo imposta il codice); le quattro celle hanno la stessa larghezza", () => {
+test("ogni cella di categoria ha il suo nome scritto nel layout (non lo imposta il codice); le cinque celle hanno la stessa larghezza", () => {
   for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml']) {
     const xml = fs.readFileSync(file, 'utf8');
-    for (const [key, name] of [['spesa', 'SPESA'], ['svago', 'SVAGO'], ['carburante', 'AUTO']]) {
+    for (const [key, name] of [['spesa', 'SPESA'], ['svago', 'SVAGO'], ['carburante', 'AUTO'], ['altro', 'ALTRO']]) {
       const m = new RegExp(`@\\+id/widget_${key}_label"[\\s\\S]*?android:text="([^"]*)"`).exec(xml);
       assert.equal(m?.[1], name, `${file}: nome di ${key}`);
     }
-    const weights = [...xml.matchAll(/android:layout_weight="([\d.]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(weights, ['1', '1', '1', '1'], `${file}: pesi ${weights}`); // le quattro celle occupano lo stesso spazio
+    const cells = [...xml.matchAll(/android:layout_width="0dp"\s+android:layout_height="match_parent"\s+android:layout_weight="1"/g)];
+    assert.equal(cells.length, 5, file); // le cinque celle (Mese, Spesa, Svago, Auto, Altro) occupano lo stesso spazio
   }
 });
 
@@ -72,12 +72,13 @@ test('notifiche: permessi, ricevitore nel manifest, icona e ponte per la pagina'
   assert.match(fs.readFileSync('android/src/app/mybank/mobile/Notifier.java', 'utf8'), /\/api\/notifications/);
 });
 
-test('widget: le barre sono larghe 34,27 dp (il 20% in più di 28,56) in tutte e quattro le celle', () => {
-  for (const file of ['android/res/layout/widget_mybank.xml', 'android/res/layout/widget_mybank_preview.xml']) {
-    const widths = [...fs.readFileSync(file, 'utf8').matchAll(/android:layout_width="([\d.]+)dp"/g)].map((m) => m[1]).filter((w) => w !== '1');
-    assert.equal(widths.filter((w) => w === '34.27').length, 4, file);
-    assert.equal(widths.includes('28.56'), false, file);
-  }
+test("widget: ogni categoria ha un'immagine a tutta cella per il livello, il mese ha le settimane e nessun orario di aggiornamento", () => {
+  const xml = fs.readFileSync('android/res/layout/widget_mybank.xml', 'utf8');
+  for (const id of ['spesa_bg', 'svago_bg', 'carburante_bg', 'altro_bg', 'month_bg', 'weeks', 'days_num', 'days_text']) assert.match(xml, new RegExp(`@\\+id/widget_${id}"`), id);
+  assert.doesNotMatch(xml, /widget_updated/);
+  const java = fs.readFileSync('android/src/app/mybank/mobile/MyBankWidget.java', 'utf8');
+  assert.doesNotMatch(java, /lastSync|aggiornato/);
+  assert.match(java, /static Bitmap weeks\(\)/);
 });
 
 test("login: un pulsante sceglie http o https e nel campo basta l'indirizzo (app e localhost)", () => {

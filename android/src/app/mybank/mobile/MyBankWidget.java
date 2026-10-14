@@ -11,35 +11,36 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
+import android.graphics.RectF;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.widget.RemoteViews;
 import java.text.NumberFormat;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Locale;
 
 /**
- * Widget 5×1 in quattro celle di uguale larghezza, ognuna con una barra verticale a sinistra. La prima:
- * i giorni che restano alla fine del mese e l'ora dell'ultimo aggiornamento delle banche (la barra del mese sale dal basso con i giorni trascorsi,
- * in bianco, e ha un vuoto a fine di ogni domenica). Le barre delle categorie si svuotano dall'alto verso il basso.
- * Le altre tre, Spesa, Svago e Auto: il nome, il residuo del budget (budget meno speso nel mese; la barra è il residuo), la spesa
- * giornaliera stimata (budget diviso i giorni del mese) e quella reale (speso diviso i giorni passati, oggi compreso), verde se è pari o migliore della stima, rossa se
- * peggiore. Un tocco sulla prima cella apre il Budget; su Spesa, Svago o Auto apre i Movimenti del mese già filtrati per quella categoria; sul resto apre l'app.
- * Un solo carattere (sans-serif) e gli stessi colori dell'app: carta e inchiostro con il rosso come accento.
+ * Widget 5×1 in cinque celle di uguale larghezza: Mese, Spesa, Svago, Auto, Altro. Ogni cella di categoria è un'immagine a tutta cella: il livello
+ * del residuo del budget la riempie dal basso, con una linea sul bordo del livello e tre tacche al 25, 50 e 75%; il livello è rosso solo sotto il 25%. Il nome e il residuo stanno su una targhetta scura; sotto, la stima giornaliera (budget diviso i giorni
+ * del mese) e la reale (speso diviso i giorni passati, oggi compreso; rossa se peggiore della stima), in due etichette piene. Il mese: i giorni che
+ * restano e le settimane del calendario (lunedì-domenica), passati chiari e weekend in rosso. Un tocco sul mese apre il Budget; su una categoria i
+ * Movimenti del mese già filtrati per quella categoria; sul resto apre l'app. Un solo carattere (sans-serif), carta e inchiostro con il rosso come accento.
  */
 public class MyBankWidget extends AppWidgetProvider {
-    private static final int INK = 0xFF131211, PAPER = 0xFFF3F0EA, MUTE = 0xFFA8A298, TRACK = 0xFF3A3733, LATE = 0xFFFF5A2E;
+    private static final int PAPER = 0xFFF3F0EA, MUTE = 0xFFA8A298, LATE = 0xFFFF5A2E;
+    private static final int CELL = 0xFF1C1A18, FILL = 0xFF5B564C, FILL_LATE = 0xFF8A2A17, TICK = 0x40A8A298;
+    private static final int DAY_DONE = 0xFFF1ECE1, DAY_DONE_WE = 0xFFD9573A, DAY_LEFT = 0xFF2A2825, DAY_LEFT_WE = 0xFF3D1710;
     private static final String[] KEYS = WidgetData.KEYS;
-    private static final int[] CELLS = { R.id.widget_spesa_cell, R.id.widget_svago_cell, R.id.widget_carburante_cell };
-    private static final int[] BARS = { R.id.widget_spesa_bar, R.id.widget_svago_bar, R.id.widget_carburante_bar };
+    private static final int[] CELLS = { R.id.widget_spesa_cell, R.id.widget_svago_cell, R.id.widget_carburante_cell, R.id.widget_altro_cell };
+    private static final int[] BGS = { R.id.widget_spesa_bg, R.id.widget_svago_bg, R.id.widget_carburante_bg, R.id.widget_altro_bg };
     // per ogni categoria: valore, stima, reale
     private static final int[][] IDS = {
         { R.id.widget_spesa_left, R.id.widget_spesa_est, R.id.widget_spesa_real },
         { R.id.widget_svago_left, R.id.widget_svago_est, R.id.widget_svago_real },
         { R.id.widget_carburante_left, R.id.widget_carburante_est, R.id.widget_carburante_real },
+        { R.id.widget_altro_left, R.id.widget_altro_est, R.id.widget_altro_real },
     };
 
     @Override public void onUpdate(final Context c, final AppWidgetManager m, final int[] ids) {
@@ -65,101 +66,107 @@ public class MyBankWidget extends AppWidgetProvider {
 
     // ------------------------------------------------------------------ testi
 
-    private static String money(double v) {
-        if (Math.abs(v) >= 1000) return NumberFormat.getIntegerInstance(Locale.ITALY).format(Math.round(v)) + " €";
+    /** Il residuo senza centesimi (la cella è stretta), con i centesimi solo sotto i 10 €. */
+    static String money(double v) {
+        if (Math.abs(v) >= 10) return NumberFormat.getIntegerInstance(Locale.ITALY).format(Math.round(v)) + " €";
         return NumberFormat.getCurrencyInstance(Locale.ITALY).format(v);
     }
 
     private static String perDay(double v) { return String.format(Locale.ITALY, "%.1f", v); }
 
-    /** «aggiornato» e sotto «22.45» se è di oggi, «11 ott 22.45» altrimenti (su due righe: la cella è stretta). */
-    static String updated(String iso) {
-        if (iso == null || iso.isEmpty()) return "mai\naggiornato";
-        try {
-            ZonedDateTime t = ZonedDateTime.ofInstant(Instant.parse(iso), ZoneId.systemDefault());
-            boolean today = t.toLocalDate().equals(LocalDate.now());
-            String hour = t.format(DateTimeFormatter.ofPattern("HH.mm"));
-            return "aggiornato\n" + (today ? hour : t.format(DateTimeFormatter.ofPattern("d MMM", Locale.ITALY)).replace(".", "") + " " + hour);
-        } catch (Exception e) { return "mai\naggiornato"; }
+    /** «stima» o «reale» in grigio e, dopo, il valore in grassetto (di un altro colore se serve). */
+    private static CharSequence chip(String word, String value, int valueColor) {
+        SpannableString s = new SpannableString(word + " " + value);
+        s.setSpan(new ForegroundColorSpan(MUTE), 0, word.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        s.setSpan(new ForegroundColorSpan(valueColor), word.length() + 1, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        s.setSpan(new StyleSpan(android.graphics.Typeface.BOLD), word.length() + 1, s.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return s;
     }
 
-    /** «19 giorni» e sotto «rimanenti»; «1 giorno» e «rimanente»; l'ultimo giorno del mese «ultimo» e «giorno». */
+    /** I giorni che restano alla fine del mese: il numero grande e, accanto, «giorni rimanenti» su due righe. */
+    static String daysLeftNumber(int n) { return String.valueOf(Math.max(0, n)); }
+
     static String daysLeftText(int n) {
         if (n <= 0) return "ultimo\ngiorno";
-        return n == 1 ? "1 giorno\nrimanente" : n + " giorni\nrimanenti";
+        return n == 1 ? "giorno\nrimanente" : "giorni\nrimanenti";
     }
 
-    // ------------------------------------------------------------------ barre
+    // ------------------------------------------------------------------ immagini
 
-    // Le barre sono bitmap di circa 3 px per dp (34 dp di larghezza, ~57 dp di altezza): il raggio dei bordi è di 3 dp circa.
-    private static final int BAR_W = 102, BAR_H = 170, BAR_RADIUS = 9;
+    // Le immagini sono bitmap di circa 3 px per dp (una cella è circa 68 × 75 dp).
+    private static final int CELL_W = 204, CELL_H = 225, CELL_RADIUS = 12;
+    private static final int WEEKS_W = 210, WEEKS_H = 72;
 
-    /** Arrotonda di poco gli angoli della barra (maschera con bordo sfumato). */
+    private static Paint fill(int color) {
+        Paint p = new Paint();
+        p.setColor(color);
+        return p;
+    }
+
+    /** Arrotonda di poco gli angoli dell'immagine (maschera con bordo sfumato). */
     private static Bitmap rounded(Bitmap src) {
         Bitmap out = Bitmap.createBitmap(src.getWidth(), src.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(out);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        g.drawRoundRect(0, 0, src.getWidth(), src.getHeight(), BAR_RADIUS, BAR_RADIUS, p);
+        g.drawRoundRect(new RectF(0, 0, src.getWidth(), src.getHeight()), CELL_RADIUS, CELL_RADIUS, p);
         p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
         g.drawBitmap(src, 0, 0, p);
         return out;
     }
 
-    private static Paint clearPaint() {
-        Paint p = new Paint();
-        p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-        return p;
+    /** Fondo della cella del mese (e di una categoria senza dati). */
+    static Bitmap plainCell() {
+        Bitmap b = Bitmap.createBitmap(CELL_W, CELL_H, Bitmap.Config.ARGB_8888);
+        new Canvas(b).drawColor(CELL);
+        return rounded(b);
     }
 
     /**
-     * La barra del mese, verticale: il tempo che passa. I giorni già trascorsi stanno in basso, in bianco, e salgono man mano che il mese
-     * avanza; quelli che restano sono in alto, scuri. A fine di ogni domenica un vuoto, senza righe colorate.
+     * La cella di una categoria: il residuo riempie la cella dal basso (`ratio` da 0 a 1), con la linea del livello sul bordo e tre tacche
+     * (25%, 50%, 75%). Rosso solo sotto il 25% (`low`).
      */
-    static Bitmap monthBar() {
-        final int w = BAR_W, h = BAR_H;
+    static Bitmap levelCell(double ratio, boolean low) {
+        final int w = CELL_W, h = CELL_H;
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas g = new Canvas(b);
+        g.drawColor(CELL);
+        float level = (float) (h * Math.max(0, Math.min(1, ratio)));
+        g.drawRect(0, h - level, w, h, fill(low ? FILL_LATE : FILL));
+        Paint tick = fill(TICK);
+        for (int quarter = 1; quarter <= 3; quarter++) {
+            float y = h * quarter / 4f;
+            g.drawRect(0, y - 1f, w, y + 1f, tick); // soglie leggere: sottili e quasi trasparenti
+        }
+        float top = Math.max(0, h - level - 6); // la linea del livello sta sopra il riempimento; a livello zero resta in fondo, rossa
+        if (level <= 0) g.drawRect(0, h - 6, w, h, fill(LATE));
+        else g.drawRect(0, top, w, top + 6, fill(low ? LATE : PAPER));
+        return rounded(b);
+    }
+
+    /**
+     * Le settimane del mese in calendario (lunedì-domenica, una riga per settimana): i giorni passati (oggi compreso) chiari, quelli che restano scuri;
+     * sabato e domenica in rosso (più vivo se passati, scurissimo se restano).
+     */
+    static Bitmap weeks() {
         Calendar now = Calendar.getInstance();
         int day = now.get(Calendar.DAY_OF_MONTH);
         int days = now.getActualMaximum(Calendar.DAY_OF_MONTH);
-        double progress = (day - 1 + (now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)) / 1440.0) / days;
-        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Calendar first = (Calendar) now.clone();
+        first.set(Calendar.DAY_OF_MONTH, 1);
+        int offset = (first.get(Calendar.DAY_OF_WEEK) + 5) % 7; // 0 = lunedì
+        int rows = (offset + days + 6) / 7;
+        final int gapX = 3, gapY = 6;
+        float cw = (WEEKS_W - 6f * gapX) / 7, ch = (WEEKS_H - (rows - 1f) * gapY) / rows;
+        Bitmap b = Bitmap.createBitmap(WEEKS_W, WEEKS_H, Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(b);
-        Paint p = new Paint();
-        p.setColor(TRACK);
-        g.drawRect(0, 0, w, h, p);
-        p.setColor(PAPER);
-        g.drawRect(0, (float) (h * (1 - progress)), w, h, p); // il già trascorso, dal basso
-        Paint gap = clearPaint();
-        Calendar d = (Calendar) now.clone();
-        for (int i = 1; i < days; i++) { // l'ultimo giorno è il bordo della barra
-            d.set(Calendar.DAY_OF_MONTH, i);
-            if (d.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                float y = (float) (h * (1 - (double) i / days)); // il primo giorno del mese è in basso
-                g.drawRect(0, y - 1.5f, w, y + 1.5f, gap); // sottile come le tacche delle categorie // un vuoto: si vede lo sfondo del widget
-            }
+        for (int d = 1; d <= days; d++) {
+            int i = offset + d - 1, r = i / 7, col = i % 7;
+            boolean we = col >= 5, done = d <= day;
+            int color = done ? (we ? DAY_DONE_WE : DAY_DONE) : (we ? DAY_LEFT_WE : DAY_LEFT);
+            float x = col * (cw + gapX), y = r * (ch + gapY);
+            g.drawRect(x, y, x + cw, y + ch, fill(color));
         }
-        return rounded(b);
-    }
-
-    /**
-     * La barra di una categoria, verticale: quanto resta del budget. Si svuota dall'alto verso il basso man mano che si spende; rossa quando
-     * resta il 20% o meno. Tre tacche (vuoti sottili) al 25%, 50% e 75% dell'altezza per leggere meglio lo stato.
-     */
-    static Bitmap leftBar(double ratio, boolean low) {
-        final int w = BAR_W, h = BAR_H;
-        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas g = new Canvas(b);
-        Paint p = new Paint();
-        p.setColor(TRACK);
-        g.drawRect(0, 0, w, h, p);
-        p.setColor(low ? LATE : PAPER);
-        float fill = (float) (h * Math.max(0, Math.min(1, ratio)));
-        g.drawRect(0, h - fill, w, h, p);
-        Paint tick = clearPaint();
-        for (int quarter = 1; quarter <= 3; quarter++) {
-            float y = h * quarter / 4f;
-            g.drawRect(0, y - 1.5f, w, y + 1.5f, tick);
-        }
-        return rounded(b);
+        return b;
     }
 
     // ------------------------------------------------------------------ disegno
@@ -173,27 +180,28 @@ public class MyBankWidget extends AppWidgetProvider {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_mybank);
         Calendar now = Calendar.getInstance();
         int daysLeft = now.getActualMaximum(Calendar.DAY_OF_MONTH) - now.get(Calendar.DAY_OF_MONTH);
-        v.setImageViewBitmap(R.id.widget_bar, monthBar());
-        v.setTextViewText(R.id.widget_days, daysLeftText(daysLeft));
-        v.setTextViewText(R.id.widget_updated, d.needLogin ? "accedi\nin app" : updated(d.lastSync));
+        v.setImageViewBitmap(R.id.widget_month_bg, plainCell());
+        v.setImageViewBitmap(R.id.widget_weeks, weeks());
+        v.setTextViewText(R.id.widget_days_num, d.needLogin ? "—" : daysLeftNumber(daysLeft));
+        v.setTextViewText(R.id.widget_days_text, d.needLogin ? "accedi\nin app" : daysLeftText(daysLeft));
 
         for (int i = 0; i < KEYS.length; i++) {
             int[] id = IDS[i];
             boolean has = d.ok && d.budget[i] > 0;
             double ratio = has ? d.left[i] / d.budget[i] : 0;
-            v.setImageViewBitmap(BARS[i], leftBar(ratio, has && ratio <= 0.2));
+            boolean worse = has && d.real[i] > d.est[i]; // spesa reale oltre la stima
+            boolean low = has && ratio < 0.25; // il riempimento è rosso solo sotto il 25%
+            v.setImageViewBitmap(BGS[i], has ? levelCell(ratio, low) : plainCell());
             if (!d.ok) {
                 v.setTextViewText(id[0], "—");
-                v.setTextViewText(id[1], "stima —");
-                v.setTextViewText(id[2], "reale —");
+                v.setTextViewText(id[1], chip("stima", "—", PAPER));
+                v.setTextViewText(id[2], chip("reale", "—", PAPER));
                 v.setTextColor(id[0], PAPER);
-                v.setTextColor(id[2], MUTE);
             } else {
                 v.setTextViewText(id[0], has ? money(d.left[i]) : "—");
-                v.setTextColor(id[0], has && d.left[i] < 0 ? LATE : PAPER);
-                v.setTextViewText(id[1], has ? "stima " + perDay(d.est[i]) + "/g" : "nessun budget");
-                v.setTextViewText(id[2], "reale " + perDay(d.real[i]) + "/g");
-                v.setTextColor(id[2], !has ? MUTE : d.real[i] <= d.est[i] ? PAPER : LATE); // migliore della stima: bianco; peggiore: rosso
+                v.setTextColor(id[0], has && (worse || d.left[i] < 0) ? LATE : PAPER);
+                v.setTextViewText(id[1], has ? chip("stima", perDay(d.est[i]), PAPER) : chip("nessun", "budget", MUTE));
+                v.setTextViewText(id[2], chip("reale", perDay(d.real[i]), !has || !worse ? PAPER : LATE)); // migliore della stima: bianco; peggiore: rosso
             }
             // un tocco apre i Movimenti del mese filtrati per questa categoria
             v.setOnClickPendingIntent(CELLS[i], tap(c, 10 + i, "movimenti:" + KEYS[i]));
