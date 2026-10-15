@@ -367,32 +367,60 @@ test("anticipando la data di inizio, la prima lettura successiva rilegge tutto d
   assert.equal(Object.keys(db.transactions).length, before);
 });
 
-test("ricorrenti: gruppi dal più vicino, annuali divisi per 12, promemoria nel server legati al gruppo, movimenti filtrati", async (t) => {
+test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegnare, annuali divisi per 12, promemoria nel server legati al ricorrente", async (t) => {
   const { api, db } = await setup(t);
   await api('POST', '/api/login', { password: 'segreta' });
   const { addMonths } = await import('../src/recurring.js');
   const today = new Date().toISOString().slice(0, 10);
   let n = 0;
   const add = (date, amount, party) => { const id = `r${++n}`; db.transactions[id] = { id, bank: 'revolut', account: 'a1', date, amount: -amount, description: party, party, currency: 'EUR' }; return id; };
-  for (let i = 0; i < 4; i++) add(addMonths(today, -i - 1), 12.99, 'Netflix');          // mensile
-  add(addMonths(today, -14), 420, 'Assicurazione Auto'); add(addMonths(today, -2), 420, 'Assicurazione Auto'); // annuale
-  for (let i = 0; i < 3; i++) add(addMonths(today, -i - 1), 17.99, 'Spotify');
-  const once = add(addMonths(today, -1), 9.5, 'Rivista'); // un solo pagamento: non è ricorrente da solo
-  add(addMonths(today, -3), 30, 'Cena'); add(addMonths(today, -1), 55, 'Cena');                    // importi diversi, irregolare
-  const r = (await api('GET', '/api/recurring')).json;
-  assert.deepEqual(r.groups.map((g) => g.name), ['Netflix', 'Spotify', 'Assicurazione Auto']); // dal prossimo pagamento più vicino
-  const net = r.groups[0];
-  assert.equal(net.amount, 12.99); assert.equal(net.annual, false); assert.equal(net.count, 4); assert.equal(net.active, true);
+  const nf = [1, 2, 3, 4].map((i) => add(addMonths(today, -i), 12.99, 'Netflix')); // si ripete ogni mese, ma da solo non crea nulla
+  const rev = add(addMonths(today, -1), 9.5, 'Rivista');
+  assert.deepEqual((await api('GET', '/api/recurring')).json, { groups: [], totals: { monthly: 0, active: 0, annual: 0, inactive: 0 }, unassigned: [] });
+  // il tag «Ricorrente» a mano: il movimento è «da assegnare»
+  for (const id of [nf[0], nf[1], rev]) assert.equal((await api('PUT', `/api/transactions/${id}/tag`, { tag: 'ricorrente' })).status, 200);
+  const r0 = (await api('GET', '/api/recurring')).json;
+  assert.deepEqual(r0.groups, []);
+  assert.deepEqual(r0.unassigned.map((u) => [u.id, u.title, u.amount, u.suggest]).sort(), [[nf[0], 'Netflix', 12.99, []], [nf[1], 'Netflix', 12.99, []], [rev, 'Rivista', 9.5, []]].sort());
+  assert.equal((await api('GET', '/api/transactions?tag=ricorrente')).json.totals.unassigned, 3);
+  // crei un ricorrente da due movimenti
+  const made = await api('POST', '/api/recurring', { name: 'Netflix', amount: '12,99', annual: false, next: addMonths(today, 1), assign: [nf[0], nf[1]] });
+  assert.equal(made.status, 200);
+  const net = made.json.groups.find((g) => g.key === made.json.key);
+  assert.deepEqual([net.name, net.amount, net.annual, net.manual, net.count, net.active, net.last], ['Netflix', 12.99, false, true, 2, true, addMonths(today, -1)]);
   assert.ok(net.next >= today);
-  const ass = r.groups.find((g) => g.name === 'Assicurazione Auto');
-  assert.equal(ass.annual, true); assert.equal(ass.monthly, 35); // 420 / 12
-  assert.equal(r.totals.monthly, 65.98); assert.equal(r.totals.active, 3); assert.equal(r.totals.annual, 1); // 12,99 + 17,99 + 35
-  // il tag «Ricorrente» a mano non crea un gruppo: il movimento resta «da assegnare»
-  assert.equal((await api('PUT', `/api/transactions/${once}/tag`, { tag: 'ricorrente' })).status, 200);
-  const after = (await api('GET', '/api/recurring')).json;
-  assert.ok(!after.groups.some((g) => g.name === 'Rivista'));
-  assert.deepEqual(after.unassigned.map((u) => [u.id, u.title, u.amount, u.suggest]), [[once, 'Rivista', 9.5, []]]);
-  // promemoria: una notifica nel server legata al gruppo
+  assert.deepEqual(made.json.unassigned.map((u) => u.id), [rev]);
+  // annuale: conta per un dodicesimo; gli attivi vanno dal prossimo pagamento più vicino
+  const ass = (await api('POST', '/api/recurring', { name: 'Assicurazione auto', amount: 420, annual: true, next: addMonths(today, 5) })).json;
+  assert.deepEqual(ass.groups.map((g) => g.name), ['Netflix', 'Assicurazione auto']);
+  assert.equal(ass.groups[1].monthly, 35);
+  assert.deepEqual(ass.totals, { monthly: 47.99, active: 2, annual: 1, inactive: 0 });
+  for (const bad of [{ name: '', amount: 1, next: today }, { name: 'x', amount: 0, next: today }, { name: 'x', amount: 1, next: 'ieri' }]) assert.equal((await api('POST', '/api/recurring', bad)).status, 400, JSON.stringify(bad));
+  // un movimento dello stesso nome è suggerito; assegnarlo lo fa contare nello storico
+  await api('PUT', `/api/transactions/${nf[2]}/tag`, { tag: 'ricorrente' });
+  const sug = (await api('GET', `/api/recurring?tx=${nf[2]}`)).json;
+  assert.deepEqual(sug.suggest, [{ key: net.key, why: 'nome' }]);
+  assert.deepEqual(sug.unassigned.find((u) => u.id === nf[2]).suggest, [{ key: net.key, why: 'nome' }]);
+  const asg = await api('PUT', '/api/recurring/assign', { ids: [nf[2]], key: net.key });
+  assert.equal(asg.status, 200);
+  assert.equal(db.recurringLinks[nf[2]], net.key);
+  assert.equal(asg.json.groups.find((g) => g.key === net.key).count, 3);
+  assert.ok(asg.json.groups.find((g) => g.key === net.key).payments.some((p) => p.id === nf[2] && p.explicit));
+  const tagged = (await api('GET', '/api/transactions?tag=ricorrente')).json;
+  assert.deepEqual(tagged.transactions.map((x) => [x.id, x.recurring?.key ?? null]).sort(), [[nf[0], net.key], [nf[1], net.key], [nf[2], net.key], [rev, null]].sort());
+  assert.equal(tagged.totals.unassigned, 1);
+  assert.equal((await api('GET', `/api/transactions?recurring=${net.key}`)).json.total, 3);
+  // movimenti senza tag: si assegnano e prendono il tag «Ricorrente»
+  const plain = add(addMonths(today, -2), 40, 'Altro negozio');
+  assert.equal((await api('PUT', '/api/recurring/assign', { ids: [plain], key: net.key })).status, 200);
+  assert.equal((await api('GET', '/api/transactions?tag=ricorrente')).json.transactions.find((x) => x.id === plain).tag, 'ricorrente');
+  // scollegare: tornano «da assegnare», il tag resta
+  const un = await api('PUT', '/api/recurring/assign', { ids: [plain, nf[2]], key: null });
+  assert.deepEqual(un.json.unassigned.map((u) => u.id).sort(), [nf[2], plain, rev].sort());
+  assert.equal((await api('PUT', '/api/recurring/assign', { ids: [plain], key: 'zzz' })).status, 404);
+  assert.equal((await api('PUT', '/api/recurring/assign', { ids: [], key: net.key })).status, 400);
+  assert.equal((await api('PUT', '/api/recurring/assign', { ids: ['inesistente'], key: net.key })).status, 400);
+  // promemoria: una notifica nel server legata al ricorrente
   assert.equal((await api('PUT', `/api/recurring/${net.key}/reminder`, { text: 'Netflix: lo vuoi ancora?', day: 12, time: '9:00' })).status, 200);
   const notes = (await api('GET', '/api/notifications')).json.notifications;
   assert.deepEqual(notes.map((x) => [x.text, x.day, x.time, x.recurringKey]), [['Netflix: lo vuoi ancora?', 12, '09:00', net.key]]);
@@ -403,56 +431,18 @@ test("ricorrenti: gruppi dal più vicino, annuali divisi per 12, promemoria nel 
   await api('PUT', `/api/notifications/${notes[0].id}`, { text: 'Dalle Opzioni', day: 14, time: '11:00' });
   assert.equal(db.notifications[0].recurringKey, net.key); // modificarla dalle Opzioni non rompe il legame
   assert.equal((await api('PUT', '/api/recurring/zzz/reminder', { text: 'x', day: 1, time: '10:00' })).status, 404);
-  // disattivare: il gruppo passa tra i non attivi e il promemoria sparisce
+  // disattivare: passa tra i non attivi e il promemoria sparisce
   const off = (await api('PUT', `/api/recurring/${net.key}/active`, { active: false })).json;
   assert.equal(off.groups.at(-1).key, net.key); assert.equal(off.groups.at(-1).active, false); assert.equal(off.groups.at(-1).reminder, null);
   assert.equal(db.notifications.length, 0);
-  assert.equal(off.totals.active, 2); // Spotify e Assicurazione
+  assert.deepEqual(off.totals, { monthly: 35, active: 1, annual: 1, inactive: 1 });
   assert.equal((await api('PUT', `/api/recurring/${net.key}/reminder`, { text: 'x', day: 1, time: '10:00' })).status, 400); // non attivo
   assert.equal((await api('DELETE', `/api/recurring/${net.key}/reminder`)).status, 404);
-  // a mano: si aggiunge e si toglie; gli altri si possono solo disattivare
-  const man = await api('POST', '/api/recurring', { name: 'Dominio sito', amount: '14,99', annual: true, next: addMonths(today, 3) });
-  assert.equal(man.status, 200);
-  const mg = man.json.groups.find((g) => g.key === man.json.key);
-  assert.deepEqual([mg.name, mg.amount, mg.annual, mg.manual, mg.monthly], ['Dominio sito', 14.99, true, true, 1.25]);
-  for (const bad of [{ name: '', amount: 1, next: today }, { name: 'x', amount: 0, next: today }, { name: 'x', amount: 1, next: 'ieri' }]) assert.equal((await api('POST', '/api/recurring', bad)).status, 400, JSON.stringify(bad));
-  assert.equal((await api('DELETE', `/api/recurring/${net.key}`)).status, 404);
-  assert.equal((await api('DELETE', `/api/recurring/${man.json.key}`)).status, 200);
-  // Movimenti filtrati su un gruppo
-  const moves = (await api('GET', `/api/transactions?recurring=${net.key}`)).json;
-  assert.equal(moves.total, 4); assert.ok(moves.transactions.every((x) => x.description === 'Netflix'));
-  // assegnare un movimento a un ricorrente: lo stesso importo con un altro nome viene suggerito, il movimento prende il tag e conta nello storico
-  const apple = add(addMonths(today, -1), 12.99, 'Apple Bill');
-  await api('PUT', `/api/transactions/${apple}/tag`, { tag: 'ricorrente' });
-  const sug = (await api('GET', `/api/recurring?tx=${apple}`)).json;
-  assert.deepEqual(sug.unassigned.find((u) => u.id === apple).suggest, [{ key: net.key, why: 'importo' }]);
-  assert.deepEqual(sug.suggest, [{ key: net.key, why: 'importo' }]);
-  const ass2 = await api('PUT', '/api/recurring/assign', { ids: [apple, once], key: net.key });
-  assert.equal(ass2.status, 200);
-  assert.equal(db.recurringLinks[apple], net.key);
-  assert.equal(ass2.json.groups.find((g) => g.key === net.key).count, 6);
-  assert.deepEqual(ass2.json.unassigned, []);
-  assert.ok(ass2.json.groups.find((g) => g.key === net.key).payments.some((p) => p.id === apple && p.explicit));
-  const tagged = (await api('GET', '/api/transactions?tag=ricorrente')).json;
-  assert.deepEqual(tagged.transactions.map((x) => [x.id, x.recurring?.key]).sort(), [[apple, net.key], [once, net.key]].sort());
-  assert.equal(tagged.totals.unassigned, 0);
-  assert.equal((await api('GET', `/api/transactions?recurring=${net.key}`)).json.total, 6);
-  // scollegare: tornano «da assegnare», il tag resta
-  const un = await api('PUT', '/api/recurring/assign', { ids: [apple], key: null });
-  assert.deepEqual(un.json.unassigned.map((u) => u.id), [apple]);
-  assert.equal((await api('GET', '/api/transactions?tag=ricorrente')).json.totals.unassigned, 1);
-  assert.equal((await api('PUT', '/api/recurring/assign', { ids: [apple], key: 'zzz' })).status, 404);
-  assert.equal((await api('PUT', '/api/recurring/assign', { ids: [], key: net.key })).status, 400);
-  assert.equal((await api('PUT', '/api/recurring/assign', { ids: ['inesistente'], key: net.key })).status, 400);
-  // nuovo ricorrente da un movimento: nasce già con quel pagamento
-  const fresh = await api('POST', '/api/recurring', { name: 'Apple Bill', amount: '12,99', annual: false, next: addMonths(today, 1), assign: [apple] });
-  assert.equal(fresh.status, 200);
-  const fg = fresh.json.groups.find((g) => g.key === fresh.json.key);
-  assert.deepEqual([fg.name, fg.count, fg.manual, fg.payments[0].id], ['Apple Bill', 1, true, apple]);
-  assert.deepEqual(fresh.json.unassigned, []);
-  // eliminare il ricorrente a mano scollega i suoi movimenti
-  assert.equal((await api('DELETE', `/api/recurring/${fresh.json.key}`)).status, 200);
-  assert.equal(db.recurringLinks[apple], undefined);
+  // eliminare un ricorrente scollega i suoi movimenti
+  await api('PUT', '/api/recurring/assign', { ids: [nf[0]], key: net.key });
+  assert.equal((await api('DELETE', `/api/recurring/${net.key}`)).status, 200);
+  assert.equal(db.recurringLinks[nf[0]], undefined);
+  assert.equal((await api('DELETE', '/api/recurring/zzz')).status, 404);
 });
 
 test("notifiche: testo, giorno del mese e orario si salvano nel server", async (t) => {

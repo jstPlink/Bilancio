@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.33.1
+- **Ricorrenti solo a mano**: tolto il riconoscimento automatico. Un ricorrente esiste solo se lo crei tu (`Aggiungi ricorrente` o «Nuovo…» da un movimento); i movimenti col tag «Ricorrente» restano «da assegnare» finché non li assegni. Cambia `GET /api/recurring`: niente più gruppi automatici.
+- **Schede in basso sul telefono**: barra fissa con il segno rosso sopra la scheda scelta; messaggio a comparsa e pulsante «Collega» spostati sopra la barra.
+- **Swipe**: la pagina non scorre più di lato (`overflow-x: hidden`, `touch-action: pan-y`), così il dito in orizzontale cambia scheda.
+
 ## 0.33.0
 - **Nuova scheda «Ricorrenti»** (tra Movimenti e Budget): i pagamenti che si ripetono, raggruppati dal server per beneficiario (mensili: 3 pagamenti di importo simile a circa un mese; annuali: 2 a circa un anno) oppure aggiunti a mano. In cima «Ricorrenti al mese» (gli annuali contano per un dodicesimo) e «Gruppi attivi»; gli attivi dal pagamento più vicino al più lontano, poi i non più attivi in grigio. Un tocco su una riga la apre: interruttore «Ancora attivo», **promemoria** (giorno, orario, testo; un solo pulsante, «Togli» finché i campi sono quelli salvati e «Salva» appena ne cambi uno) e link ai Movimenti filtrati su quel ricorrente.
 - **Promemoria nel server legati al ricorrente**: sono notifiche del database del server con `recurringKey` (compaiono anche nelle Opzioni e si tolgono da sole se il ricorrente non è più attivo).

@@ -1,11 +1,9 @@
 // Pagamenti ricorrenti (abbonamenti, assicurazioni…): il server li raggruppa dai movimenti e li mostra dal più vicino al più lontano.
-// Un gruppo è l'insieme delle uscite verso lo stesso beneficiario. Esiste se:
-//  · si ripete da solo: almeno 3 pagamenti di importo simile a distanza di circa un mese (mensile) o 2 a distanza di circa un anno (annuale), oppure
-//  · l'hai aggiunto a mano (nome, importo, cadenza, prossimo pagamento).
-// Un movimento con il tag «Ricorrente» è «da assegnare» finché non appartiene a un gruppo: o perché è dello stesso beneficiario di un gruppo che
-// si ripete da solo, o perché l'hai assegnato a un ricorrente (`db.recurringLinks`: id del movimento → chiave del gruppo). Un movimento assegnato
-// conta nello storico del gruppo (ultimo pagamento, prossimo, importo). «Attivo» è automatico (l'ultimo pagamento è recente) ma si può forzare a
-// mano. Il promemoria è una notifica del server legata al gruppo (`recurringKey`).
+// Un ricorrente esiste solo se lo crei tu (nome, importo, cadenza, prossimo pagamento): il server non ne riconosce nessuno da solo.
+// Un movimento con il tag «Ricorrente» (scelto a mano) è «da assegnare» finché non lo assegni a un ricorrente (`db.recurringLinks`: id del
+// movimento → chiave del ricorrente) o non crei un ricorrente da lui. Un movimento assegnato conta nello storico del ricorrente (ultimo
+// pagamento, prossimo, importo). «Attivo» è automatico (l'ultimo pagamento è recente) ma si può forzare a mano. Il promemoria è una notifica
+// del server legata al ricorrente (`recurringKey`).
 import { accountNames, classify } from './tags.js';
 import { visibleTransactions } from './import.js';
 import { localParts } from './schedule.js';
@@ -14,7 +12,6 @@ const round = (n) => Math.round(n * 100) / 100;
 const DAY = 86400000;
 const toMs = (iso) => Date.parse(`${iso}T12:00:00Z`);
 const toIso = (ms) => new Date(ms).toISOString().slice(0, 10);
-const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0; };
 
 /** La chiave stabile di un gruppo: il nome del beneficiario ridotto a lettere e numeri. */
 export function recurringKey(name) {
@@ -36,7 +33,7 @@ function nextDue(from, annual, today) {
   return d;
 }
 
-/** L'analisi completa: gruppi (attivi dal prossimo pagamento, poi i non attivi), a chi appartiene ogni movimento e quelli «da assegnare». */
+/** L'analisi completa: i ricorrenti (attivi dal prossimo pagamento, poi i non attivi), a chi appartiene ogni movimento e quelli «da assegnare». */
 function analyze(db, now = new Date()) {
   const today = localParts(now).iso;
   const tags = classify(db);
@@ -74,15 +71,6 @@ function analyze(db, now = new Date()) {
       _ids: g.list.map((p) => p.id),
     });
   };
-  for (const g of byKey.values()) {
-    if (g.key.startsWith('m-')) continue; // i gruppi a mano si costruiscono sotto
-    const latest = g.list.reduce((a, b) => (b.date > a.date ? b : a));
-    const similar = g.list.filter((p) => Math.abs(p.amount - latest.amount) <= latest.amount * 0.15).sort((a, b) => a.date.localeCompare(b.date));
-    const gap = median(similar.slice(1).map((p, i) => (toMs(p.date) - toMs(similar[i].date)) / DAY));
-    const monthly = similar.length >= 3 && gap >= 25 && gap <= 36;
-    const yearly = similar.length >= 2 && gap >= 350 && gap <= 380;
-    if (monthly || yearly) make(g, { name: g.name || latest.title, annual: yearly, amount: latest.amount, manual: false });
-  }
   for (const m of db.recurringManual ?? []) make(byKey.get(`m-${m.id}`) ?? { key: `m-${m.id}`, list: [] }, { name: m.name, annual: m.annual, amount: m.amount, next: m.next, manual: true });
   const act = groups.filter((g) => g.active).sort((a, b) => a.next.localeCompare(b.next) || a.name.localeCompare(b.name));
   const off = groups.filter((g) => !g.active).sort((a, b) => (b.last ?? '').localeCompare(a.last ?? '') || a.name.localeCompare(b.name));

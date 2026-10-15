@@ -428,7 +428,7 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 #recForm { display: grid; gap: 12px; margin-top: 18px; }
 #recForm h2.section { margin: 0; }
 #recAddBtn { margin-top: 0; }
-#ricorrenti > .foot { margin-top: 18px; }
+#recMain > .foot { margin-top: 18px; }
 
 /* Assegnare i movimenti ai ricorrenti: chip nelle righe, casella «Da assegnare», foglio dal basso e selezione dei movimenti da collegare */
 .rchip { display: inline-flex; align-items: center; height: 26px; margin-top: 6px; padding: 0 9px; border: 1px solid var(--ink); background: transparent; color: var(--ink); font: 700 var(--fs-label) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
@@ -478,3 +478,16 @@ dialog.sheet h2 { font: 700 var(--fs-sm) var(--f-mono); letter-spacing: .04em; t
 .aopt input:checked + i::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--red); }
 .aopt input:focus-visible + i { outline: 2px solid var(--red); outline-offset: 2px; }
 .anew { display: grid; gap: 12px; padding: 4px 0 12px; }
+
+/* Telefono: le schede stanno in basso (barra fissa, il segno rosso sopra la scheda scelta) e la pagina non scorre di lato: il dito in orizzontale serve solo a cambiare scheda */
+html, body { overflow-x: hidden; }
+body { touch-action: pan-y; }
+.tablewrap { touch-action: pan-x pan-y; }
+@media (max-width: 720px) {
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-width: none; margin: 0; padding: 0 4px env(safe-area-inset-bottom); background: var(--paper); border-top: 2px solid var(--ink); border-bottom: 0; }
+  .tabs > button { max-width: none; border-bottom: 0; border-top: 6px solid transparent; margin: -2px 0 0; font-size: 13px; }
+  .tabs > button[aria-selected=true] { border-top-color: var(--red); }
+  main { padding-bottom: calc(var(--h) + 36px + env(safe-area-inset-bottom)); }
+  #toast { bottom: calc(var(--h) + 20px + env(safe-area-inset-bottom)); }
+  .rsticky { bottom: calc(var(--h) + 4px + env(safe-area-inset-bottom)); padding-bottom: 12px; }
+}

@@ -412,7 +412,7 @@ document.addEventListener('click', (e) => {
 
 // ------------------------------------------------------------------ ricorrenti
 
-// I pagamenti che si ripetono li raggruppa il server (GET /api/recurring): prima gli attivi dal più vicino al più lontano, poi i non più attivi.
+// I ricorrenti li crei tu (a mano o da un movimento col tag «Ricorrente»); li serve il server (GET /api/recurring): prima gli attivi dal più vicino al più lontano, poi i non più attivi.
 // Un tocco su una riga la apre: interruttore «Ancora attivo», promemoria (una notifica nel server legata al ricorrente) e link ai movimenti.
 const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
 const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Promemoria attivo"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>';
@@ -483,7 +483,7 @@ function renderRecurring() {
   $('#recList').innerHTML = recInbox(unassigned, groups) + (groups.length
     ? `<div class="rsec"><span>Attivi · dal più vicino</span><span>${act.length}</span></div>${act.map(recRow).join('') || '<p class="muted">Nessun ricorrente attivo.</p>'}
        <div class="rsec"><span>Non più attivi</span><span>${off.length}</span></div>${off.map(recRow).join('') || '<p class="muted">Nessuno.</p>'}`
-    : '<p class="muted">Ancora nessun ricorrente: li riconosco da soli quando un pagamento si ripete ogni mese o ogni anno, oppure aggiungine uno a mano e assegna i movimenti.</p>');
+    : '<p class="muted">Ancora nessun ricorrente: aggiungine uno qui sotto, oppure scegli il tag «Ricorrente» da un movimento e crea il ricorrente da lì.</p>');
 }
 
 // ---- foglio «Assegna a un ricorrente» (dai Movimenti e dalla scheda Ricorrenti)
