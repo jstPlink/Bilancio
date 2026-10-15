@@ -488,11 +488,12 @@ function recPanel(g) {
 function recRow(g) {
   const open = state.rec.open === g.key;
   const date = g.active ? g.next : (g.last ?? g.next);
-  const sub = g.annual ? `${money(g.monthly)}/mese` : '';
-  // targhetta della cadenza: ANNO (piena, con il filetto a sinistra della riga) o MESE; i mensili mostrano «mensile» sotto il giorno
-  return `<div class="rrow ${g.annual ? 'yr' : ''} ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
-    <div class="rday">${Number(date.slice(8))}<small>${g.annual ? MONTHS_SHORT[Number(date.slice(5, 7)) - 1] : 'mensile'}</small></div>
-    <div class="rmain"><div class="rname"><span>${esc(g.name)}</span><em class="tg${g.annual ? ' y' : ''}">${g.annual ? 'Anno' : 'Mese'}</em>${g.reminder ? BELL : ''}</div>${sub ? `<div class="rsub">${sub}</div>` : ''}</div>
+  const sub = g.annual ? `${money(g.monthly)}/mese` : ''; // l'importo al mese si vede solo per gli annuali
+  // giorno e mese del pagamento · campanella (spazio vuoto senza promemoria) · targhetta ANNO (piena) o MESE · nome · importo
+  return `<div class="rrow ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
+    <div class="rday">${Number(date.slice(8))}<small>${MONTHS_SHORT[Number(date.slice(5, 7)) - 1]}</small></div>
+    <div class="rbell">${g.reminder ? BELL : ''}</div>
+    <div class="rmain"><div class="rname"><em class="tg${g.annual ? ' y' : ''}">${g.annual ? 'Anno' : 'Mese'}</em><span>${esc(g.name)}</span></div>${sub ? `<div class="rsub">${sub}</div>` : ''}</div>
     <div class="ramt">${g.amount ? money(g.amount) : '–'}</div></div>${open ? recPanel(g) : ''}`;
 }
 

@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.36.1
+- **Righe dei Ricorrenti riviste**: sotto il giorno c'è sempre il mese del prossimo pagamento (non più «mensile»); la **campanella** del promemoria sta tra il giorno e la targhetta (spazio vuoto senza promemoria); la targhetta «Anno» / «Mese» passa a sinistra del nome, della stessa larghezza; tolto il filetto a sinistra delle righe annuali; l'importo al mese sta sotto il nome solo per gli annuali.
+- Mockup in `design/`: targhetta, pagamento, mese e notifica dei ricorrenti.
+
 ## 0.36.0
 - **Sotto categorie a parte** (scheda Movimenti): la lista principale del tag ha solo le categorie; la sotto categoria si sceglie da una **targhetta** sotto il tag (grigia «Sotto cat.» se non scelta, piena col nome se scelta; «Nessuna» torna alla categoria). Nessun cambio al server.
 - **Ricorrenti, mensili e annuali ben distinti**: targhetta della cadenza accanto al nome («Anno» piena, «Mese» vuota), filetto a sinistra delle righe annuali, «mensile» sotto il giorno dei mensili e l'equivalente al mese per gli annuali.

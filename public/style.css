@@ -403,7 +403,7 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 #ricorrenti .bhero .n { display: block; }
 .rnote { font-size: var(--fs-sm); margin: 0; padding-bottom: 4px; }
 .rsec { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 8px; border-top: 2px solid var(--ink); font: 700 var(--fs-label) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
-.rrow { display: grid; grid-template-columns: 54px 1fr auto; gap: 0 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--hair); cursor: pointer; }
+.rrow { display: grid; grid-template-columns: 38px 14px minmax(0, 1fr) auto; gap: 0 8px; align-items: center; padding: 11px 0; border-top: 1px solid var(--hair); cursor: pointer; }
 .rrow.open { border-top-color: var(--ink); }
 .rday, .ramt { font: 600 var(--fs-lg)/1 var(--f-serif); letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; }
 .rday small { display: block; margin-top: 3px; font: 400 var(--fs-label) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--mute); }
@@ -514,9 +514,12 @@ body { touch-action: pan-y; }
 .schip { position: relative; }
 .schip select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
 
-/* Ricorrenti: targhetta della cadenza (ANNO piena, MESE vuota) e filetto a sinistra delle righe annuali */
-.rname .tg { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border: 1px solid var(--hair); color: var(--mute); font: 700 var(--fs-label) var(--f-mono); letter-spacing: .06em; font-style: normal; }
+/* Ricorrenti: targhetta della cadenza (ANNO piena, MESE vuota, stessa larghezza), campanella tra giorno e targhetta, riga sotto il titolo allineata al nome */
+.rname .tg { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 20px; border: 1px solid var(--hair); color: var(--mute); font: 700 var(--fs-label) var(--f-mono); letter-spacing: .06em; font-style: normal; }
 .rname .tg.y { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .rrow.off .tg.y { background: transparent; color: var(--mute); border-color: var(--mute); }
-.rrow.yr { box-shadow: inset 2px 0 0 var(--ink); padding-left: 10px; }
-.rrow.yr.off { box-shadow: inset 2px 0 0 var(--mute); }
+.rbell { display: flex; justify-content: center; }
+.rbell svg { width: 14px; height: 14px; color: var(--red); }
+.rrow.off .rbell svg { color: var(--mute); }
+.rmain .rsub { padding-left: 54px; }
+.rrow .ramt { padding-left: 4px; }
