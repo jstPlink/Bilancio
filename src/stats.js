@@ -32,7 +32,7 @@ export function yearSummary(db, year) {
 /** I movimenti con il loro tag, dal più recente, con i filtri della scheda Movimenti. */
 export const SORTS = { date: 'desc', amount: 'desc' }; // colonne per cui si può ordinare, con il verso di base
 
-export function listTransactions(db, { year, month, tag, q, account, sort = 'date', dir } = {}) {
+export function listTransactions(db, { year, month, tag, q, account, ids, sort = 'date', dir } = {}) {
   const tags = classify(db);
   const needle = String(q ?? '').trim().toLowerCase();
   const names = accountNames(db);
@@ -41,6 +41,7 @@ export function listTransactions(db, { year, month, tag, q, account, sort = 'dat
     if (year && Number(t.date.slice(0, 4)) !== year) continue;
     if (month && Number(t.date.slice(5, 7)) !== month) continue;
     if (account && t.account !== account) continue;
+    if (ids && !ids.has(t.id)) continue;
     const tg = tags.get(t.id);
     if (tag && tg !== tag) continue;
     if (needle && !`${t.description} ${t.remittance ?? ''} ${db.renames[t.id] ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;

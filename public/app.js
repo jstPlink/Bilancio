@@ -6,7 +6,7 @@ const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'L
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
 const THIS_YEAR = new Date().getFullYear();
-let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
+let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze', ricorrente: 'Ricorrente', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
 
 // Un'icona per categoria (tratto sottile, nel colore del testo).
 const ICON_PATHS = {
@@ -15,6 +15,7 @@ const ICON_PATHS = {
   carburante: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5"/>',
   altro: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
   utenze: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/>',
+  ricorrente: '<path d="M4 10a8 8 0 0 1 14-4l2 2M20 14a8 8 0 0 1-14 4l-2-2M20 4v4h-4M4 20v-4h4"/>',
   non_definito: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/>',
   entrata: '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',
   giroconto: '<path d="M4 8h14l-3-3M20 16H6l3 3"/>',
@@ -124,6 +125,7 @@ $('#logoutBtn').addEventListener('click', async () => { await api('POST', '/api/
 
 async function loadOptions() {
   loadNotifications().catch(fail);
+  loadDocuments().catch(fail);
   const s = await api('GET', '/api/session');
   $('#logoutBtn').hidden = Boolean(s.open);
   $('#pwCurrent').required = !s.open; // con l'accesso libero non c'è una password attuale
@@ -154,8 +156,8 @@ $('#pwForm').addEventListener('submit', async (e) => {
 
 // ------------------------------------------------------------------ schede
 
-const TABS = ['storico', 'movimenti', 'budget', 'banche', 'documenti', 'opzioni'];
-const SWIPE_TABS = ['storico', 'movimenti', 'budget', 'banche']; // le schede tra cui si scorre col dito (Documenti e Opzioni stanno a parte)
+const TABS = ['storico', 'movimenti', 'ricorrenti', 'budget', 'banche', 'opzioni'];
+const SWIPE_TABS = ['storico', 'movimenti', 'ricorrenti', 'budget', 'banche']; // le schede tra cui si scorre col dito (Opzioni sta a parte)
 // Indirizzi come «#movimenti:spesa» (li usa il widget): la scheda, e per i Movimenti il tag da filtrare, sul mese in corso.
 function applyHash() {
   const [tab, arg] = (location.hash || '#storico').slice(1).split(':');
@@ -169,15 +171,16 @@ function applyHash() {
 
 function show(tab) {
   if (tab === 'statistiche') tab = 'storico'; // la scheda Statistiche non c'è più: il suo lavoro lo fa lo Storico
+  if (tab === 'documenti') tab = 'opzioni'; // i Documenti ora stanno nelle Opzioni
   if (!TABS.includes(tab)) tab = 'storico';
   state.tab = tab;
   history.replaceState(null, '', `#${tab}`);
   for (const t of TABS) $(`#${t}`).hidden = t !== tab;
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   $('#optionsBtn').setAttribute('aria-pressed', String(tab === 'opzioni'));
-  ({ storico: loadYear, movimenti: loadMoves, budget: loadBudget, banche: loadBanks, documenti: loadDocuments, opzioni: loadOptions })[tab]().catch(fail);
+  ({ storico: loadYear, movimenti: loadMoves, ricorrenti: loadRecurring, budget: loadBudget, banche: loadBanks, opzioni: loadOptions })[tab]().catch(fail);
 }
-document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') state.mv.account = ''; show(b.dataset.tab); });
+document.querySelector('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'movimenti') { state.mv.account = ''; state.mv.recurring = null; } show(b.dataset.tab); });
 $('#optionsBtn').addEventListener('click', () => show('opzioni'));
 
 // Sul telefono si scorre da una scheda all'altra con un colpo di dito orizzontale (non parte da campi, tabelle larghe o finestre aperte).
@@ -191,15 +194,17 @@ $('#optionsBtn').addEventListener('click', () => show('opzioni'));
   main.addEventListener('touchend', (e) => {
     if (!start) return;
     const t = e.changedTouches[0];
-    const dx = t.clientX - start.x, dy = t.clientY - start.y, quick = Date.now() - start.at < 700;
+    const dx = t.clientX - start.x, dy = t.clientY - start.y, quick = Date.now() - start.at < 900;
     start = null;
     const i = SWIPE_TABS.indexOf(state.tab);
-    if (i < 0 || !quick || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    if (i < 0 || !quick || Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
     const next = SWIPE_TABS[i + (dx < 0 ? 1 : -1)]; // verso sinistra = scheda seguente
     if (!next) return;
-    if (next === 'movimenti') state.mv.account = '';
+    if (next === 'movimenti') { state.mv.account = ''; state.mv.recurring = null; }
     show(next);
     window.scrollTo(0, 0);
+    // la scheda nuova entra dal lato verso cui si è scorso
+    try { main.animate([{ transform: `translateX(${dx < 0 ? 36 : -36}px)`, opacity: 0.2 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'ease-out' }); } catch { /* senza animazione */ }
   }, { passive: true });
   main.addEventListener('touchcancel', () => { start = null; }, { passive: true });
 })();
@@ -263,7 +268,7 @@ $('#yearTable').addEventListener('click', (e) => {
 const MORE = 100;
 async function loadMoves(keep = false) {
   const { year, month, tag, q } = state.mv;
-  const base = `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&sort=${state.mv.sort}&dir=${state.mv.dir}`;
+  const base = `/api/transactions?year=${year}&month=${month}&tag=${tag}&q=${encodeURIComponent(q)}&account=${encodeURIComponent(state.mv.account)}&recurring=${encodeURIComponent(state.mv.recurring?.key ?? '')}&sort=${state.mv.sort}&dir=${state.mv.dir}`;
   const [d, sum] = await Promise.all([
     api('GET', `${base}&limit=1000&offset=0`),
     api('GET', `/api/summary?year=${year}`),
@@ -281,8 +286,9 @@ async function loadMoves(keep = false) {
   }
   // filtro per conto o pocket (si arriva dalla scheda Banche): si vede e si toglie con un tocco
   const bar = $('#mvAccount');
-  bar.hidden = !d.account;
-  if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
+  bar.hidden = !d.account && !state.mv.recurring;
+  if (state.mv.recurring) bar.innerHTML = `Pagamenti ricorrenti: <b>${esc(state.mv.recurring.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
+  else if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
   $('#mvYear').innerHTML = `<option value="0">Tutti</option>${yearOptions(sum.years, year)}`;
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
   $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(v)}</option>`).join('')}`;
@@ -290,7 +296,7 @@ async function loadMoves(keep = false) {
   // le cifre (numero dei movimenti, entrate, uscite) in bianco, il resto del testo in grigio
   const sums = tag === 'entrata' ? `entrate <b>${money(d.totals.entrate)}</b>` : tag ? `uscite <b>${money(d.totals.uscite)}</b>` : `entrate <b>${money(d.totals.entrate)}</b> · uscite <b>${money(d.totals.uscite)}</b>`;
   $('#mvSummary').innerHTML = d.total
-    ? `<b>${d.total}</b> movimenti · ${sums}`
+    ? `<b>${d.total}</b> movimenti${d.totals.unassigned ? ` · <span class="red">${d.totals.unassigned} da assegnare</span>` : ''} · ${sums}`
     : 'Nessun movimento. Collega una banca dalla scheda Banche.';
   // sotto la riga, ognuno sopra la sua colonna: «Data» e «Importo», da toccare per ordinare (un secondo tocco inverte il verso)
   const head = (k, label, cls) => {
@@ -306,6 +312,11 @@ async function loadMoves(keep = false) {
   state.mv.shown = keep ? Math.max(MORE, state.mv.shown) : MORE;
   await ensureMoves();
   renderMovesList();
+}
+
+/** Apre il foglio di assegnazione per un movimento dell'elenco e, a cose fatte, ricarica l'elenco. */
+function assignFromMove(t) {
+  openAssign({ id: t.id, title: t.customName || t.remittance || t.description, date: t.date, amount: -t.amount, account: t.accountName, current: t.recurring?.key }, { after: () => loadMoves(true).catch(fail) });
 }
 
 /** Carica dal server altre pagine di movimenti se ne servono per mostrare quanti se ne chiedono. */
@@ -332,10 +343,12 @@ function renderMovesList() {
     const was = t.customName && t.customName !== original ? `originale: ${original}` : ''; // se l'hai rinominato, si vede com'era
     const pill = t.pending ? '<span class="pill warn">in sospeso</span>' : '';
     const amt = `<span class="amt ${t.amount > 0 ? 'in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</span>`;
+    // i movimenti «Ricorrente» mostrano a chi sono assegnati (chip pieno) o che sono da assegnare (chip rosso); un tocco apre il foglio
+    const chip = t.tag === 'ricorrente' && 'recurring' in t ? `<button class="rchip ${t.recurring ? 'fill' : 'todo'}" data-assign-tx="${t.id}">${t.recurring ? esc(t.recurring.name) : 'Assegna a un ricorrente'}</button>` : '';
     const select = `<select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select>`;
     return `<div class="mv${t.pending ? ' pending' : ''}">
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
-      <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div></div>
+      <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div>${chip}</div>
       <div class="d-amt">${amt}</div>
       <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div></div>
     </div>`;
@@ -352,7 +365,7 @@ $('#movimenti').addEventListener('change', async (e) => {
   else if (el.id === 'mvMonth') state.mv.month = Number(el.value);
   else if (el.id === 'mvTag') state.mv.tag = el.value;
   else if (el.dataset.tag) {
-    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(true); return; } el.style.color = `var(--t-${el.value})`; if (el.parentElement?.classList.contains('tagbox')) { el.parentElement.style.color = `var(--t-${el.value})`; el.previousElementSibling.outerHTML = icon(el.value); } toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
+    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); const it = state.mv.items.find((x) => x.id === el.dataset.tag); const wasRec = it?.tag === 'ricorrente'; if (it) { it.tag = el.value; if (el.value === 'ricorrente') it.recurring = null; else delete it.recurring; } if (el.value === 'ricorrente' && it) { toast('Tag: Ricorrente'); renderMovesList(); assignFromMove(it); return; } if (wasRec) renderMovesList(); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(true); return; } el.style.color = `var(--t-${el.value})`; if (el.parentElement?.classList.contains('tagbox')) { el.parentElement.style.color = `var(--t-${el.value})`; el.previousElementSibling.outerHTML = icon(el.value); } toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
     return;
   } else return;
   loadMoves().catch(fail);
@@ -373,7 +386,9 @@ $('#movimenti').addEventListener('click', async (e) => {
     } catch (err) { fail(err); }
     return;
   }
-  if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; loadMoves().catch(fail); return; }
+  const as = e.target.closest('[data-assign-tx]');
+  if (as) { const t = state.mv.items.find((x) => x.id === as.dataset.assignTx); if (t) assignFromMove(t); return; }
+  if (e.target.closest('[data-clearaccount]')) { state.mv.account = ''; state.mv.recurring = null; loadMoves().catch(fail); return; }
   if (e.target.closest('[data-more]')) { // altri 100 movimenti
     state.mv.shown += MORE;
     ensureMoves().then(renderMovesList).catch(fail);
@@ -395,22 +410,316 @@ document.addEventListener('click', (e) => {
   try { window.Native?.tick?.(); } catch { /* fuori dall'app non c'è */ }
 }, true);
 
+// ------------------------------------------------------------------ ricorrenti
+
+// I pagamenti che si ripetono li raggruppa il server (GET /api/recurring): prima gli attivi dal più vicino al più lontano, poi i non più attivi.
+// Un tocco su una riga la apre: interruttore «Ancora attivo», promemoria (una notifica nel server legata al ricorrente) e link ai movimenti.
+const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Promemoria attivo"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>';
+state.rec = { data: null, open: null };
+
+async function loadRecurring() {
+  state.rec.pick = null; // tornando alla scheda si riparte dall'elenco
+  state.rec.data = await api('GET', '/api/recurring');
+  renderRecurring();
+}
+
+function recPanel(g) {
+  const day = g.reminder?.day ?? Number(g.next.slice(8));
+  const time = g.reminder?.time ?? '09:00';
+  const text = g.reminder?.text ?? `${g.name} ${money(g.amount)}: lo vuoi ancora?`;
+  const shortD = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
+  const pays = (g.payments ?? []).map((p) => `<div class="rpay"><b class="rpd">${shortD(p.date)}</b><span class="rpt">${esc(p.title)}<small>${esc(p.account)}${p.explicit ? ' · assegnato' : ''}</small></span><span class="rpa">${money(p.amount)}</span>${p.explicit ? `<button type="button" class="rx" data-unlink="${esc(p.id)}" aria-label="Scollega questo movimento" title="Scollega">×</button>` : '<span></span>'}</div>`).join('');
+  return `<div class="rpanel" data-panel="${esc(g.key)}" data-saved="${g.reminder ? '1' : ''}" data-sday="${day}" data-stime="${esc(time)}" data-stext="${esc(text)}">
+    <label class="rsw"><input type="checkbox" data-ractive ${g.active ? 'checked' : ''}><i></i><span>Ancora attivo</span></label>
+    <span class="label">Movimenti collegati · ${g.count}</span>
+    ${pays ? `<div class="rpays">${pays}</div>` : '<p class="muted rnote">Nessun movimento ancora: collegane uno qui sotto o dai Movimenti.</p>'}
+    <div class="foot"><button class="ghost" type="button" data-pickopen>Collega altri movimenti</button></div>
+    ${g.active ? `<span class="label">Promemoria</span>
+    <div class="fields two">
+      <label>Giorno del mese <input data-rf="day" type="number" inputmode="numeric" min="1" max="31" step="1" value="${day}"></label>
+      <label>Orario <input data-rf="time" type="time" value="${esc(time)}"></label>
+    </div>
+    <label>Testo <input data-rf="text" maxlength="200" autocomplete="off" value="${esc(text)}"></label>
+    <p class="muted rnote">Il giorno proposto è quello del prossimo pagamento. Il promemoria sta nel server, legato a questo ricorrente.</p>
+    <div class="foot"><button class="primary" type="button" data-rbtn="${g.reminder ? 'del' : 'save'}">${g.reminder ? 'Togli promemoria' : 'Salva promemoria'}</button></div>` : '<p class="muted rnote">Riattivalo per impostare un promemoria.</p>'}
+    <div class="foot rlinks"><button class="link" type="button" data-rmoves>Vedi i movimenti</button>${g.manual ? '<button class="link" type="button" data-rremove>Elimina ricorrente</button>' : ''}</div>
+  </div>`;
+}
+
+function recRow(g) {
+  const open = state.rec.open === g.key;
+  const date = g.active ? g.next : (g.last ?? g.next);
+  const sub = g.annual ? `annuale · ${money(g.monthly)}/mese` : 'mensile';
+  return `<div class="rrow ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
+    <div class="rday">${Number(date.slice(8))}<small>${MONTHS_SHORT[Number(date.slice(5, 7)) - 1]}</small></div>
+    <div class="rmain"><div class="rname"><span>${esc(g.name)}</span>${g.reminder ? BELL : ''}</div><div class="rsub">${sub}</div></div>
+    <div class="ramt">${money(g.amount)}</div></div>${open ? recPanel(g) : ''}`;
+}
+
+// i movimenti col tag «Ricorrente» non ancora assegnati: un chip per ricorrente suggerito, «Nuovo…» e «Altro…»
+function recInbox(unassigned, groups) {
+  if (!unassigned?.length) return '';
+  const name = (k) => groups.find((g) => g.key === k)?.name ?? '';
+  const shortD = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).split(' ');
+  return `<div class="rinbox"><div class="rsec"><span>Da assegnare</span><span>${unassigned.length}</span></div>${unassigned.map((u) => {
+    const [d, m] = shortD(u.date);
+    const chips = u.suggest.slice(0, 2).map((s, i) => `<button type="button" class="rchip${i === 0 ? ' fill' : ''}" data-assign-to="${esc(s.key)}" data-tx="${esc(u.id)}">${esc(name(s.key))}</button>`).join('');
+    return `<div class="rinrow"><div class="rday">${d}<small>${m}</small></div><div class="rmain"><div class="rname"><span>${esc(u.title)}</span></div><div class="rsub">−${money(u.amount)} · ${esc(u.account)}</div>
+      <div class="rchips">${chips}<button type="button" class="rchip ghost" data-assign-open="new" data-tx="${esc(u.id)}">Nuovo…</button><button type="button" class="rchip ghost" data-assign-open="" data-tx="${esc(u.id)}">Altro…</button></div></div>
+      <div class="rhint">${u.suggest.length ? 'Suggerito' : ''}</div></div>`;
+  }).join('')}<p class="muted rnote">Un tocco su un nome assegna il movimento a quel ricorrente.</p></div>`;
+}
+
+function renderRecurring() {
+  const picking = Boolean(state.rec.pick);
+  $('#recMain').hidden = picking;
+  $('#recPick').hidden = !picking;
+  if (picking) return renderPicker();
+  const { groups, totals, unassigned } = state.rec.data;
+  const act = groups.filter((g) => g.active), off = groups.filter((g) => !g.active);
+  $('#recHero').innerHTML = `<div class="bhero"><div class="bheroh"><div><span class="label">Ricorrenti al mese</span><div class="big">${money(totals.monthly)}</div></div><div class="bdays"><span class="label">Gruppi attivi</span><div class="big">${totals.active}</div></div></div>
+    <p class="muted rnote">${totals.annual ? `Gli annuali contano per un dodicesimo (${totals.annual} su ${totals.active}).` : 'I pagamenti annuali contano per un dodicesimo.'}</p></div>`;
+  $('#recList').innerHTML = recInbox(unassigned, groups) + (groups.length
+    ? `<div class="rsec"><span>Attivi · dal più vicino</span><span>${act.length}</span></div>${act.map(recRow).join('') || '<p class="muted">Nessun ricorrente attivo.</p>'}
+       <div class="rsec"><span>Non più attivi</span><span>${off.length}</span></div>${off.map(recRow).join('') || '<p class="muted">Nessuno.</p>'}`
+    : '<p class="muted">Ancora nessun ricorrente: li riconosco da soli quando un pagamento si ripete ogni mese o ogni anno, oppure aggiungine uno a mano e assegna i movimenti.</p>');
+}
+
+// ---- foglio «Assegna a un ricorrente» (dai Movimenti e dalla scheda Ricorrenti)
+
+const addMonthsJs = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + 1, 0)).getUTCDate(); return new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10); };
+const nextFrom = (iso, annual) => { const today = new Date().toISOString().slice(0, 10); let d = iso, n = 0; while (d < today && n < 600) { n += annual ? 12 : 1; d = addMonthsJs(iso, n); } return d; };
+
+/** Apre il foglio per un movimento ({ id, title, date, amount (positivo), account, current }); `after` si chiama a cose fatte. */
+async function openAssign(tx, { choose = '', after } = {}) {
+  let ov;
+  try { ov = await api('GET', `/api/recurring?tx=${encodeURIComponent(tx.id)}`); } catch (err) { return fail(err); }
+  const dlg = $('#assignDialog');
+  const suggested = (ov.suggest ?? []).map((s) => s.key);
+  const ordered = [...ov.groups].sort((a, b) => (suggested.includes(b.key) - suggested.includes(a.key)) || (b.active - a.active));
+  let value = choose || tx.current || suggested[0] || '__none';
+  const why = (g) => { const s = (ov.suggest ?? []).find((x) => x.key === g.key); return s ? ` · suggerito (${s.why === 'nome' ? 'stesso nome' : 'stesso importo'})` : ''; };
+  const draw = () => {
+    const sel = ordered.find((g) => g.key === value);
+    dlg.innerHTML = `<form method="dialog" id="assignForm">
+      <div class="grab"></div><h2>Assegna a un ricorrente</h2>
+      <div class="amini"><div>${esc(tx.title)}<small>${fmtDate(tx.date)} · ${esc(tx.account)}</small></div><b class="n">−${money(tx.amount)}</b></div>
+      <div class="aopts">
+        ${ordered.map((g) => `<label class="aopt"><span><b>${esc(g.name)}</b><small>${g.annual ? 'annuale' : 'mensile'} · ${money(g.amount)}${g.active ? '' : ' · non attivo'}${why(g)}</small></span><input type="radio" name="ak" value="${esc(g.key)}" ${value === g.key ? 'checked' : ''}><i></i></label>`).join('')}
+        <label class="aopt"><span><b>+ Nuovo ricorrente da questo movimento</b><small>nome e importo già compilati</small></span><input type="radio" name="ak" value="__new" ${value === '__new' ? 'checked' : ''}><i></i></label>
+        ${value === '__new' ? `<div class="anew"><label>Nome <input id="anName" maxlength="80" autocomplete="off" value="${esc(tx.title)}"></label>
+          <div class="fields two"><label>Importo <input id="anAmount" inputmode="decimal" value="${String(tx.amount).replace('.', ',')}"></label><label>Cadenza <select id="anCad"><option value="0">Mensile</option><option value="1">Annuale</option></select></label></div>
+          <label>Prossimo pagamento <input id="anNext" type="date" value="${nextFrom(addMonthsJs(tx.date, 1), false)}"></label></div>` : ''}
+        <label class="aopt"><span><b class="muted">Solo il tag, nessun ricorrente</b></span><input type="radio" name="ak" value="__none" ${value === '__none' ? 'checked' : ''}><i></i></label>
+      </div>
+      <p class="muted rnote">Il suggerimento viene dal nome simile o dallo stesso importo. Il movimento conta subito nello storico del ricorrente.</p>
+      <div class="foot"><button class="primary" type="submit" id="anOk">${value === '__new' ? 'Crea e assegna' : value === '__none' ? 'Lascia solo il tag' : `Assegna a ${esc(sel?.name ?? '')}`}</button><button class="ghost" type="button" id="anCancel">Annulla</button></div>
+    </form>`;
+    dlg.querySelectorAll('input[name=ak]').forEach((r) => r.addEventListener('change', () => { value = r.value; draw(); }));
+    $('#anCancel').addEventListener('click', () => dlg.close());
+    $('#anCad')?.addEventListener('change', (e) => { $('#anNext').value = nextFrom(addMonthsJs(tx.date, e.target.value === '1' ? 12 : 1), e.target.value === '1'); });
+    $('#assignForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        let msg;
+        if (value === '__new') {
+          await api('POST', '/api/recurring', { name: $('#anName').value, amount: $('#anAmount').value, annual: $('#anCad').value === '1', next: $('#anNext').value, assign: [tx.id] });
+          msg = 'Ricorrente creato e movimento assegnato.';
+        } else if (value === '__none') {
+          await api('PUT', '/api/recurring/assign', { ids: [tx.id], key: null });
+          msg = 'Movimento lasciato senza ricorrente.';
+        } else {
+          await api('PUT', '/api/recurring/assign', { ids: [tx.id], key: value });
+          msg = `Assegnato a ${sel.name}.`;
+        }
+        dlg.close();
+        toast(msg);
+        after?.();
+      } catch (err) { if (err instanceof Unauthorized) { dlg.close(); return fail(err); } toast(err.message); }
+    });
+  };
+  draw();
+  if (!dlg.open) dlg.showModal();
+}
+
+// ---- «Collega altri movimenti» dentro un ricorrente: selezione multipla
+state.rec.sel = new Set();
+state.rec.recent = [];
+async function openPicker(key) {
+  state.rec.pick = key;
+  state.rec.sel = new Set();
+  state.rec.q = '';
+  renderRecurring();
+  window.scrollTo(0, 0);
+  await loadPickRecent();
+}
+async function loadPickRecent() {
+  try {
+    const d = await api('GET', `/api/transactions?year=0&month=0&q=${encodeURIComponent(state.rec.q ?? '')}&limit=60&offset=0`);
+    state.rec.recent = d.transactions.filter((t) => t.amount < 0 && t.tag !== 'giroconto');
+    renderPicker();
+  } catch (err) { fail(err); }
+}
+function renderPicker() {
+  const g = state.rec.data.groups.find((x) => x.key === state.rec.pick);
+  if (!g) { state.rec.pick = null; return renderRecurring(); }
+  const have = new Set((g.payments ?? []).map((p) => p.id));
+  const un = state.rec.data.unassigned.filter((u) => !have.has(u.id));
+  const unIds = new Set(un.map((u) => u.id));
+  const others = state.rec.recent.filter((t) => !have.has(t.id) && !unIds.has(t.id) && t.recurring?.key !== g.key);
+  const shortD = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  const row = (id, date, title, sub, amount) => `<label class="pick"><input type="checkbox" data-pick="${esc(id)}" ${state.rec.sel.has(id) ? 'checked' : ''}><i></i><b class="rpd">${shortD(date)}</b><span class="rpt">${esc(title)}<small>${esc(sub)}</small></span><span class="rpa">${money(amount)}</span></label>`;
+  const n = state.rec.sel.size;
+  const box = $('#recPick');
+  const keep = document.activeElement?.id === 'pickSearch';
+  box.innerHTML = `<div class="rsec first"><span>Collega a ${esc(g.name)}</span><button type="button" class="link" id="pickCancel">Annulla</button></div>
+    <label class="pickq"><input id="pickSearch" type="search" placeholder="Cerca tra i movimenti…" autocomplete="off" value="${esc(state.rec.q ?? '')}"></label>
+    ${un.length ? `<span class="label">Da assegnare · suggeriti</span>${un.map((u) => row(u.id, u.date, u.title, `${u.account}${u.suggest.some((s) => s.key === g.key) ? ' · suggerito' : ''}`, u.amount)).join('')}` : ''}
+    <span class="label">Altri movimenti recenti</span>
+    ${others.map((t) => row(t.id, t.date, t.customName || t.remittance || t.description, `${t.accountName}${t.tag === 'ricorrente' ? ' · Ricorrente' : ''}`, -t.amount)).join('') || '<p class="muted rnote">Nessun movimento.</p>'}
+    <p class="muted rnote">Si vedono prima i movimenti «Ricorrente» da assegnare. Gli altri, se li scegli, prendono il tag «Ricorrente».</p>
+    <div class="rsticky"><button class="primary" type="button" id="pickOk" ${n ? '' : 'disabled'}>${n ? `Collega ${n} moviment${n === 1 ? 'o' : 'i'}` : 'Scegli almeno un movimento'}</button></div>`;
+  if (keep) { const s = $('#pickSearch'); s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+}
+let pickTimer;
+$('#recPick').addEventListener('input', (e) => {
+  if (e.target.id !== 'pickSearch') return;
+  state.rec.q = e.target.value;
+  clearTimeout(pickTimer);
+  pickTimer = setTimeout(() => loadPickRecent(), 250);
+});
+$('#recPick').addEventListener('change', (e) => {
+  const id = e.target.dataset?.pick;
+  if (!id) return;
+  if (e.target.checked) state.rec.sel.add(id); else state.rec.sel.delete(id);
+  const n = state.rec.sel.size, ok = $('#pickOk');
+  ok.disabled = !n;
+  ok.textContent = n ? `Collega ${n} moviment${n === 1 ? 'o' : 'i'}` : 'Scegli almeno un movimento';
+});
+$('#recPick').addEventListener('click', async (e) => {
+  if (e.target.closest('#pickCancel')) { state.rec.pick = null; renderRecurring(); return; }
+  if (!e.target.closest('#pickOk')) return;
+  const key = state.rec.pick, ids = [...state.rec.sel];
+  try {
+    state.rec.data = await api('PUT', '/api/recurring/assign', { ids, key });
+    state.rec.pick = null;
+    renderRecurring();
+    toast(`${ids.length} moviment${ids.length === 1 ? 'o collegato' : 'i collegati'}.`);
+  } catch (err) { fail(err); }
+});
+
+// chip dei suggerimenti, «Altro…», «Nuovo…», × per scollegare e «Collega altri movimenti»
+$('#recList').addEventListener('click', async (e) => {
+  const to = e.target.closest('[data-assign-to]');
+  if (to) return recCall('PUT', '/api/recurring/assign', { ids: [to.dataset.tx], key: to.dataset.assignTo }, 'Movimento assegnato.');
+  const open = e.target.closest('[data-assign-open]');
+  if (open) {
+    const u = state.rec.data.unassigned.find((x) => x.id === open.dataset.tx);
+    if (u) openAssign({ id: u.id, title: u.title, date: u.date, amount: u.amount, account: u.account }, { choose: open.dataset.assignOpen === 'new' ? '__new' : '', after: () => loadRecurring().catch(fail) });
+    return;
+  }
+  const un = e.target.closest('[data-unlink]');
+  if (un) return recCall('PUT', '/api/recurring/assign', { ids: [un.dataset.unlink], key: null }, 'Movimento scollegato.');
+  if (e.target.closest('[data-pickopen]')) openPicker(e.target.closest('.rpanel').dataset.panel);
+});
+
+// il pulsante del promemoria è uno solo: «Togli» finché i campi sono quelli salvati, «Salva» appena ne cambi uno
+function syncRecButton(panel) {
+  const btn = panel.querySelector('[data-rbtn]');
+  if (!btn) return;
+  const v = (k) => panel.querySelector(`[data-rf="${k}"]`).value.trim();
+  const same = panel.dataset.saved && v('day') === panel.dataset.sday && v('time') === panel.dataset.stime && v('text') === panel.dataset.stext;
+  btn.dataset.rbtn = same ? 'del' : 'save';
+  btn.textContent = same ? 'Togli promemoria' : 'Salva promemoria';
+}
+
+async function recCall(method, url, body, msg) {
+  try {
+    state.rec.data = await api(method, url, body);
+    renderRecurring();
+    if (msg) toast(msg);
+  } catch (err) { fail(err); }
+}
+
+$('#recList').addEventListener('input', (e) => { const p = e.target.closest('.rpanel'); if (p && e.target.dataset.rf) syncRecButton(p); });
+$('#recList').addEventListener('change', (e) => {
+  const sw = e.target.closest('[data-ractive]');
+  if (!sw) return;
+  const key = e.target.closest('.rpanel').dataset.panel;
+  recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/active`, { active: sw.checked }, sw.checked ? 'Ricorrente attivo.' : 'Ricorrente non più attivo.');
+});
+$('#recList').addEventListener('click', async (e) => {
+  const panel = e.target.closest('.rpanel');
+  if (panel) {
+    const key = panel.dataset.panel;
+    const g = state.rec.data.groups.find((x) => x.key === key);
+    const btn = e.target.closest('[data-rbtn]');
+    if (btn) {
+      const v = (k) => panel.querySelector(`[data-rf="${k}"]`).value.trim();
+      if (btn.dataset.rbtn === 'del') return recCall('DELETE', `/api/recurring/${encodeURIComponent(key)}/reminder`, null, 'Promemoria tolto.');
+      return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, { text: v('text'), day: v('day'), time: v('time') }, 'Promemoria salvato.');
+    }
+    if (e.target.closest('[data-rmoves]')) {
+      Object.assign(state.mv, { year: 0, month: 0, tag: '', q: '', account: '', recurring: { key, name: g.name } });
+      $('#mvSearch').value = '';
+      return show('movimenti');
+    }
+    if (e.target.closest('[data-rremove]')) {
+      if (!confirm(`Eliminare «${g.name}» dai ricorrenti?`)) return;
+      state.rec.open = null;
+      return recCall('DELETE', `/api/recurring/${encodeURIComponent(key)}`, null, 'Ricorrente eliminato.');
+    }
+    return;
+  }
+  const row = e.target.closest('[data-rec]');
+  if (!row) return;
+  state.rec.open = state.rec.open === row.dataset.rec ? null : row.dataset.rec;
+  renderRecurring();
+});
+$('#recList').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-rec]')) { e.preventDefault(); e.target.click(); } });
+
+const showRecForm = (on) => { $('#recForm').hidden = !on; $('#recAddBtn').hidden = on; if (on) { $('#rfNext').value ||= new Date().toISOString().slice(0, 10); $('#rfName').focus(); } };
+$('#recAddBtn').addEventListener('click', () => showRecForm(true));
+$('#recCancel').addEventListener('click', () => { $('#recForm').reset(); showRecForm(false); });
+$('#recForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api('POST', '/api/recurring', { name: $('#rfName').value, amount: $('#rfAmount').value, annual: $('#rfCadence').value === '1', next: $('#rfNext').value });
+    e.target.reset(); showRecForm(false);
+    state.rec.data = r; state.rec.open = r.key;
+    renderRecurring();
+    toast('Ricorrente aggiunto.');
+  } catch (err) { fail(err); }
+});
+
 // ------------------------------------------------------------------ budget
+
+const BRICK = 75; // euro per mattoncino delle barre del budget
 
 async function loadBudget() {
   const d = await api('GET', '/api/budgets');
   const t = d.month.totals;
   // in cima il mese (residuo, budget, speso, giorni rimanenti); poi per ogni categoria titolo con icona, residuo, barra con tacche al 25/50/75%
   // (il livello è il residuo del budget) e il segno del ritmo (dove saresti oggi spendendo in modo uniforme), speso su budget e media 3 mesi
-  const hero = t ? `<div class="bhero"><span class="label">Residuo del mese</span><div class="big ${t.left < 0 ? 'neg' : ''}">${money(t.left)}</div>
-      <div class="bstats"><div><span class="label">Budget</span><span class="n">${money(t.budget)}</span></div><div><span class="label">Speso</span><span class="n">${money(t.spent)}</span></div><div><span class="label">Giorni rimanenti</span><span class="n">${t.daysLeft}</span></div>${t.avg3 == null ? '' : `<div><span class="label">Media 3 mesi</span><span class="n">${money(t.avg3)}</span></div>`}${t.pace == null ? '' : `<div><span class="label">Dovresti aver speso</span><span class="n">${money(t.pace)}</span></div>`}</div></div>` : '';
-  $('#budgetCards').innerHTML = hero + Object.entries(d.month.cats).map(([k, c]) => {
+  // in alto residuo e giorni rimanenti (stessa dimensione); sotto due colonne: budget e media 3 mesi, spesa reale e spesa stimata (grigi media e stima)
+  const stat = (label, v, dim) => `<div${dim ? ' class="dim"' : ''}><span class="label">${label}</span><span class="n">${v}</span></div>`;
+  const hero = t ? `<div class="bhero"><div class="bheroh"><div><span class="label">Residuo del mese</span><div class="big ${t.left < 0 ? 'neg' : ''}">${money(t.left)}</div></div><div class="bdays"><span class="label">Giorni rimanenti</span><div class="big">${t.daysLeft}</div></div></div>
+      <div class="bstats"><div class="bcol">${stat('Budget', money(t.budget))}${t.avg3 == null ? '' : stat('Media 3 mesi', money(t.avg3), true)}</div><div class="bcol">${stat('Spesa reale', money(t.spent))}${t.pace == null ? '' : stat('Spesa stimata', money(t.pace), true)}</div></div></div>` : '';
+  const maxBudget = Math.max(1, ...Object.values(d.month.cats).map((c) => c.budget)); // scala comune: un mattoncino è largo uguale in tutte le barre
+  $('#budgetCards').innerHTML = hero +Object.entries(d.month.cats).map(([k, c]) => {
     const ratio = c.budget > 0 ? c.spent / c.budget : 0;
-    const left = c.budget > 0 ? Math.max(0, 1 - ratio) : 0; // la barra mostra il residuo, non il speso
-    const pace = c.pace != null && c.budget > 0 ? Math.max(0, 100 - (c.pace / c.budget) * 100) : null; // dove sarebbe il residuo spendendo in modo uniforme
+    const leftE = c.budget > 0 ? Math.max(0, c.budget - c.spent) : 0; // la barra mostra il residuo, non la spesa
+    const pace = c.pace != null && c.budget > 0 ? ((c.budget - c.pace) / maxBudget) * 100 : null; // dove sarebbe il residuo spendendo in modo uniforme
+    // mattoncini da BRICK euro ciascuno (l'ultimo può essere più corto); ognuno largo quanto i suoi euro, pieno in proporzione al residuo
+    const bricks = [];
+    for (let at = 0; at < c.budget; at += BRICK) {
+      const size = Math.min(BRICK, c.budget - at);
+      bricks.push(`<b style="width:calc(${(size / maxBudget) * 100}% - 2px)"><i style="width:${Math.max(0, Math.min(1, (leftE - at) / size)) * 100}%"></i></b>`);
+    }
     return `<div class="bcat"><div class="bh"><span class="bname">${icon(k)}${esc(c.label)}</span><span class="n ${c.budget && c.left < 0 ? 'neg' : ''}">${c.budget ? money(c.left) : money(c.spent)}</span></div>
-      <div class="bbar${ratio > 1 ? ' over' : left < 0.25 && c.budget > 0 ? ' low' : ''}"><i style="width:${left * 100}%"></i><u style="left:25%"></u><u style="left:50%"></u><u style="left:75%"></u>${pace == null ? '' : `<em style="left:${pace}%" title="Ritmo di oggi: ${money(c.pace)}"></em>`}</div>
-      <div class="bsub"><span>${c.budget ? `Speso <b>${money(c.spent)}</b> di <b>${money(c.budget)}</b>` : 'Nessun budget'}</span><span>Media <b>${c.avg3 == null ? '–' : money(c.avg3)}</b></span></div></div>`;
+      <div class="bbar${ratio > 1 ? ' over' : leftE / (c.budget || 1) < 0.25 && c.budget > 0 ? ' low' : ''}" title="Un mattoncino = ${money(BRICK)}">${bricks.join('')}${pace == null ? '' : `<em style="left:${pace}%" title="Spesa stimata a oggi: ${money(c.pace)}"></em>`}</div>
+      <div class="bsub"><span>${c.budget ? `Spesi <b>${money(c.spent)}</b> di <b>${money(c.budget)}</b>` : 'Nessun budget'}</span><span>Media <b>${c.avg3 == null ? '–' : money(c.avg3)}</b></span></div></div>`;
   }).join('');
   $('#budgetFields').innerHTML = Object.entries(d.month.cats).map(([k, c]) => `<label><span>${icon(k)}${esc(c.label)}</span><input name="${k}" inputmode="decimal" placeholder="0" aria-label="Budget mensile di ${esc(c.label)} (€ al mese)" value="${d.budgets[k] || ''}"></label>`).join('');
 }
@@ -586,7 +895,7 @@ async function loadFolder(key) {
     state.docFiles = { ...(state.docFiles ?? {}), [key]: d };
     // il server sta leggendo le buste paga in sottofondo: si ricarica l'elenco finché ha finito (si ferma se si cambia scheda o si chiude la categoria)
     clearTimeout(state.docTimer);
-    if (d.busy && state.tab === 'documenti' && state.docOpen[key]) state.docTimer = setTimeout(() => loadFolder(key).catch(() => {}), 6000);
+    if (d.busy && state.tab === 'opzioni' && state.docOpen[key]) state.docTimer = setTimeout(() => loadFolder(key).catch(() => {}), 6000);
     // gli estratti nuovi li ha appena letti il server: si dice quanti
     if (d.read?.length) toast(`Letti ${d.read.length} estratti conto nuovi${d.read.some((r) => r.error) ? ' (alcuni con errori)' : ''}.`);
     box.innerHTML = d.files.length

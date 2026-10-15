@@ -32,9 +32,9 @@
     <nav class="tabs" role="tablist">
       <button role="tab" data-tab="storico" aria-selected="true">Storico</button>
       <button role="tab" data-tab="movimenti" aria-selected="false">Movimenti</button>
+      <button role="tab" data-tab="ricorrenti" aria-selected="false">Ricorrenti</button>
       <button role="tab" data-tab="budget" aria-selected="false">Budget</button>
       <button role="tab" data-tab="banche" aria-selected="false">Banche</button>
-      <button role="tab" data-tab="documenti" aria-selected="false" class="apart">Documenti</button>
     </nav>
 
     <main>
@@ -57,6 +57,26 @@
         <p class="muted" id="mvSummary"></p>
         <div class="mvlist"><div id="mvSort" class="mvsort"></div><div id="mvList"></div></div>
         <div id="mvMore" class="mvmore" hidden></div>
+      </section>
+
+      <section id="ricorrenti" hidden>
+        <div id="recMain">
+        <div id="recHero"></div>
+        <div id="recList"></div>
+        <div class="foot"><button class="primary" type="button" id="recAddBtn">Aggiungi ricorrente</button></div>
+        <form id="recForm" hidden>
+          <h2 class="section">Nuovo ricorrente</h2>
+          <label>Nome <input id="rfName" maxlength="80" autocomplete="off" required placeholder="Per esempio: Amazon Prime"></label>
+          <div class="fields two">
+            <label>Importo <input id="rfAmount" inputmode="decimal" required placeholder="0,00"></label>
+            <label>Cadenza <select id="rfCadence"><option value="0">Mensile</option><option value="1">Annuale</option></select></label>
+          </div>
+          <label>Prossimo pagamento <input id="rfNext" type="date" required></label>
+          <p class="note muted">Se paghi già questo ricorrente, nei Movimenti scegli il tag «Ricorrente» e compare qui da solo.</p>
+          <div class="foot"><button class="primary" type="submit">Aggiungi</button><button class="ghost" type="button" id="recCancel">Annulla</button></div>
+        </form>
+        </div>
+        <div id="recPick" hidden></div>
       </section>
 
       <section id="budget" hidden>
@@ -86,10 +106,6 @@
       </details>
       </section>
 
-      <section id="documenti" hidden>
-        <div id="docGroups"></div>
-      </section>
-
       <section id="opzioni" hidden>
         <details id="notifiche" class="group" open>
           <summary><h2 class="section">Notifiche</h2></summary>
@@ -106,6 +122,10 @@
           </form>
         </div>
         </details>
+        <details id="documenti" class="group">
+          <summary><h2 class="section">Documenti</h2></summary>
+          <div id="docGroups"></div>
+        </details>
         <h2 class="section">Account</h2>
         <div class="panel">
           <div class="foot"><button class="primary" id="pwOpen">Cambia password</button></div>
@@ -121,6 +141,8 @@
       </section>
     </main>
   </div>
+
+  <dialog id="assignDialog" class="sheet" aria-label="Assegna a un ricorrente"></dialog>
 
   <dialog id="pwDialog">
     <form id="pwForm">

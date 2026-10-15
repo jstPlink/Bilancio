@@ -2,6 +2,16 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.33.0
+- **Nuova scheda «Ricorrenti»** (tra Movimenti e Budget): i pagamenti che si ripetono, raggruppati dal server per beneficiario (mensili: 3 pagamenti di importo simile a circa un mese; annuali: 2 a circa un anno) oppure aggiunti a mano. In cima «Ricorrenti al mese» (gli annuali contano per un dodicesimo) e «Gruppi attivi»; gli attivi dal pagamento più vicino al più lontano, poi i non più attivi in grigio. Un tocco su una riga la apre: interruttore «Ancora attivo», **promemoria** (giorno, orario, testo; un solo pulsante, «Togli» finché i campi sono quelli salvati e «Salva» appena ne cambi uno) e link ai Movimenti filtrati su quel ricorrente.
+- **Promemoria nel server legati al ricorrente**: sono notifiche del database del server con `recurringKey` (compaiono anche nelle Opzioni e si tolgono da sole se il ricorrente non è più attivo).
+- **Assegnare i movimenti ai ricorrenti**: i movimenti col tag «Ricorrente» sono «da assegnare» finché non appartengono a un ricorrente. Chip nella riga dei Movimenti e foglio di assegnazione (suggerimento per nome o importo, «Nuovo ricorrente da questo movimento», «Solo il tag»; si apre anche scegliendo il tag dal menu), casella «Da assegnare» in cima ai Ricorrenti con un tocco per suggerimento, «Movimenti collegati» e «Collega altri movimenti» (selezione multipla) dentro ogni ricorrente.
+- **Nuovo tag «Ricorrente»** (solo manuale, senza budget). **Documenti** spostati nelle Opzioni (sezione che si chiude e si apre).
+- **Budget**: «Speso» diventa «Spesa reale» e «Dovresti aver speso» «Spesa stimata»; riquadro del mese con residuo e giorni rimanenti grandi e sotto due colonne (budget e media 3 mesi; spesa reale e spesa stimata, in grigio scuro la media e la stima); barre a **mattoncini da 75 €** nella stessa scala per tutte le categorie, lunghe in proporzione al budget; sotto la barra «Spesi X di Y» e la media.
+- **Nuovo logo**: la cassaforte (corpo e piedini rossi), applicata a sito, app e icona adattiva di Android; in `design/` tutte le proposte e i mockup (Ricorrenti, assegnazione dei movimenti).
+- **Swipe** tra le schede più facile (50 px) e con un'animazione di ingresso; la scheda Ricorrenti è nello scorrimento.
+- **Server**: `GET/POST /api/recurring`, `PUT /api/recurring/assign`, `PUT /api/recurring/:key/active`, `PUT/DELETE /api/recurring/:key/reminder`, `DELETE /api/recurring/:key`; `GET /api/transactions` accetta `recurring` e dà `recurring` e `totals.unassigned`. Serve il server alla 0.33.0 (altrimenti «Il server non ha ancora questa funzione»).
+
 ## 0.32.0
 - **Riquadro del mese più ricco** (scheda Budget): valori a 22 px (su una riga sul web, su più righe sul telefono) e due dati nuovi, la **media dei 3 mesi precedenti** e «**dovresti aver speso**» (il ritmo di tutte le categorie). Il server aggiunge `totals.avg3`; serve il server alla 0.32.0 per vederli.
 - **Tocco aptico** su ogni pulsante nell'app Android (`Native.tick()`, nessun permesso; segue l'impostazione di vibrazione al tocco del telefono).

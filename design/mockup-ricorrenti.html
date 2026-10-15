@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyBank · scheda Ricorrenti, mockup</title>
+<style>
+/* Solo inchiostro, carta e il rosso dell'app. 393 px CSS = larghezza del telefono. Dati inventati. */
+:root{--paper:#f3f0ea;--ink:#131211;--mute:#6b665e;--hair:#d8d3c8;--red:#e8431a;
+ --f-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--f-sans:system-ui,"Segoe UI",Roboto,sans-serif;--f-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;--h:46px}
+.dark{--paper:#121211;--ink:#edeae3;--mute:#9a958b;--hair:#2e2c29;--red:#ff5a2e}
+*{box-sizing:border-box}h1,p{margin:0}
+body{margin:0;padding:24px;background:#6f6b64;font:15px/1.5 var(--f-sans)}
+body>h1{font:700 15px var(--f-mono);color:#fff;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+body>p{color:#eee;font-size:13px;margin-bottom:20px;max-width:900px}
+.wall{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0}figcaption{color:#fff;font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+figcaption small{display:block;font:400 13px var(--f-sans);text-transform:none;letter-spacing:0;max-width:393px;margin-top:2px;color:#eee}
+.phone{width:393px;height:852px;overflow:hidden;background:var(--paper);color:var(--ink);position:relative;border:1px solid #000}
+.status{height:28px;font:600 11px var(--f-mono);display:flex;justify-content:space-between;padding:8px 16px 0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 16px 0;height:40px}.top b{font:700 15px var(--f-serif);letter-spacing:-.02em}
+.tabs{display:flex;padding:0 8px;border-bottom:1px solid var(--hair);height:38px;align-items:flex-end;font:700 10px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.tabs span{flex:1;text-align:center;padding-bottom:9px}.tabs .on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--red)}
+.body{padding:16px 16px 0}
+.lab{font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.ser{font-family:var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums;font-weight:600;white-space:nowrap}
+.red{color:var(--red)}
+.hero{border-top:2px solid var(--ink);padding:12px 0 14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hero .big{font-size:40px;line-height:1.1;margin:2px 0 0}
+.sec{font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-top:2px solid var(--ink);padding-top:8px;margin:14px 0 0;display:flex;justify-content:space-between}
+.rec{border-top:1px solid var(--hair);padding:12px 0 12px}
+.rec .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.rec .nm{font:700 13px var(--f-mono);letter-spacing:.02em;text-transform:uppercase;display:flex;align-items:center;gap:6px;min-width:0}
+.rec .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec .amt{font-size:22px}
+.rec .sub{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-top:2px}
+.rec .sub b{color:var(--ink);font-weight:400}
+.ti{width:18px;height:18px;flex:none}
+.dots{display:flex;gap:3px;margin:9px 0 2px}
+.dots i{flex:1;height:8px;background:var(--ink)}.dots i.no{background:var(--hair)}.dots i.next{background:transparent;border:1px solid var(--red)}
+.dots-l{display:flex;justify-content:space-between;font:10px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.bell{display:inline-flex;align-items:center;gap:5px;font:700 11px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--ink);padding:0 8px;height:26px}
+.bell.on{background:var(--ink);color:var(--paper)}
+.bell svg{width:14px;height:14px}
+.row2{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.pill{font:700 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--hair);color:var(--mute)}
+.pill.red{border-color:var(--red);color:var(--red)}
+.exp{border-top:1px solid var(--ink);background:transparent;margin:0 -16px;padding:14px 16px 16px;background:color-mix(in srgb,var(--hair) 35%,transparent)}
+.exp .tx{font-size:13px;margin-top:4px;display:flex;justify-content:space-between;gap:8px}.exp .tx span:last-child{white-space:nowrap}
+.fld{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.fld label{display:block}
+.fld .in{height:var(--h);border:1px solid var(--ink);display:flex;align-items:center;padding:0 12px;font:15px var(--f-sans);margin-top:4px}
+.sw{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px}
+.sw i{width:40px;height:22px;border:1px solid var(--ink);position:relative;display:block}.sw i:after{content:"";position:absolute;top:2px;left:2px;bottom:2px;width:16px;background:var(--ink)}
+.sw i.on{background:var(--ink)}.sw i.on:after{left:auto;right:2px;background:var(--paper)}
+.btn{height:var(--h);background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:700 13px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;margin-top:14px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);margin-top:8px}
+.note{font-size:13px;color:var(--mute);margin-top:10px}
+</style></head><body>
+<h1>MyBank · scheda Ricorrenti (mockup)</h1>
+<p>Nuova scheda tra Movimenti e Budget. Il server riconosce i pagamenti che si ripetono (stesso beneficiario, importo simile, cadenza regolare) e li <b>raggruppa</b>; in cima il totale mensile. Per ogni gruppo: importo, cadenza, ultimo e prossimo pagamento, una riga di mesi (pieno = pagato, vuoto = saltato, rosso a contorno = atteso) e il pulsante <b>Ricordami</b>, che crea una notifica sul giorno del mese in cui di solito paga. «Ancora attivo» si spegne quando l'abbonamento è disdetto: il gruppo passa in «Non più attivi» e la notifica smette. Le notifiche stanno nel server, legate al gruppo. Dati inventati.</p>
+<div class="wall" id="wall"></div>
+<script>
+const bell='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>';
+const ic='<svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a8 8 0 0 1 14-4l2 2M20 14a8 8 0 0 1-14 4l-2-2M20 4v4h-4M4 20v-4h4"/></svg>';
+const dots=(a)=>`<div class="dots">${a.map(x=>`<i class="${x==0?'no':x==2?'next':''}"></i>`).join('')}</div><div class="dots-l"><span>Mag</span><span>Giu</span><span>Lug</span><span>Ago</span><span>Set</span><span>Ott</span><span>Nov</span></div>`;
+const rec=(n,amt,every,last,next,d,on,tag)=>`<div class="rec"><div class="h"><div class="nm">${ic}<span>${n}</span></div><span class="ser amt">${amt}</span></div>
+ <div class="sub"><span>${every} · ultimo <b>${last}</b></span><span>prossimo <b>${next}</b></span></div>${dots(d)}
+ <div class="row2"><span class="pill ${tag==='in ritardo'?'red':''}">${tag}</span><span class="bell ${on?'on':''}">${bell}${on?'Giorno 12 · 09:00':'Ricordami'}</span></div></div>`;
+const head=(on)=>`<div class="status"><span>9:41</span><span>5G 87%</span></div><div class="top"><b>MyBank</b><span class="lab">Opzioni</span></div>
+ <div class="tabs"><span>Storico</span><span>Movimenti</span><span class="on">Ricorrenti</span><span>Budget</span><span>Banche</span></div>`;
+const list=`<div class="body"><div class="hero"><div><span class="lab">Ricorrenti al mese</span><div class="ser big">78,97 €</div></div><div style="text-align:right"><span class="lab">Gruppi attivi</span><div class="ser big">5</div></div></div>
+ <div class="sec"><span>Attivi</span><span>5</span></div>
+ ${rec('Netflix','12,99 €','ogni mese','12 ott','12 nov',[1,1,1,1,1,1,2],true,'attivo')}
+ ${rec('Spotify Family','17,99 €','ogni mese','3 ott','3 nov',[1,1,1,1,1,1,2],false,'attivo')}
+ ${rec('Palestra Fit Club','39,00 €','ogni mese','28 set','28 ott',[1,1,1,1,1,0,2],false,'in ritardo')}
+ ${rec('iCloud 200 GB','2,99 €','ogni mese','9 ott','9 nov',[1,1,1,1,1,1,2],true,'attivo')}
+ ${rec('Assicurazione auto','6,00 €','ogni mese','1 ott','1 nov',[1,1,1,1,1,1,2],false,'attivo')}
+ <div class="sec"><span>Non più attivi</span><span>1</span></div>
+ ${rec('Disney+','8,99 €','ogni mese','12 apr','—',[0,0,0,0,0,0,0],false,'disdetto')}
+ </div>`;
+const open=`<div class="body"><div class="hero"><div><span class="lab">Ricorrenti al mese</span><div class="ser big">78,97 €</div></div><div style="text-align:right"><span class="lab">Gruppi attivi</span><div class="ser big">5</div></div></div>
+ <div class="sec"><span>Attivi</span><span>5</span></div>
+ ${rec('Netflix','12,99 €','ogni mese','12 ott','12 nov',[1,1,1,1,1,1,2],true,'attivo')}
+ <div class="exp"><div class="lab">Ultimi pagamenti</div>
+  <div class="tx"><span>12 ott 2026 · NETFLIX.COM</span><span class="ser">12,99 €</span></div>
+  <div class="tx"><span>12 set 2026 · NETFLIX.COM</span><span class="ser">12,99 €</span></div>
+  <div class="tx"><span>12 ago 2026 · NETFLIX.COM</span><span class="ser">12,99 €</span></div>
+  <div class="sw"><i class="on"></i><span>Ancora attivo: continua a ricordarmelo</span></div>
+  <div class="lab" style="margin-top:14px">Notifica</div>
+  <div class="fld"><label><span class="lab">Giorno del mese</span><div class="in">12</div></label><label><span class="lab">Orario</span><div class="in">09:00</div></label></div>
+  <div class="note">Testo: «Netflix 12,99 €: lo vuoi ancora?» (modificabile). Il giorno è quello in cui paga di solito.</div>
+  <div class="btn">Salva notifica</div><div class="btn ghost">Togli notifica</div></div>
+ ${rec('Spotify Family','17,99 €','ogni mese','3 ott','3 nov',[1,1,1,1,1,1,2],false,'attivo')}
+ </div>`;
+const shots=[['Elenco','I gruppi attivi (poi quelli non più attivi), con la riga dei mesi e il pulsante Ricordami (pieno = notifica attiva).',list,''],
+ ['Gruppo aperto','Toccando un gruppo si vedono gli ultimi pagamenti, l\'interruttore «Ancora attivo» e la notifica.',open,''],
+ ['Elenco · tema scuro','Stessa pagina nel tema scuro.',list,'dark']];
+document.getElementById('wall').innerHTML=shots.map(([t,s,b,c])=>`<figure><figcaption>${t}<small>${s}</small></figcaption><div class="phone ${c}">${head()}${b}</div></figure>`).join('');
+</script></body></html>

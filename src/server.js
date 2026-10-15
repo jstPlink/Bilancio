@@ -1,5 +1,6 @@
 // Server di MyBank: API, pagine web e aggiornamento automatico delle banche.
 import express from 'express';
+import crypto from 'node:crypto';
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,6 +17,7 @@ import { UNICREDIT_PARSER, parseFlexia, parseUnicreditAccount, pdfWords } from '
 import { PAYSLIP_PARSER, payslipInfo, readPayslipNet } from './busta.js';
 import { importTransactions, importedVisible } from './import.js';
 import { normalizeNotification } from './notifications.js';
+import { groupTransactionIds, recurringGroups, recurringOverview, ricorrenteStatus } from './recurring.js';
 import { openStore } from './store.js';
 import { accountNames, BUDGET_TAGS, TAGS } from './tags.js';
 
@@ -93,7 +95,8 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
 
   app.get('/api/transactions', (req, res) => {
     const account = String(req.query.account ?? '');
-    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q, account, sort: String(req.query.sort ?? 'date'), dir: String(req.query.dir ?? '') });
+    const recurring = String(req.query.recurring ?? '');
+    const list = listTransactions(db, { year: Number(req.query.year) || 0, month: Number(req.query.month) || 0, tag: String(req.query.tag ?? ''), q: req.query.q, account, ids: recurring ? groupTransactionIds(db, recurring) : null, sort: String(req.query.sort ?? 'date'), dir: String(req.query.dir ?? '') });
     // con un conto o pocket scelto (Banche → tocco su una riga) si dice anche come si chiama
     const name = account ? accountNames(db).get(account)?.name : '';
     // entrate e uscite dei movimenti filtrati (tutti, non solo i primi 1000); i giroconti non contano
@@ -103,7 +106,11 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     // a pagine: `limit` (al massimo 1000, di base 1000) e `offset`
     const limit = Math.min(1000, Math.max(1, Math.floor(Number(req.query.limit)) || 1000));
     const offset = Math.max(0, Math.floor(Number(req.query.offset)) || 0);
-    res.json({ transactions: list.slice(offset, offset + limit), total: list.length, offset, totals, sort: String(req.query.sort ?? 'date'), tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
+    // i movimenti «Ricorrente» dicono a quale ricorrente appartengono (`recurring: { key, name }`) o `null` se sono da assegnare
+    const status = list.some((t) => t.tag === 'ricorrente') ? ricorrenteStatus(db) : null;
+    if (status) totals.unassigned = list.filter((t) => t.tag === 'ricorrente' && !status.get(t.id)).length;
+    const page = list.slice(offset, offset + limit).map((t) => (status && t.tag === 'ricorrente' ? { ...t, recurring: status.get(t.id) ?? null } : t));
+    res.json({ transactions: page, total: list.length, offset, totals, sort: String(req.query.sort ?? 'date'), tags: TAGS, account: account ? { uid: account, name: name || 'Conto' } : null });
   });
 
   // Tag scelto a mano per un movimento (`null` torna a quello automatico).
@@ -314,7 +321,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   app.put('/api/notifications/:id', wrap(async (req, res) => {
     const i = db.notifications.findIndex((n) => n.id === req.params.id);
     if (i < 0) return bad(res, 'Notifica sconosciuta.', 404);
-    db.notifications[i] = normalizeNotification(req.body, req.params.id);
+    db.notifications[i] = normalizeNotification(req.body, req.params.id, db.notifications[i].recurringKey);
     await store.save();
     res.json(listNotifications());
   }));
@@ -324,6 +331,83 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     db.notifications.splice(i, 1);
     await store.save();
     res.json(listNotifications());
+  }));
+
+  // ---------------------------------------------------------------- ricorrenti
+  // Pagamenti che si ripetono, raggruppati dal server; il promemoria di un gruppo è una notifica legata alla sua chiave.
+  const recurringState = (tx = '') => recurringOverview(db, new Date(), tx);
+  // assegna dei movimenti a un ricorrente (o li scollega con `null`): un movimento assegnato prende il tag «Ricorrente»
+  const linkTransactions = (ids, key) => {
+    if (!Array.isArray(ids) || !ids.length || ids.length > 100) throw new Error('Scegli da 1 a 100 movimenti.');
+    for (const id of ids) {
+      const t = db.transactions[id];
+      if (!t || t.amount >= 0) throw new Error('Si assegnano solo uscite esistenti.');
+    }
+    for (const id of ids) {
+      if (key == null) { delete db.recurringLinks[id]; continue; }
+      db.recurringLinks[id] = key;
+      db.overrides[id] = 'ricorrente';
+    }
+  };
+  const findGroup = (key) => recurringGroups(db).find((g) => g.key === key);
+  const dropReminder = (key) => { db.notifications = db.notifications.filter((n) => n.recurringKey !== key); };
+  app.get('/api/recurring', (req, res) => res.json(recurringState(String(req.query.tx ?? ''))));
+  app.put('/api/recurring/assign', wrap(async (req, res) => {
+    const key = req.body?.key ?? null;
+    if (key !== null && !findGroup(String(key))) return bad(res, 'Ricorrente sconosciuto.', 404);
+    linkTransactions(req.body?.ids, key === null ? null : String(key));
+    await store.save();
+    res.json(recurringState());
+  }));
+  app.post('/api/recurring', wrap(async (req, res) => {
+    const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (!name) return bad(res, 'Scrivi il nome del pagamento.');
+    const amount = Number(String(req.body?.amount ?? '').replace(',', '.'));
+    if (!Number.isFinite(amount) || amount <= 0) return bad(res, 'Importo non valido.');
+    const next = String(req.body?.next ?? '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(next) || Number.isNaN(Date.parse(next))) return bad(res, 'Data del prossimo pagamento non valida.');
+    if (db.recurringManual.length >= 100) return bad(res, 'Troppi ricorrenti aggiunti a mano.');
+    const m = { id: crypto.randomUUID().slice(0, 8), name, amount: Math.round(amount * 100) / 100, annual: Boolean(req.body?.annual), next };
+    if (req.body?.assign) linkTransactions(req.body.assign, `m-${m.id}`);
+    db.recurringManual.push(m);
+    await store.save();
+    res.json({ ...recurringState(), key: `m-${m.id}` });
+  }));
+  app.put('/api/recurring/:key/active', wrap(async (req, res) => {
+    const g = findGroup(req.params.key);
+    if (!g) return bad(res, 'Ricorrente sconosciuto.', 404);
+    const active = Boolean(req.body?.active);
+    db.recurringState[g.key] = { ...db.recurringState[g.key], active };
+    if (!active) dropReminder(g.key); // un pagamento disdetto non si ricorda più
+    await store.save();
+    res.json(recurringState());
+  }));
+  app.put('/api/recurring/:key/reminder', wrap(async (req, res) => {
+    const g = findGroup(req.params.key);
+    if (!g) return bad(res, 'Ricorrente sconosciuto.', 404);
+    if (!g.active) return bad(res, 'Il ricorrente non è attivo: riattivalo per impostare un promemoria.');
+    const i = db.notifications.findIndex((n) => n.recurringKey === g.key);
+    if (i < 0 && db.notifications.length >= 50) return bad(res, 'Troppe notifiche: toglierne qualcuna.');
+    const n = normalizeNotification(req.body, i < 0 ? undefined : db.notifications[i].id, g.key);
+    if (i < 0) db.notifications.push(n); else db.notifications[i] = n;
+    await store.save();
+    res.json(recurringState());
+  }));
+  app.delete('/api/recurring/:key/reminder', wrap(async (req, res) => {
+    if (!db.notifications.some((n) => n.recurringKey === req.params.key)) return bad(res, 'Nessun promemoria.', 404);
+    dropReminder(req.params.key);
+    await store.save();
+    res.json(recurringState());
+  }));
+  app.delete('/api/recurring/:key', wrap(async (req, res) => {
+    const i = db.recurringManual.findIndex((m) => `m-${m.id}` === req.params.key);
+    if (i < 0) return bad(res, 'Si tolgono solo i ricorrenti aggiunti a mano (gli altri si disattivano).', 404);
+    db.recurringManual.splice(i, 1);
+    delete db.recurringState[req.params.key];
+    for (const [id, k] of Object.entries(db.recurringLinks)) if (k === req.params.key) delete db.recurringLinks[id];
+    dropReminder(req.params.key);
+    await store.save();
+    res.json(recurringState());
   }));
 
   // ---------------------------------------------------------------- banche

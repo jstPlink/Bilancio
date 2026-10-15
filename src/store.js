@@ -18,7 +18,10 @@ export function openStore(dir) {
   db.transactions ??= {};           // id → movimento
   db.overrides ??= {};              // id → tag scelto a mano
   db.renames ??= {};                // id → nome scelto a mano per un movimento (al posto della causale o del nome della banca)
-  db.notifications ??= [];          // promemoria per il telefono: { id, text, day (1-31), time ('HH:MM') }
+  db.notifications ??= [];          // promemoria per il telefono: { id, text, day (1-31), time ('HH:MM'), recurringKey? (il ricorrente a cui è legato) }
+  db.recurringState ??= {};         // chiave del ricorrente → { active } scelto a mano
+  db.recurringLinks ??= {};         // id del movimento → chiave del ricorrente a cui l'hai assegnato
+  db.recurringManual ??= [];        // ricorrenti aggiunti a mano: { id, name, amount, annual, next (AAAA-MM-GG) }
 
   let chain = Promise.resolve();
   const save = () => {

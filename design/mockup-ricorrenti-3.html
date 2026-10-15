@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyBank · scheda Ricorrenti, versione C aggiornata</title>
+<style>
+/* Solo tema scuro. Solo inchiostro, carta e il rosso dell'app. 393 px CSS = larghezza del telefono. Dati inventati, oggi = 15 ott 2026. */
+:root{--paper:#121211;--ink:#edeae3;--mute:#9a958b;--hair:#2e2c29;--red:#ff5a2e;
+ --f-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--f-sans:system-ui,"Segoe UI",Roboto,sans-serif;--f-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;--h:46px}
+*{box-sizing:border-box}h1,p{margin:0}
+body{margin:0;padding:24px;background:#000;font:15px/1.5 var(--f-sans);color:var(--ink)}
+body>h1{font:700 15px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+body>p{color:var(--mute);font-size:13px;margin-bottom:20px;max-width:900px}
+.wall{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0}figcaption{font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+figcaption small{display:block;font:400 13px var(--f-sans);text-transform:none;letter-spacing:0;max-width:393px;margin-top:2px;color:var(--mute)}
+.phone{width:393px;min-height:852px;background:var(--paper);color:var(--ink);position:relative;border:1px solid var(--hair)}
+.status{height:28px;font:600 11px var(--f-mono);display:flex;justify-content:space-between;padding:8px 16px 0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 16px 0;height:40px}.top b{font:700 15px var(--f-serif);letter-spacing:-.02em}
+.tabs{display:flex;padding:0 8px;border-bottom:1px solid var(--hair);height:38px;align-items:flex-end;font:700 10px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.tabs span{flex:1;text-align:center;padding-bottom:9px}.tabs .on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--red)}
+.body{padding:16px 16px 0}
+.lab{font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.ser{font-family:var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums;font-weight:600;white-space:nowrap}
+.red{color:var(--red)}
+.hero{border-top:2px solid var(--ink);padding:12px 0 6px;display:flex;justify-content:space-between;align-items:flex-end}
+.hero .big{font-size:40px;line-height:1.1;margin:2px 0 0}
+.hnote{font-size:12px;color:var(--mute);padding-bottom:10px}
+.sec{font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-top:2px solid var(--ink);padding-top:8px;margin:12px 0 0;display:flex;justify-content:space-between}
+.drow{display:grid;grid-template-columns:54px 1fr auto;gap:0 12px;border-top:1px solid var(--hair);padding:11px 0;align-items:center}
+.day{font:600 30px/1 var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums}.day small{display:block;font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:2px}
+.nm{font:700 13px var(--f-mono);letter-spacing:.02em;text-transform:uppercase;display:flex;align-items:center;gap:6px;min-width:0}
+.nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm svg{width:14px;height:14px;flex:none;color:var(--red)}
+.sub{font-size:13px;color:var(--mute);margin-top:1px}.sub b{color:var(--ink);font-weight:400}
+.amt{font-size:22px;text-align:right}
+.drow.off .day,.drow.off .nm,.drow.off .amt,.drow.off .sub b{color:var(--mute)}
+.drow.open{border-top:1px solid var(--ink)}
+.exp{margin:0 -16px;padding:4px 16px 16px;background:#1a1918;border-bottom:1px solid var(--hair)}
+.exp .lab{display:block;margin-top:14px}
+.sw{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px}
+.sw i{width:40px;height:22px;border:1px solid var(--ink);position:relative;display:block;flex:none}.sw i:after{content:"";position:absolute;top:2px;left:2px;bottom:2px;width:16px;background:var(--ink)}
+.sw i.on{background:var(--ink)}.sw i.on:after{left:auto;right:2px;background:var(--paper)}
+.fld{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.fld label{display:block}
+.in{height:var(--h);border:1px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:15px var(--f-sans);margin-top:4px}
+.in.ph{color:var(--mute)}
+.note{font-size:13px;color:var(--mute);margin-top:8px}
+.btn{height:var(--h);background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:700 13px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;margin-top:14px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);margin-top:8px}
+.link{display:inline-block;margin-top:12px;font:700 12px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;border-bottom:2px solid var(--red);padding-bottom:1px}
+.pad{padding-bottom:16px}
+/* Movimenti filtrati */
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bar .in{margin-top:4px}
+.chipf{margin:10px 0 0;font-size:13px;color:var(--mute)}.chipf u{color:var(--ink);text-decoration-color:var(--red);text-decoration-thickness:2px}
+.mrow{display:grid;grid-template-columns:50px 1fr auto;gap:0 10px;border-top:1px solid var(--hair);padding:10px 0;align-items:start}
+.mrow .d{font:600 17px/1.1 var(--f-serif)}.mrow .d small{display:block;font:11px var(--f-mono);color:var(--mute);text-transform:uppercase;margin-top:2px}
+.mrow .t{font-size:15px}.mrow .s{font-size:13px;color:var(--mute)}
+.mrow .a{text-align:right}.mrow .a .ser{font-size:17px}.mrow .a small{display:block;font:11px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin-top:2px}
+.sumrow{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-top:12px}.sumrow b{color:var(--ink);font-weight:400}
+</style></head><body>
+<h1>MyBank · scheda Ricorrenti · versione C aggiornata</h1>
+<p>Dalla proposta C: ordine dal pagamento più vicino al più lontano, prima la lista degli attivi e sotto quella dei non più attivi, senza icona del ciclo e senza «tra N gg». Un tocco su una riga la apre con il promemoria (stesso stile degli altri mockup) e un link che apre i Movimenti filtrati su «Ricorrente». In fondo il pulsante per aggiungere un ricorrente. La campanella rossa accanto al nome indica che il promemoria è attivo. Solo tema scuro, dati inventati.</p>
+<div class="wall" id="wall"></div>
+<script>
+const bellI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>';
+const eur=(n)=>n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+// nome, importo, annuale, prossimo (g, mese), giorni al prossimo, promemoria (giorno) o null, attivo, ultimo
+const D=[
+ ['Palestra Fit Club',39,0,['28','ott'],13,null,1],
+ ['Spotify Family',17.99,0,['3','nov'],19,null,1],
+ ['iCloud 200 GB',2.99,0,['9','nov'],25,'9',1],
+ ['Netflix',12.99,0,['12','nov'],28,'12',1],
+ ['Assicurazione auto',420,1,['1','dic'],47,'24',1],
+ ['Dominio sito',14.99,1,['20','gen'],97,null,1],
+ ['Amazon Prime',49.9,1,['3','mar'],139,null,1],
+ ['Disney+',8.99,0,['12','apr'],0,null,0],
+];
+const mese=(d)=>d[2]?d[1]/12:d[1];
+const att=D.filter(d=>d[6]).sort((a,b)=>a[4]-b[4]),off=D.filter(d=>!d[6]);
+const tot=att.reduce((a,d)=>a+mese(d),0);
+const head=(on)=>`<div class="status"><span>9:41</span><span>5G 87%</span></div><div class="top"><b>MyBank</b><span class="lab">Opzioni</span></div>
+ <div class="tabs"><span ${on==='m'?'class="on"':''}>Storico</span><span ${on==='mv'?'class="on"':''}>Movimenti</span><span ${on==='r'?'class="on"':''}>Ricorrenti</span><span>Budget</span><span>Banche</span></div>`.replace('<span >Storico','<span>Storico');
+const hero=`<div class="hero"><div><span class="lab">Ricorrenti al mese</span><div class="ser big">${eur(tot)}</div></div><div style="text-align:right"><span class="lab">Gruppi attivi</span><div class="ser big">${att.length}</div></div></div><div class="hnote">Gli annuali contano per un dodicesimo (3 su 7).</div>`;
+const cad=(d)=>d[2]?`annuale · ${eur(mese(d))}/mese`:'mensile';
+const row=(d,open)=>`<div class="drow ${d[6]?'':'off'} ${open?'open':''}"><div class="day">${d[3][0]}<small>${d[3][1]}</small></div>
+ <div><div class="nm"><span>${d[0]}</span>${d[5]?bellI:''}</div><div class="sub">${cad(d)}</div></div><div class="ser amt">${eur(d[1])}</div></div>`;
+const exp=(d)=>`<div class="exp"><span class="lab">Promemoria</span>
+ <div class="sw"><i class="on"></i><span>Ancora attivo: ricordamelo</span></div>
+ <div class="fld"><label><span class="lab" style="margin:0">Giorno del mese</span><div class="in">${d[5]||d[3][0]}</div></label><label><span class="lab" style="margin:0">Orario</span><div class="in">09:00</div></label></div>
+ <label style="display:block;margin-top:10px"><span class="lab" style="margin:0">Testo</span><div class="in">${d[0]} ${eur(d[1])}: lo vuoi ancora?</div></label>
+ <div class="note">Il giorno proposto è quello in cui di solito paga. Il promemoria sta nel server, legato a questo ricorrente.</div>
+ <div class="btn">Salva promemoria</div><div class="btn ghost">Togli promemoria</div>
+ <span class="link">Vedi i movimenti di ${d[0]}</span></div>`;
+const list=(openName)=>`<div class="body">${hero}<div class="sec"><span>Attivi · dal più vicino</span><span>${att.length}</span></div>`+att.map(d=>row(d,d[0]===openName)+(d[0]===openName?exp(d):'')).join('')
+ +`<div class="sec"><span>Non più attivi</span><span>${off.length}</span></div>`+off.map(d=>row(d)).join('')
+ +`<div class="btn">Aggiungi ricorrente</div><div class="pad"></div></div>`;
+const add=`<div class="body"><div class="sec" style="margin-top:0"><span>Nuovo ricorrente</span><span>Annulla</span></div>
+ <label style="display:block;margin-top:14px"><span class="lab">Nome</span><div class="in ph">Per esempio: Amazon Prime</div></label>
+ <div class="fld"><label><span class="lab" style="margin:0">Importo</span><div class="in ph">0,00 €</div></label><label><span class="lab" style="margin:0">Cadenza</span><div class="in">Mensile <span>▾</span></div></label></div>
+ <div class="fld"><label><span class="lab" style="margin:0">Prossimo pagamento</span><div class="in">12 nov 2026</div></label><label><span class="lab" style="margin:0">Promemoria</span><div class="in">Sì <span>▾</span></div></label></div>
+ <div class="note">Oppure scegli un movimento già presente: dalla scheda Movimenti, dal menu del tag, scegli «Ricorrente» e il pagamento compare qui da solo.</div>
+ <div class="btn">Aggiungi</div><div class="btn ghost">Annulla</div></div>`;
+const M=[['12 ott','2026','Netflix','NETFLIX.COM · Revolut','12,99 €'],['3 ott','2026','Spotify Family','SPOTIFY AB · Revolut','17,99 €'],['28 set','2026','Palestra Fit Club','FIT CLUB SRL · UniCredit','39,00 €'],['12 set','2026','Netflix','NETFLIX.COM · Revolut','12,99 €'],['9 set','2026','iCloud 200 GB','APPLE.COM/BILL · Revolut','2,99 €'],['3 set','2026','Spotify Family','SPOTIFY AB · Revolut','17,99 €']];
+const mov=`<div class="body"><div class="bar"><label><span class="lab">Anno</span><div class="in">2026 <span>▾</span></div></label><label><span class="lab">Mese</span><div class="in">Tutti <span>▾</span></div></label><label><span class="lab">Tag</span><div class="in">Ricorrente <span>▾</span></div></label><label><span class="lab">Cerca</span><div class="in ph">Descrizione…</div></label></div>
+ <div class="sumrow"><span><b>6</b> movimenti</span><span>uscite <b>103,94 €</b></span></div>`
+ +M.map(m=>`<div class="mrow"><div class="d">${m[0].split(' ')[0]}<small>${m[0].split(' ')[1]}<br>${m[1]}</small></div><div><div class="t">${m[2]}</div><div class="s">${m[3]}</div></div><div class="a"><div class="ser">−${m[4]}</div><small>Ricorrente</small></div></div>`).join('')+`</div>`;
+const shots=[['1 · Elenco','Attivi dal più vicino, poi i non più attivi in grigio; pulsante in fondo.',head('r')+list()],
+ ['2 · Riga aperta','Un tocco apre il promemoria: interruttore «ancora attivo», giorno, orario, testo e il link ai movimenti.',head('r')+list('Netflix')],
+ ['3 · Aggiungi','Il pulsante apre un modulo: nome, importo, cadenza, prossimo pagamento e promemoria.',head('r')+add],
+ ['4 · Movimenti filtrati','Il link della riga apre i Movimenti con il tag «Ricorrente» già scelto (e la ricerca sul nome).',head('mv')+mov]];
+document.getElementById('wall').innerHTML=shots.map(([t,s,b])=>`<figure><figcaption>${t}<small>${s}</small></figcaption><div class="phone">${b}</div></figure>`).join('');
+</script></body></html>

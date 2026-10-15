@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyBank · assegnare i movimenti ai ricorrenti, mockup</title>
+<style>
+/* Solo tema scuro. Solo inchiostro, carta e il rosso dell'app. 393 px CSS = larghezza del telefono. Dati inventati, oggi = 15 ott 2026. */
+:root{--paper:#121211;--ink:#edeae3;--mute:#9a958b;--hair:#2e2c29;--red:#ff5a2e;
+ --f-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--f-sans:system-ui,"Segoe UI",Roboto,sans-serif;--f-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;--h:46px}
+*{box-sizing:border-box}h1,p{margin:0}
+body{margin:0;padding:24px;background:#000;font:15px/1.5 var(--f-sans);color:var(--ink)}
+body>h1{font:700 15px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+body>p{color:var(--mute);font-size:13px;margin-bottom:20px;max-width:980px}
+.wall{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0}figcaption{font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+figcaption small{display:block;font:400 13px var(--f-sans);text-transform:none;letter-spacing:0;max-width:393px;margin-top:2px;color:var(--mute)}
+.phone{width:393px;min-height:852px;background:var(--paper);color:var(--ink);position:relative;border:1px solid var(--hair);overflow:hidden}
+.status{height:28px;font:600 11px var(--f-mono);display:flex;justify-content:space-between;padding:8px 16px 0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 16px 0;height:40px}.top b{font:700 15px var(--f-serif);letter-spacing:-.02em}
+.tabs{display:flex;padding:0 8px;border-bottom:1px solid var(--hair);height:38px;align-items:flex-end;font:700 10px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+.tabs span{flex:1;text-align:center;padding-bottom:9px}.tabs .on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--red)}
+.body{padding:16px 16px 24px}
+.lab{font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.ser{font-family:var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums;font-weight:600;white-space:nowrap}
+.red{color:var(--red)}
+.sec{font:700 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);border-top:2px solid var(--ink);padding-top:8px;margin:16px 0 0;display:flex;justify-content:space-between}
+.sec.first{margin-top:0}
+/* movimenti */
+.bar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.in{height:var(--h);border:1px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font:15px var(--f-sans);margin-top:4px}
+.in.ph{color:var(--mute)}
+.sumrow{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin:12px 0 4px}.sumrow b{color:var(--ink);font-weight:400}
+.mrow{display:grid;grid-template-columns:50px 1fr auto;gap:0 10px;border-top:1px solid var(--hair);padding:10px 0;align-items:start}
+.mrow .d{font:600 17px/1.1 var(--f-serif)}.mrow .d small{display:block;font:11px var(--f-mono);color:var(--mute);text-transform:uppercase;margin-top:2px}
+.mrow .t{font-size:15px}.mrow .s{font-size:13px;color:var(--mute)}
+.mrow .a{text-align:right}.mrow .a .ser{font-size:17px}
+.tg{display:inline-block;margin-top:3px;font:700 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+/* chip di assegnazione */
+.chip{display:inline-flex;align-items:center;gap:5px;margin-top:6px;height:24px;padding:0 8px;border:1px solid var(--ink);font:700 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.chip.red{border-color:var(--red);color:var(--red)}
+.chip.fill{background:var(--ink);color:var(--paper)}
+.chip.ghost{border-color:var(--hair);color:var(--mute)}
+.chip svg{width:12px;height:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+/* sheet */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-top:2px solid var(--ink);padding:14px 16px 22px}
+.grab{width:40px;height:4px;background:var(--hair);margin:0 auto 12px}
+.sheet h3{margin:0;font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase}
+.mini{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border:1px solid var(--hair);padding:9px 12px;margin:10px 0 4px;font-size:14px}.mini small{display:block;color:var(--mute);font-size:12px}
+.opt{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:center;border-top:1px solid var(--hair);padding:11px 0}
+.opt .n{font:700 13px var(--f-mono);letter-spacing:.02em;text-transform:uppercase}
+.opt .s{font-size:13px;color:var(--mute)}
+.opt.best{border-top:2px solid var(--ink)}
+.rad{width:20px;height:20px;border:1px solid var(--ink);border-radius:50%;position:relative}
+.rad.on:after{content:"";position:absolute;inset:4px;background:var(--red);border-radius:50%}
+.btn{height:var(--h);background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;font:700 13px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;margin-top:12px}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink);margin-top:8px}
+.link{display:inline-block;font:700 12px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;border-bottom:2px solid var(--red);padding-bottom:1px}
+.note{font-size:13px;color:var(--mute);margin-top:8px}
+/* ricorrenti */
+.hero{border-top:2px solid var(--ink);padding:12px 0 6px;display:flex;justify-content:space-between;align-items:flex-end}.hero .big{font-size:40px;line-height:1.1;margin:2px 0 0}
+.inbox{border:1px solid var(--red);padding:0 12px 4px;margin-top:12px}
+.inbox .sec{border-top:0;color:var(--red);padding-top:12px;margin:0}
+.inbox .mrow:first-of-type{border-top:0}
+.drow{display:grid;grid-template-columns:54px 1fr auto;gap:0 12px;border-top:1px solid var(--hair);padding:11px 0;align-items:center}
+.day,.amt{font:600 22px/1 var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums}.day small{display:block;font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:3px}
+.nm{font:700 13px var(--f-mono);letter-spacing:.02em;text-transform:uppercase}
+.sub{font-size:13px;color:var(--mute)}
+.exp{margin:0 -16px;padding:4px 16px 16px;background:#1a1918;border-bottom:1px solid var(--hair)}
+.exp .lab{display:block;margin-top:14px}
+.link-row{display:grid;grid-template-columns:50px 1fr auto auto;gap:0 10px;align-items:center;border-top:1px solid var(--hair);padding:8px 0;font-size:14px}
+.link-row:first-of-type{border-top:0}
+.link-row small{color:var(--mute);font:11px var(--f-mono);text-transform:uppercase}
+.x{width:28px;height:28px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:16px}
+.chk{width:22px;height:22px;border:1px solid var(--ink);position:relative}.chk.on{background:var(--ink)}.chk.on:after{content:"";position:absolute;left:6px;top:2px;width:6px;height:12px;border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.pick{display:grid;grid-template-columns:22px 50px 1fr auto;gap:0 10px;align-items:center;border-top:1px solid var(--hair);padding:10px 0}
+.pick .t{font-size:15px}.pick .s{font-size:12px;color:var(--mute)}
+.fld{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.sticky{position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-top:2px solid var(--ink);padding:12px 16px 20px}
+</style></head><body>
+<h1>MyBank · assegnare i movimenti ai ricorrenti (mockup)</h1>
+<p><b>Idea:</b> un movimento con il tag «Ricorrente» ha tre stati: <b>da assegnare</b> (rosso), <b>assegnato</b> a un ricorrente (nome in chiaro) o <b>solo tag</b>. Si assegna in tre modi che si completano: dal movimento (foglio che si apre appena scegli il tag, o dal chip nella riga), da una casella «Da assegnare» in cima alla scheda Ricorrenti (un tocco per suggerimento), e dal ricorrente stesso («Collega movimenti»). Un movimento assegnato conta nello storico di quel ricorrente: cambiano ultimo pagamento, prossimo e importo, e «Vedi i movimenti» mostra anche quelli. Solo tema scuro, dati inventati.</p>
+<div class="wall" id="wall"></div>
+<script>
+const eur=(n)=>n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const link='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>';
+const head=(on)=>`<div class="status"><span>9:41</span><span>5G 87%</span></div><div class="top"><b>MyBank</b><span class="lab">Opzioni</span></div>
+ <div class="tabs"><span>Storico</span><span ${on==='mv'?'class="on"':''}>Movimenti</span><span ${on==='r'?'class="on"':''}>Ricorrenti</span><span>Budget</span><span>Banche</span></div>`;
+const M=(d,m,t,s,a,tag,chip)=>`<div class="mrow"><div class="d">${d}<small>${m}</small></div><div><div class="t">${t}</div><div class="s">${s}</div>${chip||''}</div><div class="a"><div class="ser">−${a}</div><span class="tg">${tag}</span></div></div>`;
+const chA=(n)=>`<span class="chip fill">${link}${n}</span>`;
+const chD=`<span class="chip red">${link}Assegna a un ricorrente</span>`;
+
+// 1 · Movimenti con tag Ricorrente
+const s1=head('mv')+`<div class="body"><div class="bar"><label><span class="lab">Anno</span><div class="in">2026 <span>▾</span></div></label><label><span class="lab">Tag</span><div class="in">Ricorrente <span>▾</span></div></label></div>
+ <div class="sumrow"><span><b>5</b> movimenti · <span class="red">2 da assegnare</span></span><span>uscite <b>96,95 €</b></span></div>`
+ +M('12','ott','Netflix','NETFLIX.COM · Revolut','12,99 €','Ricorrente',chA('Netflix'))
+ +M('9','ott','Apple.com/bill','APPLE.COM/BILL · Revolut','2,99 €','Ricorrente',chD)
+ +M('3','ott','Spotify Family','SPOTIFY AB · Revolut','17,99 €','Ricorrente',chA('Spotify Family'))
+ +M('28','set','Palestra Fit Club','FIT CLUB SRL · UniCredit','39,00 €','Ricorrente',chD)
+ +M('12','set','Netflix','NETFLIX.COM · Revolut','12,99 €','Ricorrente',chA('Netflix'))
+ +`<div class="note">Il chip è la scorciatoia: rosso = da assegnare, pieno = assegnato. Un tocco lo apre il foglio qui accanto.</div></div>`;
+
+// 2 · Foglio di assegnazione
+const s2=head('mv')+`<div class="body" style="opacity:.5"><div class="bar"><label><span class="lab">Anno</span><div class="in">2026</div></label><label><span class="lab">Tag</span><div class="in">Ricorrente</div></label></div>`
+ +M('12','ott','Netflix','NETFLIX.COM · Revolut','12,99 €','Ricorrente',chA('Netflix'))+M('9','ott','Apple.com/bill','APPLE.COM/BILL · Revolut','2,99 €','Ricorrente',chD)+M('3','ott','Spotify Family','SPOTIFY AB · Revolut','17,99 €','Ricorrente',chA('Spotify'))+`</div>
+ <div class="dim"></div><div class="sheet"><div class="grab"></div><h3>Assegna a un ricorrente</h3>
+ <div class="mini"><div>Apple.com/bill<small>9 ott · Revolut</small></div><span class="ser">−2,99 €</span></div>
+ <div class="opt best"><div><div class="n">iCloud 200 GB</div><div class="s">mensile · 2,99 € · suggerito (stesso importo)</div></div><span class="rad on"></span></div>
+ <div class="opt"><div><div class="n">Netflix</div><div class="s">mensile · 12,99 €</div></div><span class="rad"></span></div>
+ <div class="opt"><div><div class="n">Spotify Family</div><div class="s">mensile · 17,99 €</div></div><span class="rad"></span></div>
+ <div class="opt"><div><div class="n">Palestra Fit Club</div><div class="s">mensile · 39,00 €</div></div><span class="rad"></span></div>
+ <div class="opt"><div><div class="n">+ Nuovo ricorrente da questo movimento</div><div class="s">nome e importo già compilati</div></div><span class="rad"></span></div>
+ <div class="opt"><div><div class="n" style="color:var(--mute)">Solo il tag, nessun ricorrente</div></div><span class="rad"></span></div>
+ <div class="note">Il suggerimento viene dal nome simile o dallo stesso importo. Il movimento conta subito nello storico del ricorrente.</div>
+ <div class="btn">Assegna a iCloud 200 GB</div><div class="btn ghost">Annulla</div></div>`;
+
+// 3 · Ricorrenti: casella Da assegnare
+const s3=head('r')+`<div class="body"><div class="hero"><div><span class="lab">Ricorrenti al mese</span><div class="ser big">113,38 €</div></div><div style="text-align:right"><span class="lab">Gruppi attivi</span><div class="ser big">7</div></div></div>
+ <div class="inbox"><div class="sec"><span>Da assegnare</span><span>2</span></div>
+  <div class="mrow"><div class="d">9<small>ott</small></div><div><div class="t">Apple.com/bill</div><div class="s">−2,99 € · Revolut</div><div class="chips"><span class="chip fill">iCloud 200 GB</span><span class="chip">Netflix</span><span class="chip ghost">Altro…</span></div></div><div class="a"><span class="tg">Suggerito</span></div></div>
+  <div class="mrow"><div class="d">28<small>set</small></div><div><div class="t">Palestra Fit Club</div><div class="s">−39,00 € · UniCredit</div><div class="chips"><span class="chip fill">Palestra Fit Club</span><span class="chip ghost">Nuovo…</span><span class="chip ghost">Altro…</span></div></div><div class="a"><span class="tg">Suggerito</span></div></div>
+  <div class="note" style="margin:4px 0 8px">Un tocco su un chip assegna il movimento. «Nuovo…» crea un ricorrente da quel movimento.</div></div>
+ <div class="sec"><span>Attivi · dal più vicino</span><span>7</span></div>
+ <div class="drow"><div class="day">28<small>ott</small></div><div><div class="nm">Palestra Fit Club</div><div class="sub">mensile</div></div><div class="amt">39,00 €</div></div>
+ <div class="drow"><div class="day">3<small>nov</small></div><div><div class="nm">Spotify Family</div><div class="sub">mensile</div></div><div class="amt">17,99 €</div></div>
+ <div class="drow"><div class="day">9<small>nov</small></div><div><div class="nm">iCloud 200 GB</div><div class="sub">mensile</div></div><div class="amt">2,99 €</div></div></div>`;
+
+// 4 · Riga aperta: movimenti collegati
+const s4=head('r')+`<div class="body"><div class="sec first"><span>Attivi · dal più vicino</span><span>7</span></div>
+ <div class="drow" style="border-top-color:var(--ink)"><div class="day">9<small>nov</small></div><div><div class="nm">iCloud 200 GB</div><div class="sub">mensile</div></div><div class="amt">2,99 €</div></div>
+ <div class="exp"><span class="lab">Movimenti collegati · 4</span>
+  <div class="link-row"><b class="ser">9 ott</b><span>APPLE.COM/BILL<br><small>Revolut · assegnato adesso</small></span><span class="ser">2,99 €</span><span class="x">×</span></div>
+  <div class="link-row"><b class="ser">9 set</b><span>APPLE.COM/BILL<br><small>Revolut</small></span><span class="ser">2,99 €</span><span class="x">×</span></div>
+  <div class="link-row"><b class="ser">9 ago</b><span>APPLE.COM/BILL<br><small>Revolut</small></span><span class="ser">2,99 €</span><span class="x">×</span></div>
+  <div class="note">Con × il movimento torna «da assegnare». Prossimo pagamento e importo si calcolano dall'ultimo collegato.</div>
+  <div class="btn ghost">Collega altri movimenti</div>
+  <span class="lab" style="margin-top:16px">Promemoria</span><div class="note">Giorno 9 · 09:00 · «iCloud 200 GB 2,99 €: lo vuoi ancora?»</div>
+  <div class="btn ghost">Togli promemoria</div><div style="margin-top:12px"><span class="link">Vedi i movimenti</span></div></div></div>`;
+
+// 5 · Selezione dei movimenti da collegare
+const P=(on,d,t,s,a)=>`<div class="pick"><span class="chk ${on?'on':''}"></span><b class="ser">${d}</b><div><div class="t">${t}</div><div class="s">${s}</div></div><span class="ser">${a}</span></div>`;
+const s5=head('r')+`<div class="body"><div class="sec first"><span>Collega a iCloud 200 GB</span><span>Annulla</span></div>
+ <div class="in ph" style="margin-bottom:6px">Cerca tra i movimenti…</div>
+ <div class="lab" style="margin-top:10px">Da assegnare · suggeriti</div>
+ ${P(1,'9 ott','Apple.com/bill','Revolut · stesso importo','2,99 €')}
+ ${P(0,'28 set','Palestra Fit Club','UniCredit','39,00 €')}
+ <div class="lab" style="margin-top:14px">Altri movimenti recenti</div>
+ ${P(0,'7 ott','Amazon Prime','Revolut','4,99 €')}
+ ${P(0,'4 ott','Bar Centrale','Revolut','3,20 €')}
+ ${P(0,'1 ott','Q8 Via Emilia','Revolut','48,10 €')}
+ <div class="note">Si vedono prima i movimenti già col tag «Ricorrente» non assegnati. Gli altri, se li scegli, prendono il tag «Ricorrente».</div></div>
+ <div class="sticky"><div class="btn" style="margin-top:0">Collega 1 movimento</div></div>`;
+
+const shots=[
+ ['1 · Movimenti','Ogni riga col tag Ricorrente mostra il suo stato: chip rosso «Assegna a un ricorrente» oppure chip pieno con il nome. Il sommario conta quelli da assegnare.',s1],
+ ['2 · Foglio di assegnazione','Si apre dal chip o subito dopo aver scelto il tag «Ricorrente» dal menu del movimento. Suggerito in cima, poi gli altri, poi «Nuovo» e «Solo tag».',s2],
+ ['3 · Ricorrenti · Da assegnare','Casella in cima (compare solo se serve) con un chip suggerito per movimento: un tocco assegna. Si fa tutto senza lasciare la scheda.',s3],
+ ['4 · Ricorrente aperto','Nella riga aperta i movimenti collegati, con × per scollegarli, e il pulsante per collegarne altri.',s4],
+ ['5 · Collega movimenti','Selezione multipla: prima i «Ricorrente» da assegnare con lo stesso importo o nome, poi gli altri recenti, con ricerca.',s5]];
+document.getElementById('wall').innerHTML=shots.map(([t,s,b])=>`<figure><figcaption>${t}<small>${s}</small></figcaption><div class="phone">${b}</div></figure>`).join('');
+</script></body></html>

@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 
 /** Controlla i dati scritti dall'utente e li porta nella forma salvata; lancia un errore in italiano se non vanno bene. */
-export function normalizeNotification(input, id = crypto.randomUUID().slice(0, 12)) {
+export function normalizeNotification(input, id = crypto.randomUUID().slice(0, 12), recurringKey = '') {
   const text = String(input?.text ?? '').replace(/\s+/g, ' ').trim();
   if (!text) throw new Error('Scrivi il testo della notifica.');
   if (text.length > 200) throw new Error('Il testo della notifica può avere al massimo 200 caratteri.');
@@ -11,5 +11,5 @@ export function normalizeNotification(input, id = crypto.randomUUID().slice(0, 1
   if (!Number.isInteger(day) || day < 1 || day > 31) throw new Error('Il giorno del mese deve essere tra 1 e 31.');
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(input?.time ?? '').trim());
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) throw new Error('Orario non valido (ore:minuti, per esempio 09:30).');
-  return { id, text, day, time: `${m[1].padStart(2, '0')}:${m[2]}` };
+  return { id, text, day, time: `${m[1].padStart(2, '0')}:${m[2]}`, ...(recurringKey ? { recurringKey } : {}) };
 }
