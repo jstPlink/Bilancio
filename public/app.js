@@ -301,7 +301,8 @@ async function loadMoves(keep = false) {
   else if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
   $('#mvYear').innerHTML = `<option value="0">Tutti</option>${yearOptions(sum.years, year)}`;
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
-  $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(tagLabel(k, v))}</option>`).join('')}`;
+  // il filtro ha solo le categorie principali (il filtro su una categoria include già le sue sotto categorie); una sotto categoria compare solo se è quella già scelta (si arriva dal dettaglio dello Storico)
+  $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).filter(([k]) => !SUB_PARENT[k] || k === tag).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(tagLabel(k, v))}</option>`).join('')}`;
   // la riga informativa: quanti movimenti e il totale; con il filtro «Entrata» le entrate, con gli altri filtri le uscite, senza filtro entrambe
   // le cifre (numero dei movimenti, entrate, uscite) in bianco, il resto del testo in grigio
   const sums = tag === 'entrata' ? `entrate <b>${money(d.totals.entrate)}</b>` : tag ? `uscite <b>${money(d.totals.uscite)}</b>` : `entrate <b>${money(d.totals.entrate)}</b> · uscite <b>${money(d.totals.uscite)}</b>`;

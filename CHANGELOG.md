@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.36.3
+- **Movimenti**: il filtro per categoria elenca solo le **categorie principali** (le sotto categorie Cibo, Carburante e Autostrada non ci sono più; filtrando una categoria si vedono comunque quelle delle sue sotto categorie; una sotto categoria compare solo se è già il filtro scelto, per esempio dal dettaglio dello Storico). Dopo il tocco sul menu della categoria nelle righe non resta più il contorno rosso.
+
 ## 0.36.2
 - Documentazione: nel README («Estetica») la regola delle targhette (piena, vuota o grigia, rossa) e della campanella.
 
