@@ -2,6 +2,9 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.36.2
+- Documentazione: nel README («Estetica») la regola delle targhette (piena, vuota o grigia, rossa) e della campanella.
+
 ## 0.36.1
 - **Righe dei Ricorrenti riviste**: sotto il giorno c'è sempre il mese del prossimo pagamento (non più «mensile»); la **campanella** del promemoria sta tra il giorno e la targhetta (spazio vuoto senza promemoria); la targhetta «Anno» / «Mese» passa a sinistra del nome, della stessa larghezza; tolto il filetto a sinistra delle righe annuali; l'importo al mese sta sotto il nome solo per gli annuali.
 - Mockup in `design/`: targhetta, pagamento, mese e notifica dei ricorrenti.
