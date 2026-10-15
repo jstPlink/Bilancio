@@ -46,6 +46,17 @@ final class Notifier {
         new Thread(new Runnable() { @Override public void run() { try { sync(context); } catch (Exception e) { /* riproverà alla prossima apertura */ } } }).start();
     }
 
+    /** Come sopra, ma una volta l'anno (nel mese dato: 1-12) invece che ogni mese. */
+    static ZonedDateTime next(int day, int month, int hour, int minute, ZonedDateTime from) {
+        if (month < 1 || month > 12) return next(day, hour, minute, from);
+        for (int y = from.getYear(); y <= from.getYear() + 2; y++) {
+            LocalDate first = LocalDate.of(y, month, 1);
+            ZonedDateTime at = first.withDayOfMonth(Math.min(day, first.lengthOfMonth())).atTime(hour, minute).atZone(from.getZone());
+            if (at.isAfter(from)) return at;
+        }
+        return from.plusYears(1);
+    }
+
     /** La prossima volta in cui suona una notifica col giorno e l'orario dati (ora del telefono), dopo `from`. */
     static ZonedDateTime next(int day, int hour, int minute, ZonedDateTime from) {
         LocalDate month = from.toLocalDate().withDayOfMonth(1);
@@ -78,7 +89,7 @@ final class Notifier {
                 JSONObject n = list.getJSONObject(i);
                 String id = n.getString("id");
                 String[] t = n.getString("time").split(":");
-                ZonedDateTime at = next(n.getInt("day"), Integer.parseInt(t[0]), Integer.parseInt(t[1]), from);
+                ZonedDateTime at = next(n.getInt("day"), n.optInt("month", 0), Integer.parseInt(t[0]), Integer.parseInt(t[1]), from);
                 PendingIntent pi = intent(c, id, n.getString("text"));
                 long ms = at.toInstant().toEpochMilli();
                 if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, pi);

@@ -11,5 +11,8 @@ export function normalizeNotification(input, id = crypto.randomUUID().slice(0, 1
   if (!Number.isInteger(day) || day < 1 || day > 31) throw new Error('Il giorno del mese deve essere tra 1 e 31.');
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(input?.time ?? '').trim());
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) throw new Error('Orario non valido (ore:minuti, per esempio 09:30).');
-  return { id, text, day, time: `${m[1].padStart(2, '0')}:${m[2]}`, ...(recurringKey ? { recurringKey } : {}) };
+  // `month` (1-12) è facoltativo: con il mese la notifica suona una volta l'anno (i ricorrenti annuali), senza ogni mese
+  const month = input?.month == null || input.month === '' ? 0 : Number(input.month);
+  if (!Number.isInteger(month) || month < 0 || month > 12) throw new Error('Il mese deve essere tra 1 e 12.');
+  return { id, text, day, ...(month ? { month } : {}), time: `${m[1].padStart(2, '0')}:${m[2]}`, ...(recurringKey ? { recurringKey } : {}) };
 }

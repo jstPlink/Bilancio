@@ -376,7 +376,7 @@ test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegna
   const add = (date, amount, party) => { const id = `r${++n}`; db.transactions[id] = { id, bank: 'revolut', account: 'a1', date, amount: -amount, description: party, party, currency: 'EUR' }; return id; };
   const nf = [1, 2, 3, 4].map((i) => add(addMonths(today, -i), 12.99, 'Netflix')); // si ripete ogni mese, ma da solo non crea nulla
   const rev = add(addMonths(today, -1), 9.5, 'Rivista');
-  assert.deepEqual((await api('GET', '/api/recurring')).json, { groups: [], totals: { monthly: 0, active: 0, annual: 0, inactive: 0 }, unassigned: [] });
+  assert.deepEqual((await api('GET', '/api/recurring')).json, { groups: [], totals: { monthly: 0, fixed: 0, reserve: 0, active: 0, annual: 0, inactive: 0 }, unassigned: [] });
   // il tag «Ricorrente» a mano: il movimento è «da assegnare»
   for (const id of [nf[0], nf[1], rev]) assert.equal((await api('PUT', `/api/transactions/${id}/tag`, { tag: 'ricorrente' })).status, 200);
   const r0 = (await api('GET', '/api/recurring')).json;
@@ -390,12 +390,18 @@ test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegna
   assert.deepEqual([net.name, net.amount, net.annual, net.manual, net.count, net.active, net.last], ['Netflix', 12.99, false, true, 2, true, addMonths(today, -1)]);
   assert.ok(net.next >= today);
   assert.deepEqual(made.json.unassigned.map((u) => u.id), [rev]);
+  // ogni ricorrente nasce con un promemoria di base: 3 giorni prima del prossimo pagamento, alle 9
+  const before3 = addMonths(today, 1); // la data scelta alla creazione
+  const d3 = new Date(Date.parse(`${before3}T12:00:00Z`) - 3 * 86400000).toISOString().slice(0, 10);
+  assert.deepEqual([net.reminder.text, net.reminder.day, net.reminder.month, net.reminder.time], ['Pagamento imminente: Netflix di 12,99 €', Number(d3.slice(8)), undefined, '09:00']);
   // annuale: conta per un dodicesimo; gli attivi vanno dal prossimo pagamento più vicino
   const ass = (await api('POST', '/api/recurring', { name: 'Assicurazione auto', amount: 420, annual: true, next: addMonths(today, 5) })).json;
   assert.deepEqual(ass.groups.map((g) => g.name), ['Netflix', 'Assicurazione auto']);
+  const d3a = new Date(Date.parse(`${addMonths(today, 5)}T12:00:00Z`) - 3 * 86400000).toISOString().slice(0, 10);
+  assert.deepEqual([ass.groups[1].reminder.text, ass.groups[1].reminder.day, ass.groups[1].reminder.month], ['Pagamento imminente: Assicurazione auto di 420,00 €', Number(d3a.slice(8)), Number(d3a.slice(5, 7))]); // gli annuali anche col mese
   assert.equal(ass.groups[1].monthly, 35);
-  assert.deepEqual(ass.totals, { monthly: 47.99, active: 2, annual: 1, inactive: 0 });
-  for (const bad of [{ name: '', amount: 1, next: today }, { name: 'x', amount: 0, next: today }, { name: 'x', amount: 1, next: 'ieri' }]) assert.equal((await api('POST', '/api/recurring', bad)).status, 400, JSON.stringify(bad));
+  assert.deepEqual(ass.totals, { monthly: 47.99, fixed: 12.99, reserve: 35, active: 2, annual: 1, inactive: 0 });
+  for (const bad of [{ name: '', day: 5 }, { name: 'x', day: 40 }, { name: 'x', annual: true, day: 5 }, { name: 'x', annual: true, day: 5, month: 13 }, { name: 'x', next: 'ieri' }, { name: 'x', day: 5, amount: '-3' }]) assert.equal((await api('POST', '/api/recurring', bad)).status, 400, JSON.stringify(bad));
   // un movimento dello stesso nome è suggerito; assegnarlo lo fa contare nello storico
   await api('PUT', `/api/transactions/${nf[2]}/tag`, { tag: 'ricorrente' });
   const sug = (await api('GET', `/api/recurring?tx=${nf[2]}`)).json;
@@ -414,6 +420,15 @@ test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegna
   const plain = add(addMonths(today, -2), 40, 'Altro negozio');
   assert.equal((await api('PUT', '/api/recurring/assign', { ids: [plain], key: net.key })).status, 200);
   assert.equal((await api('GET', '/api/transactions?tag=ricorrente')).json.transactions.find((x) => x.id === plain).tag, 'ricorrente');
+  // l'importo è la media dei movimenti assegnati (3 x 12,99 + 40) / 4; a mano si sceglie, e si torna alla media
+  const avg = (await api('GET', '/api/recurring')).json.groups.find((g) => g.key === net.key);
+  assert.deepEqual([avg.amount, avg.average], [19.74, true]);
+  const fixed = (await api('PUT', `/api/recurring/${net.key}`, { amount: '15,50', name: 'Netflix Premium' })).json.groups.find((g) => g.key === net.key);
+  assert.deepEqual([fixed.amount, fixed.average, fixed.name], [15.5, false, 'Netflix Premium']);
+  const back = (await api('PUT', `/api/recurring/${net.key}`, { useAverage: true, name: 'Netflix' })).json.groups.find((g) => g.key === net.key);
+  assert.deepEqual([back.amount, back.average, back.name], [19.74, true, 'Netflix']);
+  assert.equal((await api('PUT', `/api/recurring/${net.key}`, { amount: '-3' })).status, 400);
+  assert.equal((await api('PUT', '/api/recurring/zzz', { amount: '3' })).status, 404);
   // scollegare: tornano «da assegnare», il tag resta
   const un = await api('PUT', '/api/recurring/assign', { ids: [plain, nf[2]], key: null });
   assert.deepEqual(un.json.unassigned.map((u) => u.id).sort(), [nf[2], plain, rev].sort());
@@ -422,20 +437,24 @@ test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegna
   assert.equal((await api('PUT', '/api/recurring/assign', { ids: ['inesistente'], key: net.key })).status, 400);
   // promemoria: una notifica nel server legata al ricorrente
   assert.equal((await api('PUT', `/api/recurring/${net.key}/reminder`, { text: 'Netflix: lo vuoi ancora?', day: 12, time: '9:00' })).status, 200);
-  const notes = (await api('GET', '/api/notifications')).json.notifications;
-  assert.deepEqual(notes.map((x) => [x.text, x.day, x.time, x.recurringKey]), [['Netflix: lo vuoi ancora?', 12, '09:00', net.key]]);
-  assert.equal(db.notifications.length, 1);
+  const notes = (await api('GET', '/api/notifications')).json.notifications.filter((x) => x.recurringKey === net.key);
+  assert.deepEqual(notes.filter((x) => x.recurringKey === net.key).map((x) => [x.text, x.day, x.time]), [['Netflix: lo vuoi ancora?', 12, '09:00']]);
+  assert.equal(db.notifications.filter((x) => x.recurringKey === net.key).length, 1);
   assert.deepEqual((await api('GET', '/api/recurring')).json.groups.find((g) => g.key === net.key).reminder, { id: notes[0].id, text: 'Netflix: lo vuoi ancora?', day: 12, time: '09:00' });
   await api('PUT', `/api/recurring/${net.key}/reminder`, { text: 'Netflix', day: 13, time: '10:30' }); // modifica: resta una sola notifica
-  assert.equal(db.notifications.length, 1);
+  assert.equal(db.notifications.filter((x) => x.recurringKey === net.key).length, 1);
+  // senza dati: il promemoria di base
+  await api('PUT', `/api/recurring/${net.key}/reminder`, {});
+  assert.equal(db.notifications.find((x) => x.recurringKey === net.key).text, 'Pagamento imminente: Netflix di 12,99 €');
+  assert.equal(db.notifications.filter((x) => x.recurringKey === net.key).length, 1);
   await api('PUT', `/api/notifications/${notes[0].id}`, { text: 'Dalle Opzioni', day: 14, time: '11:00' });
-  assert.equal(db.notifications[0].recurringKey, net.key); // modificarla dalle Opzioni non rompe il legame
+  assert.equal(db.notifications.find((x) => x.id === notes[0].id).recurringKey, net.key); // modificarla dalle Opzioni non rompe il legame
   assert.equal((await api('PUT', '/api/recurring/zzz/reminder', { text: 'x', day: 1, time: '10:00' })).status, 404);
   // disattivare: passa tra i non attivi e il promemoria sparisce
   const off = (await api('PUT', `/api/recurring/${net.key}/active`, { active: false })).json;
   assert.equal(off.groups.at(-1).key, net.key); assert.equal(off.groups.at(-1).active, false); assert.equal(off.groups.at(-1).reminder, null);
-  assert.equal(db.notifications.length, 0);
-  assert.deepEqual(off.totals, { monthly: 35, active: 1, annual: 1, inactive: 1 });
+  assert.equal(db.notifications.filter((x) => x.recurringKey === net.key).length, 0);
+  assert.deepEqual(off.totals, { monthly: 35, fixed: 0, reserve: 35, active: 1, annual: 1, inactive: 1 });
   assert.equal((await api('PUT', `/api/recurring/${net.key}/reminder`, { text: 'x', day: 1, time: '10:00' })).status, 400); // non attivo
   assert.equal((await api('DELETE', `/api/recurring/${net.key}/reminder`)).status, 404);
   // eliminare un ricorrente scollega i suoi movimenti
@@ -443,6 +462,23 @@ test("ricorrenti: solo quelli creati a mano, movimenti «Ricorrente» da assegna
   assert.equal((await api('DELETE', `/api/recurring/${net.key}`)).status, 200);
   assert.equal(db.recurringLinks[nf[0]], undefined);
   assert.equal((await api('DELETE', '/api/recurring/zzz')).status, 404);
+  // si crea senza importo, solo col giorno (mensile) o giorno e mese (annuale): la prossima scadenza è la prima da oggi in poi
+  const { dueFromDay } = await import('../src/recurring.js');
+  const mo = await api('POST', '/api/recurring', { name: 'Palestra', day: 15 });
+  assert.equal(mo.status, 200);
+  const pal = mo.json.groups.find((g) => g.key === mo.json.key);
+  assert.deepEqual([pal.amount, pal.annual, pal.next, pal.count], [0, false, dueFromDay(15, 0, false, today), 0]);
+  assert.equal(pal.reminder.text, 'Pagamento imminente: Palestra'); // ancora nessun importo
+  const an = await api('POST', '/api/recurring', { name: 'Dominio', annual: true, day: 3, month: 3 });
+  const dom = an.json.groups.find((g) => g.key === an.json.key);
+  assert.deepEqual([dom.annual, dom.next, dom.reminder.month != null], [true, dueFromDay(3, 3, true, today), true]);
+  assert.equal(dueFromDay(31, 0, false, '2026-02-10'), '2026-02-28'); // nei mesi corti, l'ultimo giorno
+  assert.equal(dueFromDay(5, 0, false, '2026-12-10'), '2027-01-05');
+  assert.equal(dueFromDay(3, 3, true, '2026-10-15'), '2027-03-03');
+  // l'importo arriva dai movimenti che assegni
+  const pay = add(addMonths(today, -1), 39, 'Fit Club');
+  const withPay = (await api('PUT', '/api/recurring/assign', { ids: [pay], key: pal.key })).json.groups.find((g) => g.key === pal.key);
+  assert.deepEqual([withPay.amount, withPay.average], [39, true]);
 });
 
 test("notifiche: testo, giorno del mese e orario si salvano nel server", async (t) => {

@@ -68,11 +68,11 @@
           <h2 class="section">Nuovo ricorrente</h2>
           <label>Nome <input id="rfName" maxlength="80" autocomplete="off" required placeholder="Per esempio: Amazon Prime"></label>
           <div class="fields two">
-            <label>Importo <input id="rfAmount" inputmode="decimal" required placeholder="0,00"></label>
             <label>Cadenza <select id="rfCadence"><option value="0">Mensile</option><option value="1">Annuale</option></select></label>
+            <label>Giorno del pagamento <input id="rfDay" type="number" inputmode="numeric" min="1" max="31" step="1" required placeholder="1-31"></label>
           </div>
-          <label>Prossimo pagamento <input id="rfNext" type="date" required></label>
-          <p class="note muted">Se paghi già questo ricorrente, nei Movimenti scegli il tag «Ricorrente» e compare qui da solo.</p>
+          <label id="rfMonthRow" hidden>Mese del pagamento <select id="rfMonth"></select></label>
+          <p class="note muted">L'importo non si scrive: è la media dei movimenti che assegni a questo ricorrente (nei Movimenti, tag «Ricorrente»).</p>
           <div class="foot"><button class="primary" type="submit">Aggiungi</button><button class="ghost" type="button" id="recCancel">Annulla</button></div>
         </form>
         </div>

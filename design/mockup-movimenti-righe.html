@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyBank · righe dei Movimenti con due tag, mockup</title>
+<style>
+/* Solo tema scuro. Solo inchiostro, carta e il rosso dell'app. 393 px CSS = larghezza del telefono. Dati inventati. */
+:root{--paper:#121211;--ink:#edeae3;--mute:#9a958b;--hair:#2e2c29;--red:#ff5a2e;--green:#5ccb8a;--t-spesa:#7a9cff;--t-ricorrente:#d49a62;--t-svago:#ff7ac8;--t-giroconto:#6d6a63;
+ --f-serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--f-sans:system-ui,"Segoe UI",Roboto,sans-serif;--f-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;--h:46px}
+*{box-sizing:border-box}h1,p{margin:0}
+body{margin:0;padding:24px;background:#000;font:15px/1.5 var(--f-sans);color:var(--ink)}
+body>h1{font:700 15px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+body>p{color:var(--mute);font-size:13px;margin-bottom:20px;max-width:980px}
+.wall{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0}figcaption{font:700 13px var(--f-mono);letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+figcaption small{display:block;font:400 13px var(--f-sans);text-transform:none;letter-spacing:0;max-width:393px;margin-top:2px;color:var(--mute)}
+.phone{width:393px;background:var(--paper);border:1px solid var(--hair);padding:0 16px 16px}
+.lab{font:11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.head{display:flex;justify-content:space-between;padding:14px 0 8px;border-bottom:2px solid var(--ink)}
+.ser{font-family:var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums lining-nums;font-weight:600;white-space:nowrap}
+.red{color:var(--red)}
+/* riga base: data | titolo | importo+tag */
+.mv{display:grid;grid-template-columns:50px minmax(0,1fr) 120px;column-gap:10px;row-gap:4px;padding:12px 0;border-bottom:1px solid var(--hair);align-items:start}
+.d{font:600 15px/1.1 var(--f-serif)}.d small{display:block;font:11px var(--f-mono);color:var(--mute);margin-top:2px}
+.t{font-size:15px;line-height:1.25}.s{font-size:13px;color:var(--mute)}
+.r{display:grid;justify-items:end;gap:6px}
+.amt{font:600 15px var(--f-mono);white-space:nowrap}
+.amt.in{color:var(--green)}
+.tag{height:32px;min-width:108px;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 8px;border:1px solid var(--hair);font:600 13px var(--f-sans)}
+.tag i{font-style:normal;color:var(--mute);font-size:10px}
+.tag svg{width:14px;height:14px;flex:none}
+.tag span{flex:1;text-align:left}
+/* il secondo livello: a chi è assegnato */
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 7px;border:1px solid var(--ink);font:700 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:100%}
+.chip.fill{background:var(--ink);color:var(--paper)}
+.chip.todo{border-color:var(--red);color:var(--red)}
+.chip b{overflow:hidden;text-overflow:ellipsis;font:inherit}
+/* A: il chip sotto il tag, nella colonna di destra */
+.A .mv{grid-template-columns:50px minmax(0,1fr) 124px}
+.A .chip{width:108px;justify-content:center}
+/* B: il chip sotto il titolo (com'è ora) */
+.B .chip{margin-top:6px}
+/* C: un solo controllo a due piani: tag sopra, ricorrente sotto nello stesso riquadro */
+.C .tag.two{height:auto;min-height:32px;flex-direction:column;align-items:stretch;gap:0;padding:0}
+.C .tag.two .l1{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;height:32px}
+.C .tag.two .l2{border-top:1px solid var(--hair);padding:3px 8px;font:700 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:#1a1918;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.C .tag.two .l2.todo{color:var(--red)}
+/* D: riga web, quattro colonne */
+.web{width:1000px;max-width:100%;background:var(--paper);border:1px solid var(--hair);padding:0 20px 8px}
+.wmv{display:grid;grid-template-columns:78px minmax(0,1fr) 130px 250px;column-gap:24px;padding:14px 0;border-bottom:1px solid var(--hair);align-items:center}
+.wmv .r2{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.wmv .tag{min-width:120px}
+.wmv .chip{height:26px}
+.wmv .amt{text-align:right}
+</style></head><body>
+<h1>MyBank · righe dei Movimenti con due tag (mockup)</h1>
+<p>Il tag della categoria (Spesa, Svago…) e, solo per «Ricorrente», il secondo livello: a quale ricorrente è assegnato (chip pieno) o «Da assegnare» (rosso). Tre modi di metterli in riga sul telefono, dalla riga normale senza chip alla riga ricorrente; sotto la versione web del modo che consiglio. Solo tema scuro, dati inventati.</p>
+<div class="wall" id="wall"></div>
+<script>
+const ico='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10a8 8 0 0 1 14-4l2 2M20 14a8 8 0 0 1-14 4l-2-2M20 4v4h-4M4 20v-4h4"/></svg>';
+const cart='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.5l2 11h10.5l2-8H6.3"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></svg>';
+const R=[ // data, mese, titolo, sub, importo, tag, assegnato a
+ ['12','ott','Netflix','NETFLIX.COM · Revolut · 02 Svago','12,99 €','ricorrente','Netflix'],
+ ['9','ott','Apple.com/bill','APPLE.COM/BILL · Revolut · Conto principale','2,99 €','ricorrente',''],
+ ['8','ott','Esselunga Milano','Revolut · 01 Spesa','37,13 €','spesa',null],
+ ['3','ott','Spotify Family','SPOTIFY AB · Revolut · 02 Svago','17,99 €','ricorrente','Spotify Family'],
+];
+const col={ricorrente:'var(--t-ricorrente)',spesa:'var(--t-spesa)'};
+const nm={ricorrente:'Ricorrente',spesa:'Spesa'};
+const ic=(t)=>t==='ricorrente'?ico:cart;
+const tagBox=(t,two)=>`<div class="tag ${two?'two':''}" style="color:${col[t]}">${two?`<div class="l1">${ic(t)}<span>${nm[t]}</span><i>▾</i></div>`:`${ic(t)}<span>${nm[t]}</span><i>▾</i>`}${two??''}</div>`;
+const rowA=(r)=>`<div class="mv"><div class="d">${r[0]}<small>${r[1]}</small></div><div><div class="t">${r[2]}</div><div class="s">${r[3]}</div></div><div class="r"><span class="amt">−${r[4]}</span>${tagBox(r[5])}${r[5]==='ricorrente'?(r[6]?`<span class="chip fill"><b>${r[6]}</b></span>`:'<span class="chip todo">Da assegnare</span>'):''}</div></div>`;
+const rowB=(r)=>`<div class="mv"><div class="d">${r[0]}<small>${r[1]}</small></div><div><div class="t">${r[2]}</div><div class="s">${r[3]}</div>${r[5]==='ricorrente'?(r[6]?`<span class="chip fill"><b>→ ${r[6]}</b></span>`:'<span class="chip todo">Assegna a un ricorrente</span>'):''}</div><div class="r"><span class="amt">−${r[4]}</span>${tagBox(r[5])}</div></div>`;
+const rowC=(r)=>`<div class="mv"><div class="d">${r[0]}<small>${r[1]}</small></div><div><div class="t">${r[2]}</div><div class="s">${r[3]}</div></div><div class="r"><span class="amt">−${r[4]}</span>${r[5]==='ricorrente'?tagBox(r[5],`<div class="l2 ${r[6]?'':'todo'}">${r[6]?'↳ '+r[6]:'↳ da assegnare'}</div>`):tagBox(r[5])}</div></div>`;
+const rowW=(r)=>`<div class="wmv"><div class="d">${r[0]} ${r[1]}<small>2026</small></div><div><div class="t">${r[2]}</div><div class="s">${r[3]}</div></div><div class="amt">−${r[4]}</div><div class="r2">${r[5]==='ricorrente'?(r[6]?`<span class="chip fill"><b>${r[6]}</b></span>`:'<span class="chip todo">Da assegnare</span>'):''}${tagBox(r[5])}</div></div>`;
+const phone=(cls,fn)=>`<div class="phone ${cls}"><div class="head"><span class="lab">12 movimenti · <span class="red">1 da assegnare</span></span><span class="lab">uscite 70,10 €</span></div>${R.map(fn).join('')}</div>`;
+const items=[['A · Il chip sotto il tag','Le due classificazioni stanno insieme nella colonna di destra, allineate; il titolo resta pulito e di altezza fissa. Il chip pieno è il ricorrente, quello rosso «Da assegnare». È quello che consiglio.',phone('A',rowA)],
+ ['B · Il chip sotto il titolo','Com\'è adesso: il chip occupa la colonna centrale e fa le righe ricorrenti più alte delle altre; con nomi lunghi va a capo.',phone('B',rowB)],
+ ['C · Un solo riquadro a due piani','Il tag e il ricorrente nello stesso riquadro, il secondo piano più piccolo. Più compatto, ma il secondo piano è meno evidente.',phone('C',rowC)]];
+document.getElementById('wall').innerHTML=items.map(([t,s,b])=>`<figure><figcaption>${t}<small>${s}</small></figcaption>${b}</figure>`).join('')
+ +`<figure style="width:100%"><figcaption>Web · versione di A<small>Quattro colonne: data, titolo, importo e a destra i due tag affiancati (il chip a sinistra del tag), sempre della stessa altezza.</small></figcaption><div class="web">${R.map(rowW).join('')}</div></figure>`;
+</script></body></html>

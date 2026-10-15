@@ -140,7 +140,7 @@ td.zero { color: var(--mute); }
 .d-tag select { font-size: 12px; }
 /* sul web quattro colonne: data | titolo e destinatario | importo | categoria */
 @media (min-width: 721px) {
-  .mv { grid-template-columns: 78px minmax(0, 1fr) 150px 190px; column-gap: 24px; }
+  .mv { grid-template-columns: 78px minmax(0, 1fr) 150px 300px; column-gap: 24px; }
   .d-date, .d-main { grid-row: 1; align-self: center; }
   .d-amt { grid-column: 3; grid-row: 1; }
   .d-tag { grid-column: 4; grid-row: 1; }
@@ -434,7 +434,7 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 .rchip { display: inline-flex; align-items: center; height: 26px; margin-top: 6px; padding: 0 9px; border: 1px solid var(--ink); background: transparent; color: var(--ink); font: 700 var(--fs-label) var(--f-mono); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
 .rchip.fill { background: var(--ink); color: var(--paper); }
 .rchip.todo { border-color: var(--red); color: var(--red); }
-.rchip.ghost { border-color: var(--hair); color: var(--mute); }
+.rchip.alt { border-color: var(--hair); color: var(--mute); }
 .rchips { display: flex; flex-wrap: wrap; gap: 6px; }
 .rchips .rchip { margin-top: 6px; }
 .rinbox { margin-top: 14px; padding: 0 12px 4px; border: 1px solid var(--red); }
@@ -490,4 +490,18 @@ body { touch-action: pan-y; }
   main { padding-bottom: calc(var(--h) + 36px + env(safe-area-inset-bottom)); }
   #toast { bottom: calc(var(--h) + 20px + env(safe-area-inset-bottom)); }
   .rsticky { bottom: calc(var(--h) + 4px + env(safe-area-inset-bottom)); padding-bottom: 12px; }
+}
+
+/* interruttore Attivo (bianco) / Inattivo (grigio) */
+.rsw span { color: var(--ink); font-weight: 600; }
+.rsw.off span { color: var(--mute); }
+
+/* Movimenti, stile A: il secondo livello («Ricorrente» → a chi è assegnato) sta nella colonna del tag: sotto sul telefono, a sinistra sul web */
+.d-tag { display: grid; gap: 6px; }
+.d-tag .rchip { display: flex; justify-content: center; width: 100%; height: 24px; margin: 0; padding: 0 6px; min-width: 0; }
+.d-tag .rchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 721px) {
+  .d-tag { display: flex; align-items: center; gap: 8px; }
+  .d-tag .rchip { order: -1; width: auto; max-width: 150px; flex: 0 1 auto; height: 26px; }
+  .d-tag .tagbox { flex: 1 1 0; min-width: 0; }
 }

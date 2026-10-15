@@ -12,6 +12,8 @@ const round = (n) => Math.round(n * 100) / 100;
 const DAY = 86400000;
 const toMs = (iso) => Date.parse(`${iso}T12:00:00Z`);
 const toIso = (ms) => new Date(ms).toISOString().slice(0, 10);
+const addDays = (iso, n) => toIso(toMs(iso) + n * DAY);
+const eur = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n).replace(/\u00a0/g, ' ');
 
 /** La chiave stabile di un gruppo: il nome del beneficiario ridotto a lettere e numeri. */
 export function recurringKey(name) {
@@ -54,24 +56,25 @@ function analyze(db, now = new Date()) {
     if (!g.name && p.slug === key) g.name = title;
     g.list.push(p);
   }
-  const reminderOf = (key) => { const n = db.notifications.find((x) => x.recurringKey === key); return n ? { id: n.id, text: n.text, day: n.day, time: n.time } : null; };
+  const reminderOf = (key) => { const n = db.notifications.find((x) => x.recurringKey === key); return n ? { id: n.id, text: n.text, day: n.day, ...(n.month ? { month: n.month } : {}), time: n.time } : null; };
   const groups = [];
   const make = (g, base) => {
     g.list.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
     const annual = base.annual;
     const latest = g.list.at(-1);
     const last = latest ? latest.date : null;
-    const amount = latest ? latest.amount : base.amount;
+    // l'importo è la media dei movimenti assegnati, a meno che tu non l'abbia scelto a mano (o non ce ne siano ancora)
+    const amount = g.list.length && !base.fixed ? round(g.list.reduce((t, p) => t + p.amount, 0) / g.list.length) : base.amount;
     const due = nextDue(last ? addMonths(last, annual ? 12 : 1) : base.next, annual, today);
     const recent = last ? (toMs(today) - toMs(last)) / DAY <= (annual ? 400 : 45) : true;
     const active = typeof state[g.key]?.active === 'boolean' ? state[g.key].active : recent;
     groups.push({
-      key: g.key, name: base.name, amount, annual, monthly: round(annual ? amount / 12 : amount), next: due, last, count: g.list.length, active, manual: base.manual, reminder: reminderOf(g.key),
+      key: g.key, name: base.name, amount, annual, monthly: round(annual ? amount / 12 : amount), next: due, last, count: g.list.length, active, manual: base.manual, average: Boolean(g.list.length && !base.fixed), reminder: reminderOf(g.key),
       payments: g.list.slice(-12).reverse().map((p) => ({ id: p.id, date: p.date, amount: p.amount, title: p.title, account: p.account, explicit: p.explicit })),
       _ids: g.list.map((p) => p.id),
     });
   };
-  for (const m of db.recurringManual ?? []) make(byKey.get(`m-${m.id}`) ?? { key: `m-${m.id}`, list: [] }, { name: m.name, annual: m.annual, amount: m.amount, next: m.next, manual: true });
+  for (const m of db.recurringManual ?? []) make(byKey.get(`m-${m.id}`) ?? { key: `m-${m.id}`, list: [] }, { name: m.name, annual: m.annual, amount: m.amount, fixed: Boolean(m.fixed), next: m.next, manual: true });
   const act = groups.filter((g) => g.active).sort((a, b) => a.next.localeCompare(b.next) || a.name.localeCompare(b.name));
   const off = groups.filter((g) => !g.active).sort((a, b) => (b.last ?? '').localeCompare(a.last ?? '') || a.name.localeCompare(b.name));
   const sorted = [...act, ...off];
@@ -84,10 +87,11 @@ function analyze(db, now = new Date()) {
 /** Tutti i gruppi. */
 export const recurringGroups = (db, now) => analyze(db, now).groups;
 
-/** Il totale al mese degli attivi (gli annuali contano per un dodicesimo) e quanti sono. */
+/** Il totale al mese degli attivi, diviso in costo fisso (i mensili) e somma da mettere da parte (gli annuali per un dodicesimo), e quanti sono. */
 export function recurringTotals(groups) {
   const act = groups.filter((g) => g.active);
-  return { monthly: round(act.reduce((a, g) => a + g.monthly, 0)), active: act.length, annual: act.filter((g) => g.annual).length, inactive: groups.length - act.length };
+  const sum = (list) => round(list.reduce((a, g) => a + g.monthly, 0));
+  return { monthly: sum(act), fixed: sum(act.filter((g) => !g.annual)), reserve: sum(act.filter((g) => g.annual)), active: act.length, annual: act.filter((g) => g.annual).length, inactive: groups.length - act.length };
 }
 
 const norm = (s) => recurringKey(s).replace(/-/g, '');
@@ -131,4 +135,19 @@ export function ricorrenteStatus(db, now = new Date()) {
 export function groupTransactionIds(db, key) {
   const { owner } = analyze(db);
   return new Set([...owner].filter(([, k]) => k === key).map(([id]) => id));
+}
+
+/** La prossima scadenza da oggi in poi dato il giorno del pagamento (mensile) o giorno e mese (annuale, `month` 1-12). */
+export function dueFromDay(day, month, annual, today) {
+  const [y, m] = today.split('-').map(Number);
+  const at = (yy, mm) => { const last = new Date(Date.UTC(yy, mm, 0)).getUTCDate(); return toIso(Date.UTC(yy, mm - 1, Math.min(day, last))); };
+  if (annual) { const d = at(y, month); return d >= today ? d : at(y + 1, month); }
+  const d = at(y, m);
+  return d >= today ? d : (m === 12 ? at(y + 1, 1) : at(y, m + 1));
+}
+
+/** Il promemoria di base di un ricorrente: «Pagamento imminente: <nome> di <importo>», 3 giorni prima del prossimo pagamento alle 9:00 (gli annuali anche col mese). */
+export function defaultReminder(g) {
+  const d = addDays(g.next, -3);
+  return { text: g.amount > 0 ? `Pagamento imminente: ${g.name} di ${eur(g.amount)}` : `Pagamento imminente: ${g.name}`, day: Number(d.slice(8)), ...(g.annual ? { month: Number(d.slice(5, 7)) } : {}), time: '09:00' };
 }

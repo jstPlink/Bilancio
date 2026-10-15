@@ -344,13 +344,14 @@ function renderMovesList() {
     const pill = t.pending ? '<span class="pill warn">in sospeso</span>' : '';
     const amt = `<span class="amt ${t.amount > 0 ? 'in' : ''}">${t.amount > 0 ? '+' : ''}${money(t.amount)}</span>`;
     // i movimenti «Ricorrente» mostrano a chi sono assegnati (chip pieno) o che sono da assegnare (chip rosso); un tocco apre il foglio
-    const chip = t.tag === 'ricorrente' && 'recurring' in t ? `<button class="rchip ${t.recurring ? 'fill' : 'todo'}" data-assign-tx="${t.id}">${t.recurring ? esc(t.recurring.name) : 'Assegna a un ricorrente'}</button>` : '';
+    // (stile A: il chip sta sotto il tag, nella colonna di destra; sul web a sinistra del tag)
+    const chip = t.tag === 'ricorrente' && 'recurring' in t ? `<button class="rchip ${t.recurring ? 'fill' : 'todo'}" data-assign-tx="${t.id}" title="${t.recurring ? 'Assegnato a ' + esc(t.recurring.name) + ': tocca per cambiare' : 'Assegna a un ricorrente'}"><span>${t.recurring ? esc(t.recurring.name) : 'Da assegnare'}</span></button>` : '';
     const select = `<select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select>`;
     return `<div class="mv${t.pending ? ' pending' : ''}">
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
-      <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div>${chip}</div>
+      <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div></div>
       <div class="d-amt">${amt}</div>
-      <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div></div>
+      <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div>${chip}</div>
     </div>`;
   }).join('');
   // «Mostra altro» in fondo, se ci sono altri movimenti da mostrare (un server vecchio ne dà al massimo 1000 e non sa dare altre pagine)
@@ -425,24 +426,37 @@ async function loadRecurring() {
 }
 
 function recPanel(g) {
-  const day = g.reminder?.day ?? Number(g.next.slice(8));
-  const time = g.reminder?.time ?? '09:00';
-  const text = g.reminder?.text ?? `${g.name} ${money(g.amount)}: lo vuoi ancora?`;
+  const rm = g.reminder;
   const shortD = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
   const pays = (g.payments ?? []).map((p) => `<div class="rpay"><b class="rpd">${shortD(p.date)}</b><span class="rpt">${esc(p.title)}<small>${esc(p.account)}${p.explicit ? ' · assegnato' : ''}</small></span><span class="rpa">${money(p.amount)}</span>${p.explicit ? `<button type="button" class="rx" data-unlink="${esc(p.id)}" aria-label="Scollega questo movimento" title="Scollega">×</button>` : '<span></span>'}</div>`).join('');
-  return `<div class="rpanel" data-panel="${esc(g.key)}" data-saved="${g.reminder ? '1' : ''}" data-sday="${day}" data-stime="${esc(time)}" data-stext="${esc(text)}">
-    <label class="rsw"><input type="checkbox" data-ractive ${g.active ? 'checked' : ''}><i></i><span>Ancora attivo</span></label>
+  const amountText = g.amount ? String(g.amount).replace('.', ',') : '';
+  const note = !g.amount ? 'Importo: si calcola dai movimenti che assegni (nessuno ancora).' : g.average ? `Importo: media dei ${g.count} movimenti assegnati.` : g.count ? 'Importo scelto a mano.' : 'Importo scelto a mano (nessun movimento assegnato).';
+  const mo = (sel) => MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>${m}</option>`).join('');
+  const reminder = !g.active ? '<p class="muted rnote">Riattivalo per impostare un promemoria.</p>'
+    : !rm ? '<div class="foot"><button class="primary" type="button" data-radd>Aggiungi promemoria</button></div>'
+    : `<span class="label">Promemoria</span>
+    <div class="fields" style="grid-template-columns:repeat(${g.annual ? 3 : 2},minmax(0,1fr))">
+      <label>Giorno <input data-rf="day" type="number" inputmode="numeric" min="1" max="31" step="1" value="${rm.day}"></label>
+      ${g.annual ? `<label>Mese <select data-rf="month">${mo(rm.month || 1)}</select></label>` : ''}
+      <label>Orario <input data-rf="time" type="time" value="${esc(rm.time)}"></label>
+    </div>
+    <label>Testo <input data-rf="text" maxlength="200" autocomplete="off" value="${esc(rm.text)}"></label>
+    <p class="muted rnote">${g.annual ? 'Il promemoria suona una volta l\'anno.' : 'Il promemoria suona ogni mese.'} Sta nel server, legato a questo ricorrente.</p>
+    <div class="foot"><button class="primary" type="button" data-rbtn="del">Togli promemoria</button></div>`;
+  return `<div class="rpanel" data-panel="${esc(g.key)}" data-saved="${rm ? '1' : ''}" data-sday="${rm?.day ?? ''}" data-smonth="${rm?.month ?? ''}" data-stime="${esc(rm?.time ?? '')}" data-stext="${esc(rm?.text ?? '')}" data-sname="${esc(g.name)}" data-samount="${esc(amountText)}" data-sannual="${g.annual ? 1 : 0}">
+    <label class="rsw ${g.active ? '' : 'off'}"><input type="checkbox" data-ractive ${g.active ? 'checked' : ''}><i></i><span>${g.active ? 'Attivo' : 'Inattivo'}</span></label>
+    <span class="label">Dati</span>
+    <label>Nome <input data-df="name" maxlength="80" autocomplete="off" value="${esc(g.name)}"></label>
+    <div class="fields two">
+      <label>Importo (€) <input data-df="amount" inputmode="decimal" placeholder="da calcolare" value="${esc(amountText)}"></label>
+      <label>Cadenza <select data-df="annual"><option value="0" ${g.annual ? '' : 'selected'}>Mensile</option><option value="1" ${g.annual ? 'selected' : ''}>Annuale</option></select></label>
+    </div>
+    <p class="muted rnote">${note}${!g.average && g.count ? ' <button type="button" class="link" data-davg>Usa la media</button>' : ''}</p>
+    <div class="foot" data-dsave hidden><button class="primary" type="button" data-dsavebtn>Salva modifiche</button></div>
     <span class="label">Movimenti collegati · ${g.count}</span>
     ${pays ? `<div class="rpays">${pays}</div>` : '<p class="muted rnote">Nessun movimento ancora: collegane uno qui sotto o dai Movimenti.</p>'}
     <div class="foot"><button class="ghost" type="button" data-pickopen>Collega altri movimenti</button></div>
-    ${g.active ? `<span class="label">Promemoria</span>
-    <div class="fields two">
-      <label>Giorno del mese <input data-rf="day" type="number" inputmode="numeric" min="1" max="31" step="1" value="${day}"></label>
-      <label>Orario <input data-rf="time" type="time" value="${esc(time)}"></label>
-    </div>
-    <label>Testo <input data-rf="text" maxlength="200" autocomplete="off" value="${esc(text)}"></label>
-    <p class="muted rnote">Il giorno proposto è quello del prossimo pagamento. Il promemoria sta nel server, legato a questo ricorrente.</p>
-    <div class="foot"><button class="primary" type="button" data-rbtn="${g.reminder ? 'del' : 'save'}">${g.reminder ? 'Togli promemoria' : 'Salva promemoria'}</button></div>` : '<p class="muted rnote">Riattivalo per impostare un promemoria.</p>'}
+    ${reminder}
     <div class="foot rlinks"><button class="link" type="button" data-rmoves>Vedi i movimenti</button>${g.manual ? '<button class="link" type="button" data-rremove>Elimina ricorrente</button>' : ''}</div>
   </div>`;
 }
@@ -454,7 +468,7 @@ function recRow(g) {
   return `<div class="rrow ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
     <div class="rday">${Number(date.slice(8))}<small>${MONTHS_SHORT[Number(date.slice(5, 7)) - 1]}</small></div>
     <div class="rmain"><div class="rname"><span>${esc(g.name)}</span>${g.reminder ? BELL : ''}</div><div class="rsub">${sub}</div></div>
-    <div class="ramt">${money(g.amount)}</div></div>${open ? recPanel(g) : ''}`;
+    <div class="ramt">${g.amount ? money(g.amount) : '–'}</div></div>${open ? recPanel(g) : ''}`;
 }
 
 // i movimenti col tag «Ricorrente» non ancora assegnati: un chip per ricorrente suggerito, «Nuovo…» e «Altro…»
@@ -466,9 +480,9 @@ function recInbox(unassigned, groups) {
     const [d, m] = shortD(u.date);
     const chips = u.suggest.slice(0, 2).map((s, i) => `<button type="button" class="rchip${i === 0 ? ' fill' : ''}" data-assign-to="${esc(s.key)}" data-tx="${esc(u.id)}">${esc(name(s.key))}</button>`).join('');
     return `<div class="rinrow"><div class="rday">${d}<small>${m}</small></div><div class="rmain"><div class="rname"><span>${esc(u.title)}</span></div><div class="rsub">−${money(u.amount)} · ${esc(u.account)}</div>
-      <div class="rchips">${chips}<button type="button" class="rchip ghost" data-assign-open="new" data-tx="${esc(u.id)}">Nuovo…</button><button type="button" class="rchip ghost" data-assign-open="" data-tx="${esc(u.id)}">Altro…</button></div></div>
+      <div class="rchips">${chips}<button type="button" class="rchip alt" data-assign-open="new" data-tx="${esc(u.id)}">Nuovo…</button><button type="button" class="rchip alt" data-assign-open="" data-tx="${esc(u.id)}">Altro…</button></div></div>
       <div class="rhint">${u.suggest.length ? 'Suggerito' : ''}</div></div>`;
-  }).join('')}<p class="muted rnote">Un tocco su un nome assegna il movimento a quel ricorrente.</p></div>`;
+  }).join('')}</div>`;
 }
 
 function renderRecurring() {
@@ -478,8 +492,10 @@ function renderRecurring() {
   if (picking) return renderPicker();
   const { groups, totals, unassigned } = state.rec.data;
   const act = groups.filter((g) => g.active), off = groups.filter((g) => !g.active);
-  $('#recHero').innerHTML = `<div class="bhero"><div class="bheroh"><div><span class="label">Ricorrenti al mese</span><div class="big">${money(totals.monthly)}</div></div><div class="bdays"><span class="label">Gruppi attivi</span><div class="big">${totals.active}</div></div></div>
-    <p class="muted rnote">${totals.annual ? `Gli annuali contano per un dodicesimo (${totals.annual} su ${totals.active}).` : 'I pagamenti annuali contano per un dodicesimo.'}</p></div>`;
+  // due cifre grandi, calcolate dai ricorrenti attivi: il costo fisso (i mensili) e quanto mettere da parte ogni mese per gli annuali (importo ÷ 12)
+  const sumM = (list) => Math.round(list.reduce((t, g) => t + g.monthly, 0) * 100) / 100;
+  const fixed = sumM(act.filter((g) => !g.annual)), reserve = sumM(act.filter((g) => g.annual));
+  $('#recHero').innerHTML = `<div class="bhero"><div class="bheroh"><div><span class="label">Costo fisso mensile</span><div class="big">${money(fixed)}</div></div><div class="bdays"><span class="label">Da mettere da parte al mese</span><div class="big">${money(reserve)}</div></div></div></div>`;
   $('#recList').innerHTML = recInbox(unassigned, groups) + (groups.length
     ? `<div class="rsec"><span>Attivi · dal più vicino</span><span>${act.length}</span></div>${act.map(recRow).join('') || '<p class="muted">Nessun ricorrente attivo.</p>'}
        <div class="rsec"><span>Non più attivi</span><span>${off.length}</span></div>${off.map(recRow).join('') || '<p class="muted">Nessuno.</p>'}`
@@ -487,9 +503,6 @@ function renderRecurring() {
 }
 
 // ---- foglio «Assegna a un ricorrente» (dai Movimenti e dalla scheda Ricorrenti)
-
-const addMonthsJs = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1 + n, 1)); const last = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + 1, 0)).getUTCDate(); return new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10); };
-const nextFrom = (iso, annual) => { const today = new Date().toISOString().slice(0, 10); let d = iso, n = 0; while (d < today && n < 600) { n += annual ? 12 : 1; d = addMonthsJs(iso, n); } return d; };
 
 /** Apre il foglio per un movimento ({ id, title, date, amount (positivo), account, current }); `after` si chiama a cose fatte. */
 async function openAssign(tx, { choose = '', after } = {}) {
@@ -507,10 +520,10 @@ async function openAssign(tx, { choose = '', after } = {}) {
       <div class="amini"><div>${esc(tx.title)}<small>${fmtDate(tx.date)} · ${esc(tx.account)}</small></div><b class="n">−${money(tx.amount)}</b></div>
       <div class="aopts">
         ${ordered.map((g) => `<label class="aopt"><span><b>${esc(g.name)}</b><small>${g.annual ? 'annuale' : 'mensile'} · ${money(g.amount)}${g.active ? '' : ' · non attivo'}${why(g)}</small></span><input type="radio" name="ak" value="${esc(g.key)}" ${value === g.key ? 'checked' : ''}><i></i></label>`).join('')}
-        <label class="aopt"><span><b>+ Nuovo ricorrente da questo movimento</b><small>nome e importo già compilati</small></span><input type="radio" name="ak" value="__new" ${value === '__new' ? 'checked' : ''}><i></i></label>
+        <label class="aopt"><span><b>+ Nuovo ricorrente da questo movimento</b><small>l'importo si calcola dai movimenti</small></span><input type="radio" name="ak" value="__new" ${value === '__new' ? 'checked' : ''}><i></i></label>
         ${value === '__new' ? `<div class="anew"><label>Nome <input id="anName" maxlength="80" autocomplete="off" value="${esc(tx.title)}"></label>
-          <div class="fields two"><label>Importo <input id="anAmount" inputmode="decimal" value="${String(tx.amount).replace('.', ',')}"></label><label>Cadenza <select id="anCad"><option value="0">Mensile</option><option value="1">Annuale</option></select></label></div>
-          <label>Prossimo pagamento <input id="anNext" type="date" value="${nextFrom(addMonthsJs(tx.date, 1), false)}"></label></div>` : ''}
+          <div class="fields two"><label>Cadenza <select id="anCad"><option value="0">Mensile</option><option value="1">Annuale</option></select></label><label>Giorno del pagamento <input id="anDay" type="number" inputmode="numeric" min="1" max="31" step="1" value="${Number(tx.date.slice(8))}"></label></div>
+          <label id="anMonthRow" hidden>Mese del pagamento <select id="anMonth">${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === Number(tx.date.slice(5, 7)) ? 'selected' : ''}>${m}</option>`).join('')}</select></label></div>` : ''}
         <label class="aopt"><span><b class="muted">Solo il tag, nessun ricorrente</b></span><input type="radio" name="ak" value="__none" ${value === '__none' ? 'checked' : ''}><i></i></label>
       </div>
       <p class="muted rnote">Il suggerimento viene dal nome simile o dallo stesso importo. Il movimento conta subito nello storico del ricorrente.</p>
@@ -518,13 +531,13 @@ async function openAssign(tx, { choose = '', after } = {}) {
     </form>`;
     dlg.querySelectorAll('input[name=ak]').forEach((r) => r.addEventListener('change', () => { value = r.value; draw(); }));
     $('#anCancel').addEventListener('click', () => dlg.close());
-    $('#anCad')?.addEventListener('change', (e) => { $('#anNext').value = nextFrom(addMonthsJs(tx.date, e.target.value === '1' ? 12 : 1), e.target.value === '1'); });
+    $('#anCad')?.addEventListener('change', (e) => { $('#anMonthRow').hidden = e.target.value !== '1'; });
     $('#assignForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
         let msg;
         if (value === '__new') {
-          await api('POST', '/api/recurring', { name: $('#anName').value, amount: $('#anAmount').value, annual: $('#anCad').value === '1', next: $('#anNext').value, assign: [tx.id] });
+          await api('POST', '/api/recurring', { name: $('#anName').value, annual: $('#anCad').value === '1', day: $('#anDay').value, month: $('#anMonth').value, assign: [tx.id] });
           msg = 'Ricorrente creato e movimento assegnato.';
         } else if (value === '__none') {
           await api('PUT', '/api/recurring/assign', { ids: [tx.id], key: null });
@@ -628,8 +641,8 @@ $('#recList').addEventListener('click', async (e) => {
 function syncRecButton(panel) {
   const btn = panel.querySelector('[data-rbtn]');
   if (!btn) return;
-  const v = (k) => panel.querySelector(`[data-rf="${k}"]`).value.trim();
-  const same = panel.dataset.saved && v('day') === panel.dataset.sday && v('time') === panel.dataset.stime && v('text') === panel.dataset.stext;
+  const v = (k) => panel.querySelector(`[data-rf="${k}"]`)?.value.trim() ?? '';
+  const same = panel.dataset.saved && v('day') === panel.dataset.sday && v('time') === panel.dataset.stime && v('text') === panel.dataset.stext && (!panel.querySelector('[data-rf="month"]') || v('month') === panel.dataset.smonth);
   btn.dataset.rbtn = same ? 'del' : 'save';
   btn.textContent = same ? 'Togli promemoria' : 'Salva promemoria';
 }
@@ -642,8 +655,17 @@ async function recCall(method, url, body, msg) {
   } catch (err) { fail(err); }
 }
 
-$('#recList').addEventListener('input', (e) => { const p = e.target.closest('.rpanel'); if (p && e.target.dataset.rf) syncRecButton(p); });
+// i dati del ricorrente (nome, importo, cadenza): il pulsante «Salva modifiche» compare solo se qualcosa è cambiato
+function syncRecData(panel) {
+  const v = (k) => panel.querySelector(`[data-df="${k}"]`).value.trim();
+  const dirty = v('name') !== panel.dataset.sname || v('amount') !== panel.dataset.samount || v('annual') !== panel.dataset.sannual;
+  panel.querySelector('[data-dsave]').hidden = !dirty;
+}
+$('#recList').addEventListener('input', (e) => { const p = e.target.closest('.rpanel'); if (!p) return; if (e.target.dataset.rf) syncRecButton(p); if (e.target.dataset.df) syncRecData(p); });
 $('#recList').addEventListener('change', (e) => {
+  const pn = e.target.closest('.rpanel');
+  if (pn && e.target.dataset.rf) syncRecButton(pn);
+  if (pn && e.target.dataset.df) syncRecData(pn);
   const sw = e.target.closest('[data-ractive]');
   if (!sw) return;
   const key = e.target.closest('.rpanel').dataset.panel;
@@ -656,9 +678,17 @@ $('#recList').addEventListener('click', async (e) => {
     const g = state.rec.data.groups.find((x) => x.key === key);
     const btn = e.target.closest('[data-rbtn]');
     if (btn) {
-      const v = (k) => panel.querySelector(`[data-rf="${k}"]`).value.trim();
+      const v = (k) => panel.querySelector(`[data-rf="${k}"]`)?.value.trim();
       if (btn.dataset.rbtn === 'del') return recCall('DELETE', `/api/recurring/${encodeURIComponent(key)}/reminder`, null, 'Promemoria tolto.');
-      return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, { text: v('text'), day: v('day'), time: v('time') }, 'Promemoria salvato.');
+      return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, { text: v('text'), day: v('day'), month: v('month'), time: v('time') }, 'Promemoria salvato.');
+    }
+    if (e.target.closest('[data-radd]')) return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, {}, 'Promemoria aggiunto.'); // quello di base: 3 giorni prima, alle 9
+    if (e.target.closest('[data-davg]')) return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}`, { useAverage: true }, 'Importo: media dei movimenti.');
+    if (e.target.closest('[data-dsavebtn]')) {
+      const dv = (k) => panel.querySelector(`[data-df="${k}"]`).value.trim();
+      const body = { name: dv('name'), annual: dv('annual') === '1' };
+      if (dv('amount') !== panel.dataset.samount) body.amount = dv('amount'); // l'importo si manda solo se l'hai cambiato (altrimenti resta la media)
+      return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}`, body, 'Modifiche salvate.');
     }
     if (e.target.closest('[data-rmoves]')) {
       Object.assign(state.mv, { year: 0, month: 0, tag: '', q: '', account: '', recurring: { key, name: g.name } });
@@ -679,13 +709,15 @@ $('#recList').addEventListener('click', async (e) => {
 });
 $('#recList').addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-rec]')) { e.preventDefault(); e.target.click(); } });
 
-const showRecForm = (on) => { $('#recForm').hidden = !on; $('#recAddBtn').hidden = on; if (on) { $('#rfNext').value ||= new Date().toISOString().slice(0, 10); $('#rfName').focus(); } };
+$('#rfMonth').innerHTML = MONTHS.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+$('#rfCadence').addEventListener('change', () => { $('#rfMonthRow').hidden = $('#rfCadence').value !== '1'; });
+const showRecForm = (on) => { $('#recForm').hidden = !on; $('#recAddBtn').hidden = on; if (on) { $('#rfMonthRow').hidden = $('#rfCadence').value !== '1'; $('#rfName').focus(); } };
 $('#recAddBtn').addEventListener('click', () => showRecForm(true));
 $('#recCancel').addEventListener('click', () => { $('#recForm').reset(); showRecForm(false); });
 $('#recForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
-    const r = await api('POST', '/api/recurring', { name: $('#rfName').value, amount: $('#rfAmount').value, annual: $('#rfCadence').value === '1', next: $('#rfNext').value });
+    const r = await api('POST', '/api/recurring', { name: $('#rfName').value, annual: $('#rfCadence').value === '1', day: $('#rfDay').value, month: $('#rfMonth').value });
     e.target.reset(); showRecForm(false);
     state.rec.data = r; state.rec.open = r.key;
     renderRecurring();
@@ -1019,7 +1051,7 @@ const resetNotifyForm = () => {
 async function loadNotifications() {
   const d = await api('GET', '/api/notifications');
   $('#notifyList').innerHTML = d.notifications.length
-    ? d.notifications.map((n) => `<div class="acct"><div class="n">${esc(n.text)}<div class="s">Il ${n.day} di ogni mese · ${esc(n.time)}</div></div>
+    ? d.notifications.map((n) => `<div class="acct"><div class="n">${esc(n.text)}<div class="s">${n.month ? `Il ${n.day} ${MONTHS[n.month - 1].toLowerCase()} di ogni anno` : `Il ${n.day} di ogni mese`} · ${esc(n.time)}</div></div>
         <button class="link" data-nf-edit="${esc(n.id)}">Modifica</button><button class="link danger" data-nf-del="${esc(n.id)}">Elimina</button></div>`).join('')
     : '<p class="muted">Nessuna notifica impostata.</p>';
   notify.list = d.notifications;

@@ -2,6 +2,14 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.34.0
+- **Importo dei ricorrenti = media dei movimenti assegnati** (campo `average`); si può scrivere a mano («Importo scelto a mano») e tornare alla media con «Usa la media». Nella riga aperta una sezione «Dati» (nome, importo, cadenza) con «Salva modifiche» che compare solo se cambi qualcosa: `PUT /api/recurring/:key`.
+- **Creare un ricorrente senza importo**: si sceglie il nome e, se è mensile, solo il giorno del pagamento; se è annuale giorno e mese, senza anno (`POST /api/recurring` con `day` e `month`). Lo stesso nel foglio «Nuovo ricorrente da questo movimento». Finché non ci sono movimenti l'importo è «–».
+- **Promemoria**: senza promemoria la riga mostra solo «Aggiungi promemoria», che crea quello di base «Pagamento imminente: <nome> di <importo>», 3 giorni prima e alle 9:00; ogni ricorrente nuovo nasce già con quello. I promemoria dei ricorrenti annuali hanno anche il **mese** e suonano una volta l'anno (`month` nelle notifiche; l'app Android lo legge).
+- **Interruttore** «Attivo» (bianco) / «Inattivo» (grigio). In cima ai Ricorrenti due cifre: costo fisso mensile e da mettere da parte al mese (annuali ÷ 12), senza il totale e senza i contatori.
+- **Movimenti, stile A**: il secondo livello dei movimenti «Ricorrente» sta nella colonna del tag, sotto il tag sul telefono e a sinistra sul web: chip rosso «Da assegnare» o chip pieno col nome del ricorrente. I pulsanti «Nuovo…» e «Altro…» della casella «Da assegnare» hanno la stessa misura dei tag e il testo sotto è tolto.
+- Mockup in `design/`: righe dei Movimenti con due tag e assegnazione dei movimenti.
+
 ## 0.33.1
 - **Ricorrenti solo a mano**: tolto il riconoscimento automatico. Un ricorrente esiste solo se lo crei tu (`Aggiungi ricorrente` o «Nuovo…» da un movimento); i movimenti col tag «Ricorrente» restano «da assegnare» finché non li assegni. Cambia `GET /api/recurring`: niente più gruppi automatici.
 - **Schede in basso sul telefono**: barra fissa con il segno rosso sopra la scheda scelta; messaggio a comparsa e pulsante «Collega» spostati sopra la barra.
