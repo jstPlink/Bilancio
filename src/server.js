@@ -353,7 +353,18 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
   // un ricorrente nasce sempre con un promemoria di base (se c'è ancora posto fra le notifiche)
   const addDefaultReminder = (g) => {
     if (!g || db.notifications.length >= 50 || db.notifications.some((n) => n.recurringKey === g.key)) return;
-    db.notifications.push(normalizeNotification(defaultReminder(g), undefined, g.key));
+    db.notifications.push({ ...normalizeNotification(defaultReminder(g), undefined, g.key), auto: true });
+  };
+  // un promemoria di base (`auto`, mai modificato da te) segue il ricorrente: importo e giorno cambiano con i movimenti assegnati
+  const refreshAutoReminders = () => {
+    const groups = recurringGroups(db);
+    for (const n of db.notifications) {
+      const g = n.auto && groups.find((x) => x.key === n.recurringKey);
+      if (!g) continue;
+      const d = defaultReminder(g);
+      n.text = d.text; n.day = d.day;
+      if (d.month) n.month = d.month; else delete n.month;
+    }
   };
   const dropReminder = (key) => { db.notifications = db.notifications.filter((n) => n.recurringKey !== key); };
   app.get('/api/recurring', (req, res) => res.json(recurringState(String(req.query.tx ?? ''))));
@@ -361,16 +372,14 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     const key = req.body?.key ?? null;
     if (key !== null && !findGroup(String(key))) return bad(res, 'Ricorrente sconosciuto.', 404);
     linkTransactions(req.body?.ids, key === null ? null : String(key));
+    refreshAutoReminders();
     await store.save();
     res.json(recurringState());
   }));
   app.post('/api/recurring', wrap(async (req, res) => {
     const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
     if (!name) return bad(res, 'Scrivi il nome del pagamento.');
-    // l'importo non si scrive: è la media dei movimenti che assegni (finché non ce ne sono resta 0; si può impostare dopo)
-    const rawAmount = req.body?.amount;
-    const amount = rawAmount == null || rawAmount === '' ? 0 : Number(String(rawAmount).replace(',', '.'));
-    if (!Number.isFinite(amount) || amount < 0) return bad(res, 'Importo non valido.');
+    // l'importo non si scrive: è la media dei movimenti che assegni (finché non ce ne sono resta 0)
     const annual = Boolean(req.body?.annual);
     let next = String(req.body?.next ?? '');
     if (req.body?.day != null && req.body.day !== '') {
@@ -381,14 +390,15 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       next = dueFromDay(day, month, annual, new Date().toISOString().slice(0, 10));
     } else if (!/^\d{4}-\d{2}-\d{2}$/.test(next) || Number.isNaN(Date.parse(next))) return bad(res, 'Scegli il giorno del pagamento.');
     if (db.recurringManual.length >= 100) return bad(res, 'Troppi ricorrenti aggiunti a mano.');
-    const m = { id: crypto.randomUUID().slice(0, 8), name, amount: Math.round(amount * 100) / 100, annual, next };
+    const m = { id: crypto.randomUUID().slice(0, 8), name, amount: 0, annual, next };
     if (req.body?.assign) linkTransactions(req.body.assign, `m-${m.id}`);
     db.recurringManual.push(m);
     addDefaultReminder(findGroup(`m-${m.id}`));
+    refreshAutoReminders();
     await store.save();
     res.json({ ...recurringState(), key: `m-${m.id}` });
   }));
-  // modifica di un ricorrente: nome, importo (a mano: smette di essere la media dei movimenti assegnati), cadenza, prossimo pagamento; `useAverage` torna alla media
+  // modifica di un ricorrente: nome, cadenza, prossimo pagamento (l'importo non si modifica: è la media dei movimenti assegnati)
   app.put('/api/recurring/:key', wrap(async (req, res) => {
     const m = db.recurringManual.find((x) => `m-${x.id}` === req.params.key);
     if (!m) return bad(res, 'Ricorrente sconosciuto.', 404);
@@ -398,13 +408,6 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
       if (!name) return bad(res, 'Scrivi il nome del pagamento.');
       m.name = name;
     }
-    if (b.amount != null && b.amount !== '') {
-      const amount = Number(String(b.amount).replace(',', '.'));
-      if (!Number.isFinite(amount) || amount <= 0) return bad(res, 'Importo non valido.');
-      m.amount = Math.round(amount * 100) / 100;
-      m.fixed = true;
-    }
-    if (b.useAverage) m.fixed = false;
     if (b.annual != null) m.annual = Boolean(b.annual);
     if (b.next != null) {
       const next = String(b.next);
@@ -431,7 +434,7 @@ export function createApp({ dir, password = '', publicUrl = '', fetchImpl = fetc
     if (i < 0 && db.notifications.length >= 50) return bad(res, 'Troppe notifiche: toglierne qualcuna.');
     // senza dati si propone il promemoria di base; il mese vale solo per gli annuali
     const body = req.body?.text == null ? defaultReminder(g) : { ...req.body, month: g.annual ? req.body.month : undefined };
-    const n = normalizeNotification(body, i < 0 ? undefined : db.notifications[i].id, g.key);
+    const n = { ...normalizeNotification(body, i < 0 ? undefined : db.notifications[i].id, g.key), ...(req.body?.text == null ? { auto: true } : {}) };
     if (i < 0) db.notifications.push(n); else db.notifications[i] = n;
     await store.save();
     res.json(recurringState());

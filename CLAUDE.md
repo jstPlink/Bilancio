@@ -33,6 +33,10 @@ Node 24 + Express 5, dati in un file JSON (`data/mybank.json`), pagine web in HT
 - Se il server non ha ancora una funzione nuova (la chiamata dà errore), per far provare la grafica usa `npm run demo` su una porta a parte; non toccare il localhost collegato al server. Un processo di sfondo si ferma da solo dopo un po': se serve di nuovo, rilancialo.
 - `npm run server` avvia il server completo con i dati locali in `data/` (solo per sviluppo).
 
+## Mockup
+
+Le proposte grafiche si fanno prima come mockup HTML in `design/` (393 px di larghezza per il telefono), **solo in tema scuro**, con dati inventati e più varianti affiancate; si implementa solo quella scelta dall'utente. L'importo di un ricorrente non si scrive mai: è la media dei movimenti assegnati.
+
 ## Estetica (regole uniche, vedi README «Estetica»)
 
 Carta e inchiostro, un solo rosso vermiglio (più un giallo solo per i mesi dello Storico con movimenti «Non definito»), angoli vivi, filetti da 1px (2px a inizio sezione), serif per numeri e titoli, monospazio maiuscolo per le etichette. Scala del testo 11/13/15/22/34. Pulsanti e campi alti `--h`. Il widget usa un solo carattere (sans-serif), fondo inchiostro e testo carta. Nuove schermate e il widget seguono le stesse regole: niente colori o forme nuove senza aggiornare queste righe e il README.

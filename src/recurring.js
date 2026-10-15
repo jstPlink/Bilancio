@@ -63,18 +63,18 @@ function analyze(db, now = new Date()) {
     const annual = base.annual;
     const latest = g.list.at(-1);
     const last = latest ? latest.date : null;
-    // l'importo è la media dei movimenti assegnati, a meno che tu non l'abbia scelto a mano (o non ce ne siano ancora)
-    const amount = g.list.length && !base.fixed ? round(g.list.reduce((t, p) => t + p.amount, 0) / g.list.length) : base.amount;
+    // l'importo non si scrive: è la media dei movimenti assegnati (finché non ce ne sono resta quello di partenza, di norma 0)
+    const amount = g.list.length ? round(g.list.reduce((t, p) => t + p.amount, 0) / g.list.length) : base.amount;
     const due = nextDue(last ? addMonths(last, annual ? 12 : 1) : base.next, annual, today);
     const recent = last ? (toMs(today) - toMs(last)) / DAY <= (annual ? 400 : 45) : true;
     const active = typeof state[g.key]?.active === 'boolean' ? state[g.key].active : recent;
     groups.push({
-      key: g.key, name: base.name, amount, annual, monthly: round(annual ? amount / 12 : amount), next: due, last, count: g.list.length, active, manual: base.manual, average: Boolean(g.list.length && !base.fixed), reminder: reminderOf(g.key),
+      key: g.key, name: base.name, amount, annual, monthly: round(annual ? amount / 12 : amount), next: due, last, count: g.list.length, active, manual: base.manual, average: g.list.length > 0, reminder: reminderOf(g.key),
       payments: g.list.slice(-12).reverse().map((p) => ({ id: p.id, date: p.date, amount: p.amount, title: p.title, account: p.account, explicit: p.explicit })),
       _ids: g.list.map((p) => p.id),
     });
   };
-  for (const m of db.recurringManual ?? []) make(byKey.get(`m-${m.id}`) ?? { key: `m-${m.id}`, list: [] }, { name: m.name, annual: m.annual, amount: m.amount, fixed: Boolean(m.fixed), next: m.next, manual: true });
+  for (const m of db.recurringManual ?? []) make(byKey.get(`m-${m.id}`) ?? { key: `m-${m.id}`, list: [] }, { name: m.name, annual: m.annual, amount: m.amount, next: m.next, manual: true });
   const act = groups.filter((g) => g.active).sort((a, b) => a.next.localeCompare(b.next) || a.name.localeCompare(b.name));
   const off = groups.filter((g) => !g.active).sort((a, b) => (b.last ?? '').localeCompare(a.last ?? '') || a.name.localeCompare(b.name));
   const sorted = [...act, ...off];

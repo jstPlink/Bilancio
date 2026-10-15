@@ -6,7 +6,11 @@ const MONTHS = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'L
 const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'mai');
 const THIS_YEAR = new Date().getFullYear();
-let TAGS = { spesa: 'Spesa', svago: 'Svago', carburante: 'Auto', altro: 'Altro', utenze: 'Utenze', ricorrente: 'Ricorrente', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
+let TAGS = { spesa: 'Spesa', cibo: 'Cibo', svago: 'Svago', carburante: 'Auto', auto_carburante: 'Carburante', autostrada: 'Autostrada', altro: 'Altro', utenze: 'Utenze', ricorrente: 'Ricorrente', non_definito: 'Non definito', entrata: 'Entrata', giroconto: 'Non contabile' };
+
+// Le sotto categorie dipendono da una categoria (come sul server): nei menu si distinguono con un trattino.
+const SUB_PARENT = { cibo: 'spesa', auto_carburante: 'carburante', autostrada: 'carburante' };
+const tagLabel = (k, v) => (SUB_PARENT[k] ? `– ${v}` : v);
 
 // Un'icona per categoria (tratto sottile, nel colore del testo).
 const ICON_PATHS = {
@@ -15,6 +19,9 @@ const ICON_PATHS = {
   carburante: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5"/>',
   altro: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
   utenze: '<path d="M13 3L5 13.5h6L10 21l8-10.5h-6z"/>',
+  cibo: '<path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 3c-2 2-3 5-3 8h3v10"/>',
+  auto_carburante: '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M4 20h11M14 9h2.5a1.5 1.5 0 0 1 1.5 1.5V16a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5"/>',
+  autostrada: '<path d="M8 3L5 21M16 3l3 18M12 4v3M12 10.5v3M12 17v3"/>',
   ricorrente: '<path d="M4 10a8 8 0 0 1 14-4l2 2M20 14a8 8 0 0 1-14 4l-2-2M20 4v4h-4M4 20v-4h4"/>',
   non_definito: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17h.01"/>',
   entrata: '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',
@@ -239,7 +246,9 @@ async function loadYear() {
       <span class="cname">${icon(k)}${esc(name)}</span><span class="cbar"${tick >= 1.5 ? ` style="--tick:${tick}%"` : ''}><i style="width:${(v / scale) * 100}%"></i></span><span class="camt">${money(v)}</span></button>`;
     // la riga delle entrate del mese (in verde), poi le categorie delle uscite
     const entrate = m.entrate || m.uscite ? row('entrata', 'Entrate', m.entrate, ' in') : '';
-    const tags = entrate || cats.length ? `<div class="legend">${entrate}${cats.map(([k, v]) => row(k, TAGS[k] ?? k, v)).join('')}</div>` : '';
+    const subs = Object.entries(m.subs ?? {});
+    const catRows = cats.map(([k, v]) => row(k, TAGS[k] ?? k, v) + subs.filter(([sk]) => SUB_PARENT[sk] === k).map(([sk, sv]) => row(sk, TAGS[sk] ?? sk, sv, ' sub')).join('')).join('');
+    const tags = entrate || cats.length ? `<div class="legend">${entrate}${catRows}</div>` : '';
     const undef = (m.tags.non_definito ?? 0) > 0 ? ' undef' : ''; // il mese ha movimenti «Non definito»: la riga si colora di giallo
     return `<tr class="m${undef}" data-month="${m.month}"><th scope="row">${MONTHS[m.month - 1]}</th>${cell(m.entrate, 'pos')}${cell(m.uscite, 'neg')}${empty ? '<td class="num zero">–</td>' : `<td class="num ${tone(m.bilancio)}"><b>${money(m.bilancio)}</b></td>`}</tr>`
       + (open ? `<tr class="detail"><td colspan="4">${tags || 'Nessun movimento.'}</td></tr>` : '');
@@ -291,7 +300,7 @@ async function loadMoves(keep = false) {
   else if (d.account) bar.innerHTML = `Conto o pocket: <b>${esc(d.account.name)}</b> <button class="link" data-clearaccount="1">Togli il filtro</button>`;
   $('#mvYear').innerHTML = `<option value="0">Tutti</option>${yearOptions(sum.years, year)}`;
   $('#mvMonth').innerHTML = `<option value="0">Tutti</option>${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === month ? 'selected' : ''}>${m}</option>`).join('')}`;
-  $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(v)}</option>`).join('')}`;
+  $('#mvTag').innerHTML = `<option value="">Tutti</option>${Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === tag ? 'selected' : ''}>${esc(tagLabel(k, v))}</option>`).join('')}`;
   // la riga informativa: quanti movimenti e il totale; con il filtro «Entrata» le entrate, con gli altri filtri le uscite, senza filtro entrambe
   // le cifre (numero dei movimenti, entrate, uscite) in bianco, il resto del testo in grigio
   const sums = tag === 'entrata' ? `entrate <b>${money(d.totals.entrate)}</b>` : tag ? `uscite <b>${money(d.totals.uscite)}</b>` : `entrate <b>${money(d.totals.entrate)}</b> · uscite <b>${money(d.totals.uscite)}</b>`;
@@ -331,7 +340,7 @@ async function ensureMoves() {
 }
 
 function renderMovesList() {
-  const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(tagLabel(k, v))}</option>`).join('');
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   const rows = state.mv.items.slice(0, state.mv.shown);
   $('#mvList').innerHTML = rows.map((t) => {
@@ -429,8 +438,7 @@ function recPanel(g) {
   const rm = g.reminder;
   const shortD = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
   const pays = (g.payments ?? []).map((p) => `<div class="rpay"><b class="rpd">${shortD(p.date)}</b><span class="rpt">${esc(p.title)}<small>${esc(p.account)}${p.explicit ? ' · assegnato' : ''}</small></span><span class="rpa">${money(p.amount)}</span>${p.explicit ? `<button type="button" class="rx" data-unlink="${esc(p.id)}" aria-label="Scollega questo movimento" title="Scollega">×</button>` : '<span></span>'}</div>`).join('');
-  const amountText = g.amount ? String(g.amount).replace('.', ',') : '';
-  const note = !g.amount ? 'Importo: si calcola dai movimenti che assegni (nessuno ancora).' : g.average ? `Importo: media dei ${g.count} movimenti assegnati.` : g.count ? 'Importo scelto a mano.' : 'Importo scelto a mano (nessun movimento assegnato).';
+  const note = !g.amount ? 'Importo: si calcola dai movimenti che assegni (nessuno ancora).' : `Importo: media dei ${g.count} movimenti assegnati.`;
   const mo = (sel) => MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === sel ? 'selected' : ''}>${m}</option>`).join('');
   const reminder = !g.active ? '<p class="muted rnote">Riattivalo per impostare un promemoria.</p>'
     : !rm ? '<div class="foot"><button class="primary" type="button" data-radd>Aggiungi promemoria</button></div>'
@@ -443,15 +451,14 @@ function recPanel(g) {
     <label>Testo <input data-rf="text" maxlength="200" autocomplete="off" value="${esc(rm.text)}"></label>
     <p class="muted rnote">${g.annual ? 'Il promemoria suona una volta l\'anno.' : 'Il promemoria suona ogni mese.'} Sta nel server, legato a questo ricorrente.</p>
     <div class="foot"><button class="primary" type="button" data-rbtn="del">Togli promemoria</button></div>`;
-  return `<div class="rpanel" data-panel="${esc(g.key)}" data-saved="${rm ? '1' : ''}" data-sday="${rm?.day ?? ''}" data-smonth="${rm?.month ?? ''}" data-stime="${esc(rm?.time ?? '')}" data-stext="${esc(rm?.text ?? '')}" data-sname="${esc(g.name)}" data-samount="${esc(amountText)}" data-sannual="${g.annual ? 1 : 0}">
-    <label class="rsw ${g.active ? '' : 'off'}"><input type="checkbox" data-ractive ${g.active ? 'checked' : ''}><i></i><span>${g.active ? 'Attivo' : 'Inattivo'}</span></label>
+  return `<div class="rpanel" data-panel="${esc(g.key)}" data-saved="${rm ? '1' : ''}" data-sday="${rm?.day ?? ''}" data-smonth="${rm?.month ?? ''}" data-stime="${esc(rm?.time ?? '')}" data-stext="${esc(rm?.text ?? '')}" data-sname="${esc(g.name)}" data-sannual="${g.annual ? 1 : 0}">
+    <button type="button" class="rsw ${g.active ? 'on' : 'off'}" role="switch" aria-checked="${g.active}" data-ractive><i></i><span>${g.active ? 'Attivo' : 'Inattivo'}</span></button>
     <span class="label">Dati</span>
     <label>Nome <input data-df="name" maxlength="80" autocomplete="off" value="${esc(g.name)}"></label>
-    <div class="fields two">
-      <label>Importo (€) <input data-df="amount" inputmode="decimal" placeholder="da calcolare" value="${esc(amountText)}"></label>
+    <div class="fields" style="grid-template-columns:1fr">
       <label>Cadenza <select data-df="annual"><option value="0" ${g.annual ? '' : 'selected'}>Mensile</option><option value="1" ${g.annual ? 'selected' : ''}>Annuale</option></select></label>
     </div>
-    <p class="muted rnote">${note}${!g.average && g.count ? ' <button type="button" class="link" data-davg>Usa la media</button>' : ''}</p>
+    <p class="muted rnote">${note}</p>
     <div class="foot" data-dsave hidden><button class="primary" type="button" data-dsavebtn>Salva modifiche</button></div>
     <span class="label">Movimenti collegati · ${g.count}</span>
     ${pays ? `<div class="rpays">${pays}</div>` : '<p class="muted rnote">Nessun movimento ancora: collegane uno qui sotto o dai Movimenti.</p>'}
@@ -658,7 +665,7 @@ async function recCall(method, url, body, msg) {
 // i dati del ricorrente (nome, importo, cadenza): il pulsante «Salva modifiche» compare solo se qualcosa è cambiato
 function syncRecData(panel) {
   const v = (k) => panel.querySelector(`[data-df="${k}"]`).value.trim();
-  const dirty = v('name') !== panel.dataset.sname || v('amount') !== panel.dataset.samount || v('annual') !== panel.dataset.sannual;
+  const dirty = v('name') !== panel.dataset.sname || v('annual') !== panel.dataset.sannual;
   panel.querySelector('[data-dsave]').hidden = !dirty;
 }
 $('#recList').addEventListener('input', (e) => { const p = e.target.closest('.rpanel'); if (!p) return; if (e.target.dataset.rf) syncRecButton(p); if (e.target.dataset.df) syncRecData(p); });
@@ -666,10 +673,6 @@ $('#recList').addEventListener('change', (e) => {
   const pn = e.target.closest('.rpanel');
   if (pn && e.target.dataset.rf) syncRecButton(pn);
   if (pn && e.target.dataset.df) syncRecData(pn);
-  const sw = e.target.closest('[data-ractive]');
-  if (!sw) return;
-  const key = e.target.closest('.rpanel').dataset.panel;
-  recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/active`, { active: sw.checked }, sw.checked ? 'Ricorrente attivo.' : 'Ricorrente non più attivo.');
 });
 $('#recList').addEventListener('click', async (e) => {
   const panel = e.target.closest('.rpanel');
@@ -682,12 +685,16 @@ $('#recList').addEventListener('click', async (e) => {
       if (btn.dataset.rbtn === 'del') return recCall('DELETE', `/api/recurring/${encodeURIComponent(key)}/reminder`, null, 'Promemoria tolto.');
       return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, { text: v('text'), day: v('day'), month: v('month'), time: v('time') }, 'Promemoria salvato.');
     }
+    const sw = e.target.closest('[data-ractive]');
+    if (sw) { // lo stato cambia subito sotto il dito, poi il server conferma
+      const on = sw.getAttribute('aria-checked') !== 'true';
+      sw.setAttribute('aria-checked', String(on)); sw.classList.toggle('on', on); sw.classList.toggle('off', !on); sw.querySelector('span').textContent = on ? 'Attivo' : 'Inattivo';
+      return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/active`, { active: on }, on ? 'Ricorrente attivo.' : 'Ricorrente non più attivo.');
+    }
     if (e.target.closest('[data-radd]')) return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}/reminder`, {}, 'Promemoria aggiunto.'); // quello di base: 3 giorni prima, alle 9
-    if (e.target.closest('[data-davg]')) return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}`, { useAverage: true }, 'Importo: media dei movimenti.');
     if (e.target.closest('[data-dsavebtn]')) {
       const dv = (k) => panel.querySelector(`[data-df="${k}"]`).value.trim();
       const body = { name: dv('name'), annual: dv('annual') === '1' };
-      if (dv('amount') !== panel.dataset.samount) body.amount = dv('amount'); // l'importo si manda solo se l'hai cambiato (altrimenti resta la media)
       return recCall('PUT', `/api/recurring/${encodeURIComponent(key)}`, body, 'Modifiche salvate.');
     }
     if (e.target.closest('[data-rmoves]')) {

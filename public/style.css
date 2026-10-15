@@ -5,7 +5,7 @@
 :root {
   --paper: #f3f0ea; --ink: #131211; --mute: #6b665e; --hair: #d8d3c8;
   --red: #e8431a; --green: #1d6b3c; --yellow: #e0b000;
-  --t-spesa: #1f4fd8; --t-svago: #c2188b; --t-carburante: #b8860b; --t-altro: #5b4b8a; --t-utenze: #0e7490; --t-ricorrente: #7a4a1e; --t-non_definito: #131211; --t-entrata: #1d6b3c; --t-giroconto: #9a958b;
+  --t-spesa: #1f4fd8; --t-svago: #c2188b; --t-carburante: #b8860b; --t-altro: #5b4b8a; --t-utenze: #0e7490; --t-ricorrente: #7a4a1e; --t-non_definito: #131211; --t-entrata: #1d6b3c; --t-giroconto: #9a958b; --t-cibo: var(--t-spesa); --t-auto_carburante: var(--t-carburante); --t-autostrada: var(--t-carburante);
   --f-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --f-sans: system-ui, "Segoe UI", Roboto, sans-serif;
   --f-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
@@ -16,7 +16,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --paper: #121211; --ink: #edeae3; --mute: #9a958b; --hair: #2e2c29; --red: #ff5a2e; --green: #5ccb8a; --yellow: #f0c419;
-    --t-spesa: #7a9cff; --t-svago: #ff7ac8; --t-carburante: #e6b84a; --t-altro: #b3a3e6; --t-utenze: #5cc8dc; --t-ricorrente: #d49a62; --t-non_definito: #edeae3; --t-entrata: #5ccb8a; --t-giroconto: #6d6a63;
+    --t-spesa: #7a9cff; --t-svago: #ff7ac8; --t-carburante: #e6b84a; --t-altro: #b3a3e6; --t-utenze: #5cc8dc; --t-ricorrente: #d49a62; --t-non_definito: #edeae3; --t-entrata: #5ccb8a; --t-giroconto: #6d6a63; --t-cibo: var(--t-spesa); --t-auto_carburante: var(--t-carburante); --t-autostrada: var(--t-carburante);
     color-scheme: dark;
   }
 }
@@ -418,13 +418,15 @@ tbody tr.m.undef:hover { background: color-mix(in srgb, var(--yellow) 36%, trans
 .rpanel .fields.two { margin: 0; }
 .rpanel .foot { margin: 0; }
 .rlinks { display: flex; gap: 18px; flex-wrap: wrap; }
-.rsw { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: var(--fs-sm); cursor: pointer; }
-.rsw input { position: absolute; opacity: 0; pointer-events: none; }
-.rsw i { position: relative; flex: none; width: 40px; height: 22px; border: 1px solid var(--ink); }
-.rsw i::after { content: ""; position: absolute; top: 2px; bottom: 2px; left: 2px; width: 16px; background: var(--ink); }
-.rsw input:checked + i { background: var(--ink); }
-.rsw input:checked + i::after { left: auto; right: 2px; background: var(--paper); }
-.rsw input:focus-visible + i { outline: 2px solid var(--red); outline-offset: 2px; }
+.rsw { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; color: var(--ink); }
+.rsw i { position: relative; flex: none; width: 46px; height: 26px; border: 2px solid var(--ink); border-radius: 13px; transition: background .15s, border-color .15s; }
+.rsw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); transition: left .15s, background .15s; }
+.rsw.on i { background: var(--ink); }
+.rsw.on i::after { left: 23px; background: var(--paper); }
+.rsw.off { color: var(--mute); }
+.rsw.off i { border-color: var(--mute); }
+.rsw.off i::after { background: var(--mute); }
+.rsw:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 #recForm { display: grid; gap: 12px; margin-top: 18px; }
 #recForm h2.section { margin: 0; }
 #recAddBtn { margin-top: 0; }
@@ -493,8 +495,7 @@ body { touch-action: pan-y; }
 }
 
 /* interruttore Attivo (bianco) / Inattivo (grigio) */
-.rsw span { color: var(--ink); font-weight: 600; }
-.rsw.off span { color: var(--mute); }
+.rsw span { font-weight: 600; }
 
 /* Movimenti, stile A: il secondo livello («Ricorrente» → a chi è assegnato) sta nella colonna del tag: sotto sul telefono, a sinistra sul web */
 .d-tag { display: grid; gap: 6px; }
@@ -505,3 +506,6 @@ body { touch-action: pan-y; }
   .d-tag .rchip { order: -1; width: auto; max-width: 150px; flex: 0 1 auto; height: 26px; }
   .d-tag .tagbox { flex: 1 1 0; min-width: 0; }
 }
+
+/* Storico: le sotto categorie, rientrate sotto la loro categoria */
+.legend .chip.sub .cname { padding-left: 14px; color: var(--mute); }

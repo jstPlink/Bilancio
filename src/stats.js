@@ -1,5 +1,5 @@
 // Cifre dell'app: storico dell'anno (entrate, uscite, bilancio per mese), budget del mese e dati del widget.
-import { accountNames, classify, BUDGET_TAGS, TAGS } from './tags.js';
+import { accountNames, classify, parentTag, BUDGET_TAGS, TAGS } from './tags.js';
 import { cutoffOf } from './banks.js';
 import { visibleTransactions } from './import.js';
 import { localParts } from './schedule.js';
@@ -9,19 +9,26 @@ const round = (n) => Math.round(n * 100) / 100;
 /** Entrate, uscite e bilancio di ogni mese dell'anno. I giroconti non contano; le uscite sono cifre positive. */
 export function yearSummary(db, year) {
   const tags = classify(db);
-  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, entrate: 0, uscite: 0, bilancio: 0, tags: {} }));
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, entrate: 0, uscite: 0, bilancio: 0, tags: {}, subs: {} }));
   for (const t of visibleTransactions(db)) {
     if (Number(t.date.slice(0, 4)) !== year) continue;
     const tag = tags.get(t.id);
     if (tag === 'giroconto') continue;
     const m = months[Number(t.date.slice(5, 7)) - 1];
     if (t.amount > 0) m.entrate += t.amount;
-    else { m.uscite -= t.amount; m.tags[tag] = (m.tags[tag] ?? 0) + -t.amount; }
+    else {
+      // una sotto categoria conta nella sua categoria (`tags`) e si vede a parte (`subs`)
+      m.uscite -= t.amount;
+      const p = parentTag(tag);
+      m.tags[p] = (m.tags[p] ?? 0) + -t.amount;
+      if (p !== tag) m.subs[tag] = (m.subs[tag] ?? 0) + -t.amount;
+    }
   }
   const total = { entrate: 0, uscite: 0, bilancio: 0 };
   for (const m of months) {
     m.entrate = round(m.entrate); m.uscite = round(m.uscite); m.bilancio = round(m.entrate - m.uscite);
     for (const k of Object.keys(m.tags)) m.tags[k] = round(m.tags[k]);
+    for (const k of Object.keys(m.subs)) m.subs[k] = round(m.subs[k]);
     total.entrate += m.entrate; total.uscite += m.uscite;
   }
   total.entrate = round(total.entrate); total.uscite = round(total.uscite); total.bilancio = round(total.entrate - total.uscite);
@@ -43,7 +50,7 @@ export function listTransactions(db, { year, month, tag, q, account, ids, sort =
     if (account && t.account !== account) continue;
     if (ids && !ids.has(t.id)) continue;
     const tg = tags.get(t.id);
-    if (tag && tg !== tag) continue;
+    if (tag && tg !== tag && parentTag(tg) !== tag) continue; // il filtro su una categoria include le sue sotto categorie
     if (needle && !`${t.description} ${t.remittance ?? ''} ${db.renames[t.id] ?? ''} ${t.amount}`.toLowerCase().includes(needle)) continue;
     out.push({ ...t, tag: tg, manual: Boolean(db.overrides[t.id]), customName: db.renames[t.id] ?? '', accountName: names.get(t.account)?.name ?? t.accountLabel ?? '' });
   }
@@ -69,7 +76,7 @@ export function monthBudget(db, now = new Date()) {
   const spent = Object.fromEntries(BUDGET_TAGS.map((k) => [k, 0]));
   for (const t of visibleTransactions(db)) {
     if (t.amount >= 0 || !t.date.startsWith(prefix)) continue;
-    const tag = tags.get(t.id);
+    const tag = parentTag(tags.get(t.id));
     if (tag in spent) spent[tag] += -t.amount;
   }
   // i 3 mesi completi prima di questo, solo da quando ci sono dati
@@ -78,7 +85,7 @@ export function monthBudget(db, now = new Date()) {
   const pastSpent = Object.fromEntries(BUDGET_TAGS.map((k) => [k, 0]));
   for (const t of visibleTransactions(db)) {
     if (t.amount >= 0 || !past.includes(t.date.slice(0, 7))) continue;
-    const tag = tags.get(t.id);
+    const tag = parentTag(tags.get(t.id));
     if (tag in pastSpent) pastSpent[tag] += -t.amount;
   }
   const cats = {};

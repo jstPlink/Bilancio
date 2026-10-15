@@ -2,6 +2,10 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.35.0
+- **Sotto categorie dei movimenti**: **Cibo** (sotto Spesa), **Carburante** e **Autostrada** (sotto Auto; chiave interna `auto_carburante` per distinguerla dalla categoria Auto, `carburante`). Si scelgono a mano dal menu del tag di ogni movimento (nei menu hanno un trattino davanti), non sono mai automatiche. Contano nel totale della loro categoria (budget, widget e Storico) e il filtro su una categoria include le sue sotto categorie; nel dettaglio dei mesi dello Storico compaiono rientrate sotto la categoria (`subs` in `GET /api/summary`). Serve il server alla 0.35.0 (il menu dei tag arriva dal server).
+- Documentazione: regola sui mockup in `CLAUDE.md`.
+
 ## 0.34.0
 - **Importo dei ricorrenti = media dei movimenti assegnati** (campo `average`); si può scrivere a mano («Importo scelto a mano») e tornare alla media con «Usa la media». Nella riga aperta una sezione «Dati» (nome, importo, cadenza) con «Salva modifiche» che compare solo se cambi qualcosa: `PUT /api/recurring/:key`.
 - **Creare un ricorrente senza importo**: si sceglie il nome e, se è mensile, solo il giorno del pagamento; se è annuale giorno e mese, senza anno (`POST /api/recurring` con `day` e `month`). Lo stesso nel foglio «Nuovo ricorrente da questo movimento». Finché non ci sono movimenti l'importo è «–».
