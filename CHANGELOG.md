@@ -2,6 +2,11 @@
 
 Ogni push aggiorna la versione (`package.json`) e aggiunge una voce qui, con il tag Git `mybank-vX.Y.Z` (i tag `vX.Y.Z` appartengono alla vecchia app Bilancio).
 
+## 0.36.0
+- **Sotto categorie a parte** (scheda Movimenti): la lista principale del tag ha solo le categorie; la sotto categoria si sceglie da una **targhetta** sotto il tag (grigia «Sotto cat.» se non scelta, piena col nome se scelta; «Nessuna» torna alla categoria). Nessun cambio al server.
+- **Ricorrenti, mensili e annuali ben distinti**: targhetta della cadenza accanto al nome («Anno» piena, «Mese» vuota), filetto a sinistra delle righe annuali, «mensile» sotto il giorno dei mensili e l'equivalente al mese per gli annuali.
+- Mockup in `design/`: cadenza dei ricorrenti (varianti A, B, C; scelta la B).
+
 ## 0.35.0
 - **Sotto categorie dei movimenti**: **Cibo** (sotto Spesa), **Carburante** e **Autostrada** (sotto Auto; chiave interna `auto_carburante` per distinguerla dalla categoria Auto, `carburante`). Si scelgono a mano dal menu del tag di ogni movimento (nei menu hanno un trattino davanti), non sono mai automatiche. Contano nel totale della loro categoria (budget, widget e Storico) e il filtro su una categoria include le sue sotto categorie; nel dettaglio dei mesi dello Storico compaiono rientrate sotto la categoria (`subs` in `GET /api/summary`). Serve il server alla 0.35.0 (il menu dei tag arriva dal server).
 - Documentazione: regola sui mockup in `CLAUDE.md`.

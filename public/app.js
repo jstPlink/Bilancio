@@ -10,6 +10,7 @@ let TAGS = { spesa: 'Spesa', cibo: 'Cibo', svago: 'Svago', carburante: 'Auto', a
 
 // Le sotto categorie dipendono da una categoria (come sul server): nei menu si distinguono con un trattino.
 const SUB_PARENT = { cibo: 'spesa', auto_carburante: 'carburante', autostrada: 'carburante' };
+const parentTag = (k) => SUB_PARENT[k] ?? k;
 const tagLabel = (k, v) => (SUB_PARENT[k] ? `– ${v}` : v);
 
 // Un'icona per categoria (tratto sottile, nel colore del testo).
@@ -340,7 +341,9 @@ async function ensureMoves() {
 }
 
 function renderMovesList() {
-  const options = (sel) => Object.entries(TAGS).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(tagLabel(k, v))}</option>`).join('');
+  // la lista principale ha solo le categorie; le sotto categorie si scelgono a parte, dalla targhetta sotto il tag
+  const options = (sel) => Object.entries(TAGS).filter(([k]) => !SUB_PARENT[k]).map(([k, v]) => `<option value="${k}" ${k === parentTag(sel) ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  const subOptions = (parent, sel) => `<option value="">Nessuna</option>${Object.keys(SUB_PARENT).filter((k) => SUB_PARENT[k] === parent && TAGS[k]).map((k) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(TAGS[k])}</option>`).join('')}`;
   const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   const rows = state.mv.items.slice(0, state.mv.shown);
   $('#mvList').innerHTML = rows.map((t) => {
@@ -355,12 +358,16 @@ function renderMovesList() {
     // i movimenti «Ricorrente» mostrano a chi sono assegnati (chip pieno) o che sono da assegnare (chip rosso); un tocco apre il foglio
     // (stile A: il chip sta sotto il tag, nella colonna di destra; sul web a sinistra del tag)
     const chip = t.tag === 'ricorrente' && 'recurring' in t ? `<button class="rchip ${t.recurring ? 'fill' : 'todo'}" data-assign-tx="${t.id}" title="${t.recurring ? 'Assegnato a ' + esc(t.recurring.name) + ': tocca per cambiare' : 'Assegna a un ricorrente'}"><span>${t.recurring ? esc(t.recurring.name) : 'Da assegnare'}</span></button>` : '';
+    // targhetta della sotto categoria (pieno = scelta, grigio = da scegliere), per le categorie che ne hanno
+    const par = parentTag(t.tag);
+    const hasSubs = Object.keys(SUB_PARENT).some((k) => SUB_PARENT[k] === par && TAGS[k]);
+    const subChip = hasSubs ? `<label class="rchip schip ${SUB_PARENT[t.tag] ? 'fill' : 'alt'}"><span>${SUB_PARENT[t.tag] ? esc(TAGS[t.tag]) : 'Sotto cat.'}</span><select data-sub="${t.id}" aria-label="Sotto categoria di ${esc(t.description)}">${subOptions(par, t.tag)}</select></label>` : '';
     const select = `<select data-tag="${t.id}" aria-label="Tag di ${esc(t.description)}" style="color:var(--t-${t.tag})">${options(t.tag)}</select>`;
     return `<div class="mv${t.pending ? ' pending' : ''}">
       <div class="d-date"><b>${shortDate(t.date)}</b><small>${t.date.slice(0, 4)}</small></div>
       <div class="d-main"><div class="d-title">${esc(title)}<button class="ren${t.customName ? ' on' : ''}" data-rename-tx="${t.id}" aria-label="Rinomina il movimento" title="Rinomina">✎</button>${pill}</div><div class="d-sub">${esc([was, dest, where].filter(Boolean).join(' · '))}</div></div>
       <div class="d-amt">${amt}</div>
-      <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div>${chip}</div>
+      <div class="d-tag"><div class="tagbox" style="color:var(--t-${t.tag})">${icon(t.tag)}${select}</div>${chip}${subChip}</div>
     </div>`;
   }).join('');
   // «Mostra altro» in fondo, se ci sono altri movimenti da mostrare (un server vecchio ne dà al massimo 1000 e non sa dare altre pagine)
@@ -374,8 +381,18 @@ $('#movimenti').addEventListener('change', async (e) => {
   if (el.id === 'mvYear') state.mv.year = Number(el.value);
   else if (el.id === 'mvMonth') state.mv.month = Number(el.value);
   else if (el.id === 'mvTag') state.mv.tag = el.value;
-  else if (el.dataset.tag) {
-    try { await api('PUT', `/api/transactions/${el.dataset.tag}/tag`, { tag: el.value }); const it = state.mv.items.find((x) => x.id === el.dataset.tag); const wasRec = it?.tag === 'ricorrente'; if (it) { it.tag = el.value; if (el.value === 'ricorrente') it.recurring = null; else delete it.recurring; } if (el.value === 'ricorrente' && it) { toast('Tag: Ricorrente'); renderMovesList(); assignFromMove(it); return; } if (wasRec) renderMovesList(); if (state.mv.tag) { toast(`Tag: ${TAGS[el.value]}`); await loadMoves(true); return; } el.style.color = `var(--t-${el.value})`; if (el.parentElement?.classList.contains('tagbox')) { el.parentElement.style.color = `var(--t-${el.value})`; el.previousElementSibling.outerHTML = icon(el.value); } toast(`Tag: ${TAGS[el.value]}`); } catch (err) { fail(err); }
+  else if (el.dataset.tag || el.dataset.sub) { // categoria dalla lista principale, sotto categoria dalla targhetta (vuota = torna alla categoria)
+    const id = el.dataset.tag || el.dataset.sub;
+    const it = state.mv.items.find((x) => x.id === id);
+    const value = el.dataset.sub ? (el.value || parentTag(it?.tag)) : el.value;
+    try {
+      await api('PUT', `/api/transactions/${id}/tag`, { tag: value });
+      if (it) { it.tag = value; if (value === 'ricorrente') it.recurring = null; else delete it.recurring; }
+      toast(`Tag: ${TAGS[value]}`);
+      if (value === 'ricorrente' && it) { renderMovesList(); assignFromMove(it); return; }
+      if (state.mv.tag) { await loadMoves(true); return; }
+      renderMovesList();
+    } catch (err) { fail(err); }
     return;
   } else return;
   loadMoves().catch(fail);
@@ -471,10 +488,11 @@ function recPanel(g) {
 function recRow(g) {
   const open = state.rec.open === g.key;
   const date = g.active ? g.next : (g.last ?? g.next);
-  const sub = g.annual ? `annuale · ${money(g.monthly)}/mese` : 'mensile';
-  return `<div class="rrow ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
-    <div class="rday">${Number(date.slice(8))}<small>${MONTHS_SHORT[Number(date.slice(5, 7)) - 1]}</small></div>
-    <div class="rmain"><div class="rname"><span>${esc(g.name)}</span>${g.reminder ? BELL : ''}</div><div class="rsub">${sub}</div></div>
+  const sub = g.annual ? `${money(g.monthly)}/mese` : '';
+  // targhetta della cadenza: ANNO (piena, con il filetto a sinistra della riga) o MESE; i mensili mostrano «mensile» sotto il giorno
+  return `<div class="rrow ${g.annual ? 'yr' : ''} ${g.active ? '' : 'off'} ${open ? 'open' : ''}" data-rec="${esc(g.key)}" role="button" tabindex="0" aria-expanded="${open}">
+    <div class="rday">${Number(date.slice(8))}<small>${g.annual ? MONTHS_SHORT[Number(date.slice(5, 7)) - 1] : 'mensile'}</small></div>
+    <div class="rmain"><div class="rname"><span>${esc(g.name)}</span><em class="tg${g.annual ? ' y' : ''}">${g.annual ? 'Anno' : 'Mese'}</em>${g.reminder ? BELL : ''}</div>${sub ? `<div class="rsub">${sub}</div>` : ''}</div>
     <div class="ramt">${g.amount ? money(g.amount) : '–'}</div></div>${open ? recPanel(g) : ''}`;
 }
 
